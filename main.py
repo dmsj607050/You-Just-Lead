@@ -8,11 +8,12 @@ import shutil
 from pathlib import Path
 
 from agents.data_agent import audit_dataset
-from agents.reproduction_agent import intake_repository
+from agents.reproduction_agent import intake_repository, run_isolated_smoke_test
 from agents.research_agent import search_research
-from agents.rules_agent import analyze_rules
+from agents.rules_agent import analyze_rules, approve_rule_specification
 from agents.strategy_agent import recommend_next_actions
 from app.api_server import serve as serve_api
+from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.reporting import generate_reports
 from database.ledger import ExperimentLedger
@@ -67,6 +68,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     rules_parser.add_argument("--workspace", help="Workspace path")
 
+    approve_rules_parser = subparsers.add_parser(
+        "approve-rules", help="Record a human review after all rule questions are resolved"
+    )
+    approve_rules_parser.add_argument("--note", required=True, help="Short human review note")
+    approve_rules_parser.add_argument("--workspace", help="Workspace path")
+
     audit_parser = subparsers.add_parser(
         "audit-data", help="Profile raw competition data without modifying it"
     )
@@ -99,6 +106,17 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Confirms human approval to clone for static inspection only",
     )
+    reproduce_parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Run one explicit command in an approved network-isolated Docker container",
+    )
+    reproduce_parser.add_argument("--image", help="Container image required with --smoke-test")
+    reproduce_parser.add_argument(
+        "--command", dest="smoke_command", help="Explicit command required with --smoke-test"
+    )
+    reproduce_parser.add_argument("--cpu-limit", default="2", help="Docker CPU limit for smoke test")
+    reproduce_parser.add_argument("--memory-limit", default="8g", help="Docker memory limit for smoke test")
     reproduce_parser.add_argument("--workspace", help="Workspace path")
 
     plan_parser = subparsers.add_parser(
@@ -116,6 +134,11 @@ def _parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--workspace", help="Workspace path")
     serve_parser.add_argument("--host", default="127.0.0.1", help="Bind host; loopback is recommended")
     serve_parser.add_argument("--port", default=8765, type=int, help="Bind port")
+
+    workflow_parser = subparsers.add_parser(
+        "workflow", help="Show the central evidence-derived workflow stage and gates"
+    )
+    workflow_parser.add_argument("--workspace", help="Workspace path")
     return parser
 
 
@@ -176,6 +199,14 @@ def main() -> int:
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
         return 0
 
+    if args.command == "approve-rules":
+        outcome = approve_rule_specification(workspace, args.note)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "rules_approved", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
     if args.command == "research":
         sources = [item.strip() for item in args.sources.split(",") if item.strip()]
         outcome = search_research(workspace, args.query, limit=args.limit, sources=sources)
@@ -186,11 +217,23 @@ def main() -> int:
         return 0
 
     if args.command == "reproduce":
-        outcome = intake_repository(
-            workspace,
-            args.repository,
-            approved=args.approved,
-            commit=args.commit,
+        outcome = (
+            run_isolated_smoke_test(
+                workspace,
+                args.repository,
+                approved=args.approved,
+                image=args.image or "",
+                command=args.smoke_command or "",
+                cpu_limit=args.cpu_limit,
+                memory_limit=args.memory_limit,
+            )
+            if args.smoke_test
+            else intake_repository(
+                workspace,
+                args.repository,
+                approved=args.approved,
+                commit=args.commit,
+            )
         )
         ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
             "repository_intake", outcome
@@ -217,6 +260,10 @@ def main() -> int:
 
     if args.command == "serve":
         serve_api(args.host, args.port, workspace)
+        return 0
+
+    if args.command == "workflow":
+        print(json.dumps(workflow_state(workspace), ensure_ascii=False, indent=2))
         return 0
 
     ledger = ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite")

@@ -7,6 +7,7 @@ from typing import Any
 
 from agents.strategy_agent import recommend_next_actions
 from database.ledger import ExperimentLedger
+from app.orchestrator.workflow import workflow_state
 from tools.configuration import load_yaml
 from tools.files import read_json
 
@@ -78,5 +79,6 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
         "experiments": experiments,
         "data_audit": data_audit,
         "next_actions": next_actions.get("actions", []),
+        "workflow": workflow_state(workspace),
         "recent_events": ledger.recent_events(),
     }

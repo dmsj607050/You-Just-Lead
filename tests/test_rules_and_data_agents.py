@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from agents.data_agent import audit_dataset
-from agents.rules_agent import analyze_rules
+from agents.rules_agent import analyze_rules, approve_rule_specification
 from tools.configuration import load_yaml
 from tools.files import read_json
 
@@ -51,6 +51,9 @@ class RulesAndDataAgentTests(unittest.TestCase):
             self.assertEqual(outcome["evidence_count"], 9)
             self.assertTrue((workspace / "docs" / "competition_rules.md").exists())
             self.assertTrue((workspace / "docs" / "submission_checklist.md").exists())
+            approval = approve_rule_specification(workspace, "Reviewed against the official document.")
+            self.assertTrue(approval["approved"])
+            self.assertFalse(load_yaml(workspace / "competition_spec.yaml")["approval"]["requires_human_confirmation"])
 
     def test_data_audit_detects_duplicates_missing_values_and_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

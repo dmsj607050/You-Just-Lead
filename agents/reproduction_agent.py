@@ -7,6 +7,7 @@ report. Runtime reproduction remains a separate human-approved operation.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -86,3 +87,66 @@ def intake_repository(
     report = ["# Reproduction intake report", "", f"- Repository: `{repository}`", f"- Fixed commit: `{resolved_commit}`", f"- License file: {licence_file or 'not found'}", f"- Dockerfile: {static_signals['dockerfile']}", f"- Requirements: {', '.join(static_signals['requirements_files']) or 'not found'}", "", "## Safety gate", "", "Downloaded code has not been executed. A human must approve an isolated smoke test and full reproduction separately."]
     (reproductions / f"{_slug(repository)}.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     return {"status": base["status"], "record_path": str(record_path), "commit": resolved_commit}
+
+
+def run_isolated_smoke_test(
+    workspace: Path,
+    repository: str,
+    *,
+    approved: bool,
+    image: str,
+    command: str,
+    cpu_limit: str = "2",
+    memory_limit: str = "8g",
+) -> dict[str, Any]:
+    """Run one explicit command in a network-isolated read-only Docker container."""
+    if not approved:
+        raise PermissionError("A smoke test requires explicit --approved confirmation.")
+    if not _safe_repository_url(repository):
+        raise ValueError("Repository URL is invalid")
+    if not image.strip() or not command.strip():
+        raise ValueError("Both a Docker image and an explicit smoke-test command are required")
+    record_path = workspace / "reproductions" / f"{_slug(repository)}.json"
+    if not record_path.exists():
+        raise FileNotFoundError("Run approved repository intake before requesting a smoke test.")
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    source = Path(str(record.get("local_path", "")))
+    if record.get("status") != "static_inspection_complete" or not source.is_dir():
+        raise ValueError("Repository must pass static inspection before a smoke test.")
+    arguments = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--read-only",
+        "--pids-limit",
+        "256",
+        "--cpus",
+        cpu_limit,
+        "--memory",
+        memory_limit,
+        "-v",
+        f"{source.resolve()}:/workspace:ro",
+        "-w",
+        "/workspace",
+        image,
+        "sh",
+        "-lc",
+        command,
+    ]
+    completed = subprocess.run(arguments, capture_output=True, text=True, timeout=900)
+    result = {
+        "repository": repository,
+        "commit": record.get("commit"),
+        "status": "smoke_test_completed" if completed.returncode == 0 else "smoke_test_failed",
+        "executed_at": utc_now(),
+        "image": image,
+        "command": command,
+        "return_code": completed.returncode,
+        "stdout_tail": completed.stdout[-4000:],
+        "stderr_tail": completed.stderr[-4000:],
+        "isolation": {"network": "none", "read_only_root": True, "cpu_limit": cpu_limit, "memory_limit": memory_limit},
+    }
+    write_json_atomic(workspace / "reproductions" / f"{_slug(repository)}.smoke_test.json", result)
+    return result

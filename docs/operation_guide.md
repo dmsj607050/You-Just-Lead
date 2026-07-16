@@ -12,7 +12,13 @@ conda run -n AIC python main.py audit-data
 conda run -n AIC python main.py plan
 ```
 
-先人工核验 `competition_spec.yaml` 与 `docs/competition_rules.md`，并显式处理其中的 `unresolved_questions`。在规则状态未确认前，不应启动真实训练或提交。
+先人工核验 `competition_spec.yaml` 与 `docs/competition_rules.md`，并显式处理其中的 `unresolved_questions`。字段完整后，用带有审阅说明的命令记录确认：
+
+```powershell
+conda run -n AIC python main.py approve-rules --note "Reviewed against the official competition page on 2026-07-16."
+```
+
+在规则状态未确认前，不应启动真实训练或提交。
 
 ## 2. 建立基线
 
@@ -45,7 +51,13 @@ conda run -n AIC python main.py research --query "semantic segmentation boundary
 conda run -n AIC python main.py reproduce --repository https://github.com/owner/repository.git
 ```
 
-仅当人工确认来源、许可证与资源预算后，才使用 `--approved` 克隆以供**静态检查**；该步骤仍不会执行下载的代码。运行 smoke test 或完整复现必须使用独立、批准后的隔离环境。
+仅当人工确认来源、许可证与资源预算后，才使用 `--approved` 克隆以供**静态检查**；该步骤仍不会执行下载的代码。静态检查通过后，可以用显式容器镜像和命令发起一次网络隔离、只读挂载的 smoke test：
+
+```powershell
+conda run -n AIC python main.py reproduce --repository https://github.com/owner/repository.git --approved --smoke-test --image python:3.11-slim --command "python --version"
+```
+
+完整复现仍应采用专门批准的数据挂载、镜像与资源预算，而不是直接在宿主机运行第三方代码。
 
 ## 4. 决策与论文
 

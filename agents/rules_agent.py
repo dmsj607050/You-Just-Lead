@@ -193,3 +193,28 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
     }
     write_json_atomic(workspace / "reports" / "rule_extraction.json", outcome)
     return outcome
+
+
+def approve_rule_specification(workspace: Path, note: str) -> dict[str, Any]:
+    """Record a human rule review only when all required fields are present."""
+    spec_path = workspace / "competition_spec.yaml"
+    if not spec_path.exists():
+        raise FileNotFoundError("Run rule analysis or create competition_spec.yaml before approval.")
+    spec = load_yaml(spec_path)
+    unresolved = list(spec.get("approval", {}).get("unresolved_questions", []))
+    if unresolved:
+        raise ValueError("Cannot approve a specification with unresolved questions: " + "; ".join(unresolved))
+    if not note.strip():
+        raise ValueError("A human review note is required for approval.")
+    approval = spec.setdefault("approval", {})
+    approval.update(
+        {
+            "requires_human_confirmation": False,
+            "approved_at": utc_now(),
+            "approved_note": note.strip(),
+        }
+    )
+    write_yaml(spec_path, spec)
+    outcome = {"spec_path": str(spec_path), "approved": True, "approved_at": approval["approved_at"], "note": approval["approved_note"]}
+    write_json_atomic(workspace / "reports" / "rule_approval.json", outcome)
+    return outcome
