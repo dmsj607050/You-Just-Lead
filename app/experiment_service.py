@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from agents.analysis_agent import analyze_history
-from app.approval_service import approval_path
+from app.approval_service import verify_training_config_approval
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
 from tools.configuration import get_mapping, load_yaml, require_experiment_config, write_yaml
@@ -83,13 +83,7 @@ class ExperimentService:
             )
         requested_device = str(get_mapping(config, "training").get("device", "cpu"))
         if requested_device.startswith("cuda"):
-            digest = file_sha256(config_path)
-            required_approval = approval_path(self.workspace, digest)
-            if not required_approval.exists():
-                raise PermissionError(
-                    "GPU training requires a human approval for this exact configuration. "
-                    "Run approve-run after reviewing the budget."
-                )
+            verify_training_config_approval(self.workspace, config_path)
 
     def run(
         self,

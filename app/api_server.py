@@ -85,6 +85,10 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, snapshot["data_audit"])
             elif path == "/api/next-actions":
                 self._send(HTTPStatus.OK, {"actions": snapshot["next_actions"]})
+            elif path == "/api/workflow":
+                self._send(HTTPStatus.OK, snapshot["workflow"])
+            elif path == "/api/capabilities":
+                self._send(HTTPStatus.OK, snapshot["capabilities"])
             else:
                 self._error(HTTPStatus.NOT_FOUND, "Unknown endpoint")
         except Exception as exc:

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.configuration import get_mapping, load_yaml
-from tools.files import write_json_atomic
+from tools.files import read_json, write_json_atomic
 from tools.provenance import file_sha256, utc_now
 
 
@@ -37,3 +37,38 @@ def approve_training_config(workspace: Path, config_path: Path, note: str) -> di
     target = approval_path(workspace, digest)
     write_json_atomic(target, record)
     return {"approval_path": str(target), **record}
+
+
+def verify_training_config_approval(workspace: Path, config_path: Path) -> dict[str, Any]:
+    """Return a verified approval for exactly ``config_path`` or raise a clear error.
+
+    The filename is derived from the config digest for convenient lookup, but it is
+    not itself proof of approval.  Rechecking the record prevents a copied or
+    manually altered approval file from authorizing a different GPU run.
+    """
+    config_path = config_path.resolve()
+    digest = file_sha256(config_path)
+    target = approval_path(workspace, digest)
+    if not target.is_file():
+        raise PermissionError(
+            "GPU training requires a human approval for this exact configuration. "
+            "Run approve-run after reviewing the budget."
+        )
+    try:
+        record = read_json(target)
+    except (OSError, ValueError) as exc:
+        raise PermissionError(f"GPU approval record is unreadable: {target.name}") from exc
+
+    expected = {
+        "type": "training_config_approval",
+        "config_sha256": digest,
+        "config_path": str(config_path),
+    }
+    mismatched = [key for key, value in expected.items() if record.get(key) != value]
+    if mismatched or not str(record.get("approved_at", "")).strip() or not str(record.get("note", "")).strip():
+        details = ", ".join(mismatched) if mismatched else "approved_at or note"
+        raise PermissionError(
+            "GPU approval record does not match the current configuration "
+            f"({details}). Re-run approve-run after reviewing the budget."
+        )
+    return record

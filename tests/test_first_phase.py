@@ -181,6 +181,13 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
             approve_training_config(workspace, config_path, "Approved two GPU hours.")
             service._require_real_training_preflight(config, config_path)
 
+            approval = next((workspace / "experiments" / "approvals").glob("config-*.json"))
+            record = read_json(approval)
+            record["config_sha256"] = "tampered"
+            write_json_atomic(approval, record)
+            with self.assertRaisesRegex(PermissionError, "does not match"):
+                service._require_real_training_preflight(config, config_path)
+
 
 if __name__ == "__main__":
     unittest.main()

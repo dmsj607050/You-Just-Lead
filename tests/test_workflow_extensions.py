@@ -73,6 +73,10 @@ class WorkflowExtensionTests(unittest.TestCase):
             try:
                 with urlopen(base + "/api/dashboard", timeout=5) as response:  # nosec B310: local test server
                     dashboard = json.loads(response.read())
+                with urlopen(base + "/api/workflow", timeout=5) as response:  # nosec B310: local test server
+                    workflow = json.loads(response.read())
+                with urlopen(base + "/api/capabilities", timeout=5) as response:  # nosec B310: local test server
+                    capabilities = json.loads(response.read())
                 request = Request(
                     base + "/api/experiments/drafts",
                     data=json.dumps({"hypothesis": "Use focal loss to improve rare-class recall."}).encode("utf-8"),
@@ -87,6 +91,8 @@ class WorkflowExtensionTests(unittest.TestCase):
                 server.server_close()
 
             self.assertEqual(dashboard["competition"]["name"], "API Cup")
+            self.assertEqual(workflow["stage"], "data_audit")
+            self.assertTrue(any(item["runner"] == "tabular_classification" for item in capabilities["runners"]))
             self.assertEqual(draft["status"], "awaiting_human_approval")
             self.assertTrue((workspace / "experiments" / "drafts" / "DRAFT-0001.json").exists())
 
