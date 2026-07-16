@@ -54,6 +54,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
                 "runtime_seconds": result.get("runtime_seconds"),
                 "decision": result.get("decision"),
                 "diagnosis": result.get("diagnosis", {}),
+                "error_analysis": result.get("error_analysis", {}),
                 "history": _history_for(result),
             }
         )

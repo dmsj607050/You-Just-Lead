@@ -11,6 +11,7 @@ from typing import Any
 
 from agents.analysis_agent import analyze_history
 from agents.data_agent import dataset_inventory_sha256
+from agents.error_analysis_agent import analyze_prediction_errors
 from app.approval_service import verify_training_config_approval
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
@@ -214,6 +215,23 @@ class ExperimentService:
             output = execute_training(runtime_config, artifact_dir)
             history = output["history"]
             write_json_atomic(artifact_dir / "history.json", {"history": history})
+            prediction_records = next(
+                (
+                    Path(path)
+                    for path in output["artifact_paths"]
+                    if Path(path).name == "validation_predictions.jsonl"
+                ),
+                None,
+            )
+            error_analysis = (
+                analyze_prediction_errors(prediction_records, artifact_dir)
+                if prediction_records is not None
+                else {}
+            )
+            if error_analysis:
+                output["artifact_paths"].extend(
+                    [str(artifact_dir / "error_analysis.json"), str(artifact_dir / "error_analysis.md")]
+                )
             diagnosis = analyze_history(
                 history,
                 str(validation_config.get("direction", "maximize")),
@@ -243,6 +261,7 @@ class ExperimentService:
                     str(artifact_dir / "runtime_config.yaml"),
                 ],
             ).to_dict()
+            result["error_analysis"] = error_analysis
             result["tracker_backend"] = self.tracker.log_completed_run(
                 manifest, result, artifact_dir
             )

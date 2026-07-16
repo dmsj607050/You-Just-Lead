@@ -146,6 +146,14 @@ class WorkflowExtensionTests(unittest.TestCase):
                     "status": "completed",
                     "validation_metric": 0.8,
                     "diagnosis": {"recommendations": ["Try one regularization change."]},
+                    "error_analysis": {
+                        "failure_modes": [
+                            {
+                                "kind": "class_recall_asymmetry",
+                                "detail": "Class 'rare' recall is materially lower than the best observed class.",
+                            }
+                        ]
+                    },
                 },
             )
             plan = recommend_next_actions(workspace)
@@ -156,6 +164,7 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertTrue(plan["actions"])
             self.assertTrue(plan["proposals"])
             self.assertEqual(plan["proposals"][0]["rank"], 1)
+            self.assertIn("class_balancing", {item["change_type"] for item in plan["proposals"]})
             self.assertTrue((workspace / "experiments" / "proposals.json").exists())
             self.assertIn("EXP-0001", tex)
             self.assertIn("0.8", tex)

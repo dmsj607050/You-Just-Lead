@@ -46,6 +46,8 @@ class ImageClassificationTrainingTests(unittest.TestCase):
             self.assertIn("val_accuracy", outcome["metrics"])
             self.assertEqual(analyze_history(outcome["history"], "maximize", "accuracy")["metric_name"], "val_accuracy")
             self.assertTrue((root / "artifacts" / "model.pt").exists())
+            predictions = (root / "artifacts" / "validation_predictions.jsonl").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(predictions), 2)
             with (root / "artifacts" / "submission.csv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 2)

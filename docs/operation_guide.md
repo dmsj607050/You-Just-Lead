@@ -44,6 +44,8 @@ conda run -n AIC python main.py plan
 
 `python main.py plan` 还会生成 `experiments/proposals.json`：最多三个待人工审核的候选实验。每个候选项都包含父实验、证据、成本与风险分数、回滚目标和审批要求；优先级仅用于排序，不代表虚构的分数提升，也不会自动启动训练。
 
+图像分类运行会额外保存验证集逐样本预测，并生成 `experiments/artifacts/EXP-xxxx/error_analysis.json` 和 Markdown 摘要。该分析只记录本地样本路径、真实/预测类别与置信度，用于发现类别召回不对称、高置信度误判和主要混淆关系。
+
 若真实训练配置请求 CUDA，必须先审核预算并为**该配置的当前内容**记录审批；改动配置后需要重新审批：
 
 ```powershell

@@ -236,6 +236,28 @@ def run_image_classification(config: dict[str, Any], artifact_dir: Path) -> dict
     )
     artifact_paths = [str(checkpoint_path), str(label_map_path)]
 
+    validation_predictions_path = artifact_dir / "validation_predictions.jsonl"
+    model.eval()
+    with validation_predictions_path.open("w", encoding="utf-8") as handle:
+        with torch.no_grad():
+            for image_path, true_label in validation_samples:
+                probabilities = model(_image_tensor(image_path, size).unsqueeze(0).to(device)).softmax(dim=1).squeeze(0)
+                confidence, predicted_label = probabilities.max(dim=0)
+                handle.write(
+                    json.dumps(
+                        {
+                            "path": str(image_path),
+                            "true_label": class_names[true_label],
+                            "predicted_label": class_names[int(predicted_label.item())],
+                            "confidence": float(confidence.item()),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+    artifact_paths.append(str(validation_predictions_path))
+
     if data.get("test_images_dir"):
         test_items = _test_images(Path(str(data["test_images_dir"])).expanduser().resolve())
         model.eval()

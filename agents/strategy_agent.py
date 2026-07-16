@@ -92,6 +92,9 @@ def rank_experiment_proposals(workspace: Path) -> list[dict[str, Any]]:
     parent = completed[-1]
     parent_id = str(parent["experiment_id"])
     diagnosis = parent.get("diagnosis") if isinstance(parent.get("diagnosis"), dict) else {}
+    error_analysis = (
+        parent.get("error_analysis") if isinstance(parent.get("error_analysis"), dict) else {}
+    )
     proposals: list[dict[str, Any]] = []
 
     if diagnosis.get("overfitting_detected"):
@@ -133,6 +136,36 @@ def rank_experiment_proposals(workspace: Path) -> list[dict[str, Any]]:
                 compatibility=0.9,
                 compute_cost=0.22,
                 implementation_risk=0.12,
+                requires_human_approval=True,
+            )
+        )
+
+    failure_modes = error_analysis.get("failure_modes")
+    if isinstance(failure_modes, list) and failure_modes and len(proposals) < 2:
+        mode = failure_modes[0] if isinstance(failure_modes[0], dict) else {}
+        kind = str(mode.get("kind") or "validation_failure_mode")
+        detail = str(mode.get("detail") or "Persisted validation error analysis identified a failure mode.")
+        if kind == "class_recall_asymmetry":
+            change_type = "class_balancing"
+            hypothesis = "Test one class-balancing or sampling change to improve the weakest class recall."
+        elif kind == "high_confidence_misclassification":
+            change_type = "data_quality"
+            hypothesis = "Review high-confidence validation errors before introducing one targeted augmentation or label-quality change."
+        else:
+            change_type = "error_driven_ablation"
+            hypothesis = "Test one low-cost change that directly addresses the persisted validation failure mode."
+        proposals.append(
+            _proposal(
+                proposal_id=f"PROPOSAL-{len(proposals) + 1:02d}",
+                parent_experiment_id=parent_id,
+                change_type=change_type,
+                hypothesis=hypothesis,
+                evidence=[{"source": parent_id, "detail": detail}],
+                expected_gain_score=0.52,
+                evidence_confidence=0.84,
+                compatibility=0.88,
+                compute_cost=0.25,
+                implementation_risk=0.2,
                 requires_human_approval=True,
             )
         )
