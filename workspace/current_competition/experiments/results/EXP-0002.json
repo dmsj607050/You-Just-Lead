@@ -1,0 +1,37 @@
+{
+  "artifact_paths": [
+    "B:\\You Just Lead\\competition-agent\\workspace\\current_competition\\experiments\\artifacts\\EXP-0002\\model.pt",
+    "B:\\You Just Lead\\competition-agent\\workspace\\current_competition\\experiments\\artifacts\\EXP-0002\\history.json",
+    "B:\\You Just Lead\\competition-agent\\workspace\\current_competition\\experiments\\artifacts\\EXP-0002\\config_snapshot.yaml"
+  ],
+  "best_epoch": 8,
+  "conclusion": "Baseline completed with validation metric 0.9231.",
+  "decision": "keep_as_candidate",
+  "diagnosis": {
+    "best_epoch": 8,
+    "final_train_val_gap": 0.032805,
+    "instability_detected": false,
+    "metric_name": "val_accuracy",
+    "overfitting_detected": false,
+    "recommendations": [
+      "在保持当前基线的前提下，只验证一个低成本改动。"
+    ]
+  },
+  "error": null,
+  "experiment_id": "EXP-0002",
+  "finished_at": "2026-07-16T07:52:50+00:00",
+  "metrics": {
+    "train_accuracy_at_best": 0.9558823529411765,
+    "val_accuracy": 0.9230769276618958,
+    "val_loss_at_best_accuracy": 0.21675339341163635
+  },
+  "next_candidates": [
+    "在保持当前基线的前提下，只验证一个低成本改动。"
+  ],
+  "peak_gpu_memory_gb": null,
+  "runtime_seconds": 1.014,
+  "started_at": "2026-07-16T07:52:49+00:00",
+  "status": "completed",
+  "tracker_backend": "local-jsonl",
+  "validation_metric": 0.9230769276618958
+}

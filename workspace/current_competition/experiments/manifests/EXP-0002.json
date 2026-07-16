@@ -1,0 +1,65 @@
+{
+  "change_type": "baseline",
+  "command": "python main.py run --config configs/baseline_synthetic.yaml",
+  "config": {
+    "data": {
+      "synthetic_features": 8,
+      "synthetic_label_noise": 0.25,
+      "synthetic_samples": 256,
+      "version": "synthetic-v1"
+    },
+    "experiment": {
+      "change_type": "baseline",
+      "estimated_gpu_hours": 0,
+      "expected_improvement": "Establish a valid reference score.",
+      "hypothesis": "Establish a deterministic workflow baseline before task adaptation.",
+      "rollback_plan": "Keep this configuration unchanged as the baseline."
+    },
+    "model": {
+      "hidden_dim": 16
+    },
+    "optimizer": {
+      "learning_rate": 0.01,
+      "name": "adamw"
+    },
+    "training": {
+      "batch_size": 32,
+      "device": "cpu",
+      "epochs": 8,
+      "runner": "synthetic_binary_classification",
+      "seed": 42
+    },
+    "validation": {
+      "direction": "maximize",
+      "metric": "accuracy"
+    }
+  },
+  "config_path": "configs\\baseline_synthetic.yaml",
+  "config_sha256": "3cedf906c865d298f9294e087d869e6dfd40a5adb0459377d39132ecfd1b6f5a",
+  "created_at": "2026-07-16T07:52:49+00:00",
+  "data_version": "synthetic-v1",
+  "environment": {
+    "captured_at": "2026-07-16T07:52:47+00:00",
+    "cuda_available": true,
+    "cuda_version": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.10.10",
+    "torch": "2.5.1+cu121"
+  },
+  "estimated_gpu_hours": 0,
+  "expected_improvement": "Establish a valid reference score.",
+  "experiment_id": "EXP-0002",
+  "git": {
+    "available": true,
+    "branch": "master",
+    "commit": "8b40efc8c46b5d5a5acedbc3afd3202fb2f20b8a",
+    "dirty": false,
+    "repository_root": "B:/You Just Lead/competition-agent"
+  },
+  "hypothesis": "Validate Git-bound reproducible baseline",
+  "parent_id": null,
+  "rollback_plan": "Keep this configuration unchanged as the baseline.",
+  "seed": 42,
+  "status": "planned"
+}

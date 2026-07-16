@@ -1,6 +1,6 @@
 # Training summary
 
-- Completed runs: 1
+- Completed runs: 2
 - Failed runs: 0
 - Selection direction: maximize
-- Best result: EXP-0001 (0.923077)
+- Best result: EXP-0002 (0.923077)

@@ -37,8 +37,14 @@ def generate_reports(workspace: Path, direction: str = "maximize") -> dict[str, 
     ]
     best: dict[str, Any] | None = None
     if completed:
-        key = lambda item: float(item["validation_metric"])
-        best = max(completed, key=key) if direction == "maximize" else min(completed, key=key)
+        multiplier = 1.0 if direction == "maximize" else -1.0
+        best = max(
+            completed,
+            key=lambda item: (
+                multiplier * float(item["validation_metric"]),
+                item.get("finished_at", ""),
+            ),
+        )
 
     log_lines = [
         "# Experiment log",

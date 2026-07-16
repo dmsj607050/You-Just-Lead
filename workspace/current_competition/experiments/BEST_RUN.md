@@ -1,8 +1,8 @@
 # Best run
 
-- Experiment: EXP-0001
+- Experiment: EXP-0002
 - Validation metric: 0.923077
 - Best epoch: 8
-- Hypothesis: Establish a deterministic workflow baseline before task adaptation.
+- Hypothesis: Validate Git-bound reproducible baseline
 - Config: configs\baseline_synthetic.yaml
-- Git commit: unavailable
+- Git commit: 8b40efc8c46b5d5a5acedbc3afd3202fb2f20b8a
