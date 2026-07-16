@@ -31,7 +31,7 @@ conda run -n AIC python main.py approve-rules --note "Reviewed against the offic
 
 可随时运行 `python main.py capabilities` 查看适配器、配置模板与数据契约。规则确认后，中央工作流会根据明确的 `task_type` 推荐匹配的内置适配器；对于目标检测、NLP、时序等未覆盖任务，它会明确提示需要新增任务适配器，而不会错误套用现有模型。
 
-复制 `configs/tabular_classification.template.yaml` 为新配置，确认 `train_csv`、`target_column`、特征列、验证方式及提交列后运行：
+复制 `configs/tabular_classification.template.yaml` 为新配置，确认 `train_csv`、`target_column`、特征列、验证方式及提交列后运行。模板中 `data/raw/...` 这类相对数据路径始终相对于当前比赛工作区解析，不依赖你从哪个终端目录启动命令：
 
 ```powershell
 conda run -n AIC python main.py run --config configs/tabular_baseline.yaml
@@ -39,7 +39,7 @@ conda run -n AIC python main.py report
 conda run -n AIC python main.py plan
 ```
 
-每次运行都会冻结配置、数据版本、Git 状态、环境信息、训练曲线、指标与下一步建议，并同步到 SQLite 与 MLflow 本地记录。
+每次运行都会冻结配置、数据版本、Git 状态、环境信息、训练曲线、指标与下一步建议，并同步到 SQLite 与 MLflow 本地记录。真实训练会重新核对数据审计的内容指纹；只要原始数据目录在审计后发生任何内容或文件布局变化，就必须先重新执行 `audit-data`。
 
 若真实训练配置请求 CUDA，必须先审核预算并为**该配置的当前内容**记录审批；改动配置后需要重新审批：
 

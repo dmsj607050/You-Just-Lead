@@ -27,6 +27,35 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _inventory_sha256(records: list[dict[str, Any]]) -> str:
+    """Hash ordered file identities, names and content digests into one audit ID."""
+    digest = hashlib.sha256()
+    for record in records:
+        digest.update(str(record["path"]).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(record["bytes"]).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(str(record["sha256"]).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def dataset_inventory_sha256(data_dir: Path) -> str:
+    """Return the current content-and-layout fingerprint for a raw data directory."""
+    root = data_dir.resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(f"Data path is not a directory: {root}")
+    records = [
+        {
+            "path": path.relative_to(root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": _sha256(path),
+        }
+        for path in sorted(item for item in root.rglob("*") if item.is_file())
+    ]
+    return _inventory_sha256(records)
+
+
 def _split_name(path: Path) -> str:
     names = {part.lower() for part in path.parts}
     if names & {"train", "training", "labels", "masks"}:
@@ -222,6 +251,8 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
     statistics_payload: dict[str, Any] = {
         "generated_at": utc_now(),
         "data_dir": str(root),
+        "inventory_sha256": _inventory_sha256(records),
+        "audit_schema_version": 1,
         "file_count": len(records),
         "total_bytes": sum(record["bytes"] for record in records),
         "file_kinds": dict(sorted(type_counts.items())),

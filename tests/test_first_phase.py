@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from agents.data_agent import audit_dataset
 from app.experiment_service import ExperimentService
 from app.approval_service import approve_training_config
 from app.reporting import generate_reports
@@ -144,7 +145,7 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
                 config_path,
                 {
                     "experiment": {"hypothesis": "A real run needs safety gates."},
-                    "data": {"version": "real-v1"},
+                    "data": {"version": "real-v1", "train_csv": "data/raw/train.csv"},
                     "training": {"runner": "tabular_classification", "seed": 1},
                     "validation": {"metric": "accuracy", "direction": "maximize"},
                 },
@@ -163,7 +164,7 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
                 config_path,
                 {
                     "experiment": {"hypothesis": "Review GPU scope.", "estimated_gpu_hours": 2},
-                    "data": {"version": "real-v1"},
+                    "data": {"version": "real-v1", "train_csv": "data/raw/train.csv"},
                     "training": {"runner": "tabular_classification", "seed": 1, "device": "cuda"},
                     "validation": {"metric": "accuracy", "direction": "maximize"},
                 },
@@ -172,9 +173,12 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
                 workspace / "competition_spec.yaml",
                 {"approval": {"requires_human_confirmation": False}},
             )
-            write_json_atomic(workspace / "reports" / "data_statistics.json", {"file_count": 1})
+            raw = workspace / "data" / "raw"
+            raw.mkdir(parents=True)
+            (raw / "train.csv").write_text("feature,target\n1,1\n", encoding="utf-8")
+            audit_dataset(workspace)
             service = ExperimentService(project_root, workspace)
-            config = load_yaml(config_path)
+            config = service._resolve_runtime_config(load_yaml(config_path))
 
             with self.assertRaisesRegex(PermissionError, "GPU training requires"):
                 service._require_real_training_preflight(config, config_path)
@@ -187,6 +191,57 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
             write_json_atomic(approval, record)
             with self.assertRaisesRegex(PermissionError, "does not match"):
                 service._require_real_training_preflight(config, config_path)
+
+    def test_raw_data_change_requires_a_fresh_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            raw = workspace / "data" / "raw"
+            raw.mkdir(parents=True)
+            train_csv = raw / "train.csv"
+            train_csv.write_text("feature,target\n1,1\n", encoding="utf-8")
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {"approval": {"requires_human_confirmation": False}},
+            )
+            audit_dataset(workspace)
+            service = ExperimentService(project_root, workspace)
+            config = service._resolve_runtime_config(
+                {
+                    "data": {"train_csv": "data/raw/train.csv"},
+                    "training": {"runner": "tabular_classification", "device": "cpu"},
+                }
+            )
+
+            service._require_real_training_preflight(config, workspace / "configs" / "real.yaml")
+            train_csv.write_text("feature,target\n1,1\n2,0\n", encoding="utf-8")
+            with self.assertRaisesRegex(PermissionError, "Raw data changed"):
+                service._require_real_training_preflight(config, workspace / "configs" / "real.yaml")
+
+    def test_runtime_data_paths_are_relative_to_competition_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            service = ExperimentService(project_root, workspace)
+            logical_config = {
+                "data": {
+                    "train_csv": "data/raw/train.csv",
+                    "test_csv": "data/raw/test.csv",
+                    "train_images_dir": "data/raw/train/images",
+                }
+            }
+
+            runtime_config = service._resolve_runtime_config(logical_config)
+
+            self.assertEqual(
+                runtime_config["data"]["train_csv"],
+                str((workspace / "data" / "raw" / "train.csv").resolve()),
+            )
+            self.assertEqual(
+                runtime_config["data"]["train_images_dir"],
+                str((workspace / "data" / "raw" / "train" / "images").resolve()),
+            )
+            self.assertEqual(logical_config["data"]["train_csv"], "data/raw/train.csv")
 
 
 if __name__ == "__main__":

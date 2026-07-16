@@ -72,6 +72,7 @@ class RulesAndDataAgentTests(unittest.TestCase):
             persisted = read_json(workspace / "reports" / "data_statistics.json")
 
             self.assertEqual(stats["file_count"], 4)
+            self.assertEqual(len(persisted["inventory_sha256"]), 64)
             self.assertEqual(persisted["images"]["count"], 2)
             self.assertEqual(len(persisted["exact_duplicate_groups"]), 1)
             self.assertGreaterEqual(persisted["issue_count"], 2)
