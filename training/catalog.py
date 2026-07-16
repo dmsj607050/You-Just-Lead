@@ -28,6 +28,13 @@ RUNNER_CAPABILITIES: tuple[dict[str, Any], ...] = (
         "data_contract": "Numeric train/test CSV plus numeric target and optional ID columns.",
     },
     {
+        "runner": "image_classification",
+        "kind": "image_classification",
+        "task_types": ["image_classification", "image_classification_multiclass"],
+        "template": "configs/image_classification.template.yaml",
+        "data_contract": "Training images in one subdirectory per class plus an optional flat test-image folder.",
+    },
+    {
         "runner": "image_segmentation",
         "kind": "binary_segmentation",
         "task_types": ["image_segmentation", "semantic_segmentation", "binary_segmentation"],

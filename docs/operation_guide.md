@@ -27,6 +27,7 @@ conda run -n AIC python main.py approve-rules --note "Reviewed against the offic
 - `synthetic_binary_classification`：只用于检查基础设施。
 - `tabular_classification`：真实数值 CSV 的二分类/多分类基线，可选生成测试集预测文件。
 - `tabular_regression`：真实数值 CSV 的回归基线，以最小化 RMSE 为默认验证目标。
+- `image_classification`：按类别子目录组织的图像分类基线，可选生成本地 CSV 预测文件。
 - `image_segmentation`：成对图像/二值掩码的轻量 U-Net 基线，可选生成与原图同尺寸的 PNG 掩码提交目录。
 
 可随时运行 `python main.py capabilities` 查看适配器、配置模板与数据契约。规则确认后，中央工作流会根据明确的 `task_type` 推荐匹配的内置适配器；对于目标检测、NLP、时序等未覆盖任务，它会明确提示需要新增任务适配器，而不会错误套用现有模型。

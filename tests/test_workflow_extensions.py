@@ -26,6 +26,7 @@ from tools.submission import validate_submission
 class WorkflowExtensionTests(unittest.TestCase):
     def test_task_catalog_recommends_only_supported_runner(self) -> None:
         self.assertEqual(recommend_runner("semantic segmentation")["runner"], "image_segmentation")
+        self.assertEqual(recommend_runner("image classification")["runner"], "image_classification")
         self.assertEqual(recommend_runner("regression")["runner"], "tabular_regression")
         self.assertIsNone(recommend_runner("object detection"))
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from training.image_classification import run_image_classification
 from training.synthetic import run_synthetic_binary_classification
 from training.segmentation import run_image_segmentation
 from training.regression import run_tabular_regression
@@ -17,6 +18,8 @@ def execute_training(config: dict[str, Any], artifact_dir: Path) -> dict[str, An
         return run_synthetic_binary_classification(config, artifact_dir)
     if runner == "tabular_classification":
         return run_tabular_classification(config, artifact_dir)
+    if runner == "image_classification":
+        return run_image_classification(config, artifact_dir)
     if runner == "image_segmentation":
         return run_image_segmentation(config, artifact_dir)
     if runner == "tabular_regression":
