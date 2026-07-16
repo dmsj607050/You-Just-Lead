@@ -80,6 +80,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
         "experiments": experiments,
         "data_audit": data_audit,
         "next_actions": next_actions.get("actions", []),
+        "proposals": next_actions.get("proposals", []),
         "workflow": workflow_state(workspace),
         "capabilities": {"runners": supported_runners()},
         "recent_events": ledger.recent_events(),
