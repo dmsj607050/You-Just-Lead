@@ -1,0 +1,19 @@
+# Competition artefacts and credentials
+workspace/current_competition/input/*
+!workspace/current_competition/input/.gitkeep
+workspace/current_competition/data/raw/*
+!workspace/current_competition/data/raw/.gitkeep
+workspace/current_competition/data/interim/*
+!workspace/current_competition/data/interim/.gitkeep
+workspace/current_competition/data/processed/*
+!workspace/current_competition/data/processed/.gitkeep
+workspace/current_competition/models/*
+!workspace/current_competition/models/.gitkeep
+workspace/current_competition/experiments/artifacts/*
+!workspace/current_competition/experiments/artifacts/.gitkeep
+workspace/current_competition/experiments/tracking/*
+!workspace/current_competition/experiments/tracking/.gitkeep
+database/*.db
+.env
+__pycache__/
+.pytest_cache/

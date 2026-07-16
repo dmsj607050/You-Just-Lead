@@ -1,0 +1,19 @@
+[project]
+name = "competition-agent"
+version = "0.1.0"
+description = "Experiment-driven workflow scaffold for machine-learning competitions"
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+training = [
+  "torch>=2.0",
+]
+mlflow = [
+  "mlflow>=2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

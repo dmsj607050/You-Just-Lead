@@ -1,0 +1,5 @@
+# Experiment log
+
+| ID | Status | Validation metric | Best epoch | Runtime (s) | Decision |
+| --- | --- | ---: | ---: | ---: | --- |
+| EXP-0001 | completed | 0.923077 | 8 | 1.050 | keep_as_candidate |

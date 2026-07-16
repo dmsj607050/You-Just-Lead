@@ -1,0 +1,29 @@
+# Copy to competition_spec.yaml after reading official rules.
+competition:
+  name: null
+  platform: null
+  task_type: null
+  deadline: null
+
+evaluation:
+  primary_metric: null
+  direction: maximize
+  public_private_split: null
+
+submission:
+  format: null
+  filename_rule: null
+  daily_limit: null
+
+constraints:
+  external_data_allowed: null
+  pretrained_models_allowed: null
+  ensemble_allowed: null
+  inference_time_limit_seconds: null
+  model_size_limit_mb: null
+
+approval:
+  requires_human_confirmation: true
+  unresolved_questions: []
+
+risks: []
