@@ -27,7 +27,16 @@ def ensure_workspace_layout(workspace: Path) -> None:
         "experiments/results",
         "experiments/artifacts",
         "experiments/tracking",
+        "experiments/drafts",
+        "experiments/approvals",
         "models",
+        "input",
+        "data/raw",
+        "data/interim",
+        "data/processed",
+        "docs",
+        "research",
+        "reproductions",
     ):
         (workspace / relative_path).mkdir(parents=True, exist_ok=True)
 

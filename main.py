@@ -7,9 +7,16 @@ import json
 import shutil
 from pathlib import Path
 
+from agents.data_agent import audit_dataset
+from agents.reproduction_agent import intake_repository
+from agents.research_agent import search_research
+from agents.rules_agent import analyze_rules
+from agents.strategy_agent import recommend_next_actions
+from app.api_server import serve as serve_api
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.reporting import generate_reports
 from database.ledger import ExperimentLedger
+from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
 
 
@@ -49,6 +56,66 @@ def _parser() -> argparse.ArgumentParser:
 
     status_parser = subparsers.add_parser("status", help="Print SQLite experiment summaries")
     status_parser.add_argument("--workspace", help="Workspace path")
+
+    rules_parser = subparsers.add_parser(
+        "rules", help="Extract an auditable draft specification from local official rules"
+    )
+    rules_parser.add_argument(
+        "--source",
+        required=True,
+        help="Rule document path, relative to the workspace unless absolute",
+    )
+    rules_parser.add_argument("--workspace", help="Workspace path")
+
+    audit_parser = subparsers.add_parser(
+        "audit-data", help="Profile raw competition data without modifying it"
+    )
+    audit_parser.add_argument(
+        "--data-dir",
+        default="data/raw",
+        help="Data directory relative to the workspace",
+    )
+    audit_parser.add_argument("--workspace", help="Workspace path")
+
+    research_parser = subparsers.add_parser(
+        "research", help="Search public paper and code providers and persist a research radar"
+    )
+    research_parser.add_argument("--query", required=True, help="Task or method query")
+    research_parser.add_argument("--limit", default=5, type=int, help="Results per provider (1-25)")
+    research_parser.add_argument(
+        "--sources",
+        default="arxiv,openalex,semantic_scholar,github",
+        help="Comma-separated providers: arxiv,openalex,semantic_scholar,github",
+    )
+    research_parser.add_argument("--workspace", help="Workspace path")
+
+    reproduce_parser = subparsers.add_parser(
+        "reproduce", help="Create a safe third-party repository intake record"
+    )
+    reproduce_parser.add_argument("--repository", required=True, help="Explicit HTTPS .git or git@github.com URL")
+    reproduce_parser.add_argument("--commit", help="Optional commit hash to pin")
+    reproduce_parser.add_argument(
+        "--approved",
+        action="store_true",
+        help="Confirms human approval to clone for static inspection only",
+    )
+    reproduce_parser.add_argument("--workspace", help="Workspace path")
+
+    plan_parser = subparsers.add_parser(
+        "plan", help="Generate a rule-aware, evidence-backed next-action queue"
+    )
+    plan_parser.add_argument("--workspace", help="Workspace path")
+
+    paper_parser = subparsers.add_parser(
+        "paper", help="Generate a TeX report and evidence map from persisted records"
+    )
+    paper_parser.add_argument("--workspace", help="Workspace path")
+    paper_parser.add_argument("--output-dir", help="Optional destination for generated TeX artefacts")
+
+    serve_parser = subparsers.add_parser("serve", help="Serve the local dashboard API on loopback")
+    serve_parser.add_argument("--workspace", help="Workspace path")
+    serve_parser.add_argument("--host", default="127.0.0.1", help="Bind host; loopback is recommended")
+    serve_parser.add_argument("--port", default=8765, type=int, help="Bind port")
     return parser
 
 
@@ -89,6 +156,67 @@ def main() -> int:
             else "maximize"
         )
         print(json.dumps(generate_reports(workspace, str(direction)), ensure_ascii=False))
+        return 0
+
+    if args.command == "rules":
+        source_path = _config_path(workspace, args.source)
+        outcome = analyze_rules(source_path, workspace)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "rules_analyzed", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "audit-data":
+        data_dir = _config_path(workspace, args.data_dir)
+        outcome = audit_dataset(workspace, data_dir)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "data_audited", {"data_dir": str(data_dir), "file_count": outcome["file_count"], "issue_count": outcome["issue_count"]}
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "research":
+        sources = [item.strip() for item in args.sources.split(",") if item.strip()]
+        outcome = search_research(workspace, args.query, limit=args.limit, sources=sources)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "research_searched", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "reproduce":
+        outcome = intake_repository(
+            workspace,
+            args.repository,
+            approved=args.approved,
+            commit=args.commit,
+        )
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "repository_intake", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "plan":
+        outcome = recommend_next_actions(workspace)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "decision_plan_generated", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "paper":
+        output_dir = Path(args.output_dir).resolve() if args.output_dir else None
+        outcome = generate_paper_package(workspace, output_dir)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "paper_package_generated", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "serve":
+        serve_api(args.host, args.port, workspace)
         return 0
 
     ledger = ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite")

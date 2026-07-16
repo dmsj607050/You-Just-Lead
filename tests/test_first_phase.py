@@ -69,9 +69,11 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("EXP-0001", log)
-            self.assertTrue(
-                (workspace / "experiments" / "tracking" / "mlflow_fallback.jsonl").exists()
-            )
+            self.assertIn(result["tracker_backend"], {"mlflow", "local-jsonl"})
+            if result["tracker_backend"] == "local-jsonl":
+                self.assertTrue(
+                    (workspace / "experiments" / "tracking" / "mlflow_fallback.jsonl"
+                ).exists())
             self.assertEqual(len(service.ledger.summaries()), 1)
 
     def test_native_mlflow_branch_is_used_when_dependency_is_present(self) -> None:

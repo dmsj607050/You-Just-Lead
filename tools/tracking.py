@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -33,34 +34,45 @@ class ExperimentTracker:
         result: dict[str, Any],
         artifact_dir: Path,
     ) -> str:
+        fallback_payload = {
+            "backend": "local-jsonl",
+            "manifest": manifest,
+            "result": result,
+            "artifact_dir": str(artifact_dir),
+        }
+
+        def use_fallback() -> str:
+            append_jsonl(self.tracking_dir / "mlflow_fallback.jsonl", fallback_payload)
+            return "local-jsonl"
+
         try:
             import mlflow
         except ImportError:
-            append_jsonl(
-                self.tracking_dir / "mlflow_fallback.jsonl",
-                {
-                    "backend": "local-jsonl",
-                    "manifest": manifest,
-                    "result": result,
-                    "artifact_dir": str(artifact_dir),
-                },
-            )
-            return "local-jsonl"
+            return use_fallback()
 
-        mlflow.set_tracking_uri(self.tracking_dir.resolve().as_uri())
-        mlflow.set_experiment(self.experiment_name)
-        with mlflow.start_run(run_name=manifest["experiment_id"]):
-            mlflow.log_params(_scalar_params(manifest.get("config", {})))
-            mlflow.set_tags(
-                {
-                    "experiment_id": manifest["experiment_id"],
-                    "hypothesis": manifest["hypothesis"],
-                    "git_commit": str(manifest["git"].get("commit")),
-                }
-            )
-            for key, value in result.get("metrics", {}).items():
-                if isinstance(value, (int, float)):
-                    mlflow.log_metric(key, float(value))
-            if artifact_dir.exists():
-                mlflow.log_artifacts(str(artifact_dir))
-        return "mlflow"
+        try:
+            # MLflow 3.14+ requires an explicit opt-in to the portable local
+            # filestore. Keeping it under the workspace avoids global state and,
+            # unlike SQLite on Windows, does not retain a process-level database
+            # lock after a short experiment finishes.
+            os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+            mlflow.set_tracking_uri(self.tracking_dir.resolve().as_uri())
+            mlflow.set_experiment(self.experiment_name)
+            with mlflow.start_run(run_name=manifest["experiment_id"]):
+                mlflow.log_params(_scalar_params(manifest.get("config", {})))
+                mlflow.set_tags(
+                    {
+                        "experiment_id": manifest["experiment_id"],
+                        "hypothesis": manifest["hypothesis"],
+                        "git_commit": str(manifest["git"].get("commit")),
+                    }
+                )
+                for key, value in result.get("metrics", {}).items():
+                    if isinstance(value, (int, float)):
+                        mlflow.log_metric(key, float(value))
+                if artifact_dir.exists():
+                    mlflow.log_artifacts(str(artifact_dir))
+            return "mlflow"
+        except Exception:
+            # Tracking must never invalidate a completed, reproducible experiment.
+            return use_fallback()

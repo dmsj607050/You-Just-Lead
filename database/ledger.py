@@ -32,6 +32,16 @@ class ExperimentLedger:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS workflow_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    payload_json TEXT NOT NULL
+                )
+                """
+            )
 
     def save_manifest(self, manifest: dict[str, Any]) -> None:
         with self._connect() as connection:
@@ -85,6 +95,40 @@ class ExperimentLedger:
                 "created_at": row[2],
                 "finished_at": row[3],
                 "validation_metric": row[4],
+            }
+            for row in rows
+        ]
+
+    def record_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        """Append an immutable workflow event for non-experiment actions."""
+        from tools.provenance import utc_now
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO workflow_events (event_type, created_at, payload_json)
+                VALUES (?, ?, ?)
+                """,
+                (event_type, utc_now(), json.dumps(payload, ensure_ascii=False)),
+            )
+
+    def recent_events(self, limit: int = 20) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT event_id, event_type, created_at, payload_json
+                FROM workflow_events
+                ORDER BY event_id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            {
+                "event_id": row[0],
+                "event_type": row[1],
+                "created_at": row[2],
+                "payload": json.loads(row[3]),
             }
             for row in rows
         ]
