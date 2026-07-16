@@ -37,6 +37,12 @@ conda run -n AIC python main.py plan
 
 每次运行都会冻结配置、数据版本、Git 状态、环境信息、训练曲线、指标与下一步建议，并同步到 SQLite 与 MLflow 本地记录。
 
+提交前先进行本地格式校验；该命令不会向比赛平台上传任何文件：
+
+```powershell
+conda run -n AIC python main.py validate-submission --path submissions/candidate.csv
+```
+
 ## 3. 研究与复现
 
 检索是显式触发的网络操作，结果会落盘为 `research/papers.json` 和 `research/research_radar.md`：

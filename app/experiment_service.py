@@ -29,6 +29,7 @@ def ensure_workspace_layout(workspace: Path) -> None:
         "experiments/tracking",
         "experiments/drafts",
         "experiments/approvals",
+        "submissions/validation",
         "models",
         "input",
         "data/raw",

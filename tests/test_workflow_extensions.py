@@ -19,9 +19,30 @@ from agents.strategy_agent import recommend_next_actions
 from paper.generator import generate_paper_package
 from tools.configuration import write_yaml
 from tools.files import read_json, write_json_atomic
+from tools.submission import validate_submission
 
 
 class WorkflowExtensionTests(unittest.TestCase):
+    def test_submission_validation_requires_approved_rules_and_checks_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "workspace"
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {
+                    "submission": {"format": "csv", "required_columns": ["id", "prediction"], "id_column": "id", "expected_rows": 2},
+                    "approval": {"requires_human_confirmation": False},
+                },
+            )
+            candidate = workspace / "submissions" / "candidate.csv"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_text("id,prediction\nA,0\nB,1\n", encoding="utf-8")
+
+            outcome = validate_submission(workspace, candidate)
+
+            self.assertEqual(outcome["status"], "passed")
+            self.assertTrue(outcome["manual_upload_required"])
+            self.assertTrue((workspace / "submissions" / "validation" / "candidate.json").exists())
+
     def test_local_api_reads_dashboard_and_creates_auditable_draft(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

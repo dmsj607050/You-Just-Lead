@@ -19,6 +19,7 @@ from app.reporting import generate_reports
 from database.ledger import ExperimentLedger
 from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
+from tools.submission import validate_submission
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -139,6 +140,12 @@ def _parser() -> argparse.ArgumentParser:
         "workflow", help="Show the central evidence-derived workflow stage and gates"
     )
     workflow_parser.add_argument("--workspace", help="Workspace path")
+
+    submission_parser = subparsers.add_parser(
+        "validate-submission", help="Validate a local candidate without uploading it"
+    )
+    submission_parser.add_argument("--path", required=True, help="Candidate path relative to the workspace unless absolute")
+    submission_parser.add_argument("--workspace", help="Workspace path")
     return parser
 
 
@@ -264,6 +271,15 @@ def main() -> int:
 
     if args.command == "workflow":
         print(json.dumps(workflow_state(workspace), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "validate-submission":
+        candidate = _config_path(workspace, args.path)
+        outcome = validate_submission(workspace, candidate)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "submission_validated", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
         return 0
 
     ledger = ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite")

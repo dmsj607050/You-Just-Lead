@@ -13,6 +13,9 @@ evaluation:
 submission:
   format: null
   filename_rule: null
+  required_columns: []
+  id_column: null
+  expected_rows: null
   daily_limit: null
 
 constraints:
