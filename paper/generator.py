@@ -86,7 +86,9 @@ def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> d
             tex_lines.append("\\cite{" + key + "} " + _tex(record.get("title")) + ".")
             authors = " and ".join(record.get("authors") or ["Unknown"])
             bib_lines.extend([f"@misc{{{key},", f"  title = {{{record.get('title', 'Untitled')}}},", f"  author = {{{authors}}},", f"  year = {{{record.get('year') or 'n.d.'}}},", f"  howpublished = {{\\url{{{record.get('url') or ''}}}}}", "}", ""])
-    tex_lines.extend(["\\bibliographystyle{plain}", "\\bibliography{references}", "\\end{document}"])
+    if research:
+        tex_lines.extend(["\\bibliographystyle{plain}", "\\bibliography{references}"])
+    tex_lines.append("\\end{document}")
 
     tex_path = output / "competition_report.tex"
     bib_path = output / "references.bib"

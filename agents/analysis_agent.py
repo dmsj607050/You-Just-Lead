@@ -6,7 +6,9 @@ import statistics
 from typing import Any
 
 
-def analyze_history(history: list[dict[str, float]], direction: str) -> dict[str, Any]:
+def analyze_history(
+    history: list[dict[str, float]], direction: str, validation_metric: str = "accuracy"
+) -> dict[str, Any]:
     if not history:
         return {
             "overfitting_detected": False,
@@ -14,12 +16,13 @@ def analyze_history(history: list[dict[str, float]], direction: str) -> dict[str
             "recommendations": ["Training produced no history; inspect runner logs."],
         }
 
-    metric_name = "val_accuracy" if direction == "maximize" else "val_loss"
+    metric_name = "val_" + validation_metric if direction == "maximize" else "val_loss"
     values = [point[metric_name] for point in history]
     selector = max if direction == "maximize" else min
     best_index = values.index(selector(values))
     final = history[-1]
-    gap = final.get("train_accuracy", 0.0) - final.get("val_accuracy", 0.0)
+    train_metric_name = metric_name.replace("val_", "train_", 1)
+    gap = final.get(train_metric_name, 0.0) - final.get(metric_name, 0.0)
     post_best = values[best_index + 1 :]
     degraded = bool(post_best) and (
         final[metric_name] < values[best_index] - 0.02

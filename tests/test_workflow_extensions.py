@@ -143,6 +143,7 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertTrue(plan["actions"])
             self.assertIn("EXP-0001", tex)
             self.assertIn("0.8", tex)
+            self.assertNotIn("\\bibliography", tex)
             self.assertEqual(evidence["claims"][0]["experiment_id"], "EXP-0001")
             self.assertEqual(workflow_state(workspace)["stage"], "evidence_led_iteration")
 

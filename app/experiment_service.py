@@ -122,6 +122,7 @@ class ExperimentService:
             diagnosis = analyze_history(
                 history,
                 str(validation_config.get("direction", "maximize")),
+                str(validation_config.get("metric", "accuracy")),
             )
             result = ExperimentResult(
                 experiment_id=resolved_id,

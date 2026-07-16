@@ -79,6 +79,27 @@ class RulesAndDataAgentTests(unittest.TestCase):
             self.assertTrue((workspace / "reports" / "data_quality_issues.csv").exists())
             self.assertTrue((workspace / "reports" / "figures" / "data_overview.svg").exists())
 
+    def test_data_audit_profiles_segmentation_masks(self) -> None:
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            self.skipTest("Pillow is not installed")
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "workspace"
+            masks = workspace / "data" / "raw" / "train" / "masks"
+            masks.mkdir(parents=True)
+            empty = Image.new("L", (10, 10), color=0)
+            foreground = Image.new("L", (10, 10), color=0)
+            ImageDraw.Draw(foreground).rectangle((0, 0, 4, 4), fill=255)
+            empty.save(masks / "empty.png")
+            foreground.save(masks / "foreground.png")
+
+            stats = audit_dataset(workspace)
+
+            self.assertEqual(stats["segmentation_masks"]["count"], 2)
+            self.assertEqual(stats["segmentation_masks"]["empty_count"], 1)
+            self.assertGreater(stats["segmentation_masks"]["foreground_ratio"]["mean"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

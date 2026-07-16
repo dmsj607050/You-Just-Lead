@@ -66,6 +66,28 @@ def _image_metadata(path: Path) -> dict[str, int]:
         raise ValueError(str(exc)) from exc
 
 
+def _is_mask_path(path: Path) -> bool:
+    """Recognise common segmentation-mask directory names."""
+    return any(
+        part.lower() in {"mask", "masks", "label", "labels", "annotation", "annotations"}
+        for part in path.parts
+    )
+
+
+def _foreground_ratio(path: Path) -> float:
+    try:
+        from PIL import Image  # type: ignore[import-not-found]
+
+        with Image.open(path) as image:
+            histogram = image.convert("L").histogram()
+        pixels = sum(histogram)
+        return 0.0 if pixels == 0 else round((pixels - histogram[0]) / pixels, 8)
+    except ImportError as exc:
+        raise ValueError("Mask statistics require Pillow.") from exc
+    except Exception as exc:
+        raise ValueError(str(exc)) from exc
+
+
 def _csv_metadata(path: Path) -> dict[str, Any]:
     delimiter = "\t" if path.suffix.lower() == ".tsv" else ","
     with path.open("r", encoding="utf-8-sig", newline="", errors="replace") as handle:
@@ -129,6 +151,7 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
     split_counts: Counter[str] = Counter()
     image_sizes: list[tuple[int, int]] = []
     image_channels: Counter[int] = Counter()
+    mask_ratios: list[float] = []
     csv_files: list[dict[str, Any]] = []
 
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
@@ -154,6 +177,18 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
                 record["image"] = metadata
                 image_sizes.append((metadata["width"], metadata["height"]))
                 image_channels[metadata["channels"]] += 1
+                if _is_mask_path(path.relative_to(root)):
+                    foreground_ratio = _foreground_ratio(path)
+                    record["mask"] = {"foreground_ratio": foreground_ratio}
+                    mask_ratios.append(foreground_ratio)
+                    if foreground_ratio == 0:
+                        issues.append(
+                            {
+                                "severity": "warning",
+                                "path": relative,
+                                "issue": "Empty segmentation mask",
+                            }
+                        )
             except ValueError as exc:
                 record["image_error"] = str(exc)
                 issues.append({"severity": "error", "path": relative, "issue": f"Unreadable image: {exc}"})
@@ -172,6 +207,15 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
     duplicate_groups = [paths for paths in hashes.values() if len(paths) > 1]
     for group in duplicate_groups:
         issues.append({"severity": "warning", "path": "; ".join(group), "issue": "Exact duplicate content"})
+        group_splits = {_split_name(Path(item)) for item in group}
+        if len(group_splits - {"unassigned"}) > 1:
+            issues.append(
+                {
+                    "severity": "error",
+                    "path": "; ".join(group),
+                    "issue": "Potential leakage: identical content appears in multiple dataset splits",
+                }
+            )
 
     widths = [size[0] for size in image_sizes]
     heights = [size[1] for size in image_sizes]
@@ -189,6 +233,17 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
             "width": {"min": min(widths), "max": max(widths), "mean": round(statistics.fmean(widths), 3)} if widths else None,
             "height": {"min": min(heights), "max": max(heights), "mean": round(statistics.fmean(heights), 3)} if heights else None,
             "channels": dict(sorted(image_channels.items())),
+        },
+        "segmentation_masks": {
+            "count": len(mask_ratios),
+            "empty_count": sum(ratio == 0 for ratio in mask_ratios),
+            "foreground_ratio": {
+                "min": min(mask_ratios),
+                "max": max(mask_ratios),
+                "mean": round(statistics.fmean(mask_ratios), 8),
+            }
+            if mask_ratios
+            else None,
         },
         "tables": csv_files,
         "metadata_format": "jsonl",
