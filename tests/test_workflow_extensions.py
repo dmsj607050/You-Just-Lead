@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 from app.api_server import CompetitionApiHandler
 from app.orchestrator.workflow import workflow_state
+from training.catalog import recommend_runner
 from agents.reproduction_agent import intake_repository
 from agents.research_agent import search_research
 from agents.strategy_agent import recommend_next_actions
@@ -23,6 +24,11 @@ from tools.submission import validate_submission
 
 
 class WorkflowExtensionTests(unittest.TestCase):
+    def test_task_catalog_recommends_only_supported_runner(self) -> None:
+        self.assertEqual(recommend_runner("semantic segmentation")["runner"], "image_segmentation")
+        self.assertEqual(recommend_runner("regression")["runner"], "tabular_regression")
+        self.assertIsNone(recommend_runner("object detection"))
+
     def test_submission_validation_requires_approved_rules_and_checks_csv(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary) / "workspace"

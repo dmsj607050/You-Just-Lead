@@ -21,6 +21,7 @@ from database.ledger import ExperimentLedger
 from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
 from tools.submission import validate_submission
+from training.catalog import supported_runners
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -158,6 +159,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     submission_parser.add_argument("--path", required=True, help="Candidate path relative to the workspace unless absolute")
     submission_parser.add_argument("--workspace", help="Workspace path")
+
+    capability_parser = subparsers.add_parser(
+        "capabilities", help="List built-in task adapters and their data contracts"
+    )
+    capability_parser.add_argument("--workspace", help="Workspace path")
     return parser
 
 
@@ -301,6 +307,10 @@ def main() -> int:
             "submission_validated", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "capabilities":
+        print(json.dumps({"runners": supported_runners()}, ensure_ascii=False, indent=2))
         return 0
 
     ledger = ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite")

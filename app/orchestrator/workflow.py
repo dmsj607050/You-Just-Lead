@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from agents.strategy_agent import recommend_next_actions
+from training.catalog import recommend_runner, supported_runners
 from tools.configuration import load_yaml
 from tools.files import read_json
 
@@ -30,6 +31,7 @@ def workflow_state(workspace: Path) -> dict[str, Any]:
         blockers.append("No competition_spec.yaml exists.")
     else:
         spec = load_yaml(spec_path)
+        suggested_runner = recommend_runner(spec.get("competition", {}).get("task_type"))
         if spec.get("approval", {}).get("requires_human_confirmation", True):
             stage = "rules_review"
             components["rules"] = "awaiting_human_confirmation"
@@ -46,6 +48,9 @@ def workflow_state(workspace: Path) -> dict[str, Any]:
             stage = "evidence_led_iteration"
             components["rules"] = "approved"
 
+        if suggested_runner is None and spec.get("competition", {}).get("task_type"):
+            blockers.append("No built-in adapter matches the confirmed task type; add or select a task-specific adapter.")
+
     completed_results = [read_json(path) for path in result_paths if read_json(path).get("status") == "completed"]
     return {
         "stage": stage,
@@ -53,5 +58,7 @@ def workflow_state(workspace: Path) -> dict[str, Any]:
         "components": components,
         "blockers": blockers,
         "completed_experiments": len(completed_results),
+        "recommended_runner": suggested_runner if spec_path.exists() else None,
+        "available_runners": supported_runners(),
         "recommended_actions": recommend_next_actions(workspace, persist=False).get("actions", []),
     }
