@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from agents.analysis_agent import analyze_history
+from app.approval_service import approval_path
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
 from tools.configuration import get_mapping, load_yaml, require_experiment_config, write_yaml
@@ -61,6 +62,35 @@ class ExperimentService:
         self.ledger = ExperimentLedger(self.project_root / "database" / "competition_agent.sqlite")
         self.tracker = ExperimentTracker(self.workspace / "experiments" / "tracking")
 
+    def _require_real_training_preflight(self, config: dict[str, Any], config_path: Path) -> None:
+        """Block real-data runs until rule and data evidence are available."""
+        runner = str(get_mapping(config, "training").get("runner", ""))
+        if runner == "synthetic_binary_classification":
+            return
+        spec_path = self.workspace / "competition_spec.yaml"
+        if not spec_path.exists():
+            raise PermissionError(
+                "Real training requires competition_spec.yaml. Analyze official rules first."
+            )
+        spec = load_yaml(spec_path)
+        if spec.get("approval", {}).get("requires_human_confirmation", True):
+            raise PermissionError(
+                "Real training is blocked until official rules receive human confirmation."
+            )
+        if not (self.workspace / "reports" / "data_statistics.json").exists():
+            raise PermissionError(
+                "Real training is blocked until the deterministic data audit is complete."
+            )
+        requested_device = str(get_mapping(config, "training").get("device", "cpu"))
+        if requested_device.startswith("cuda"):
+            digest = file_sha256(config_path)
+            required_approval = approval_path(self.workspace, digest)
+            if not required_approval.exists():
+                raise PermissionError(
+                    "GPU training requires a human approval for this exact configuration. "
+                    "Run approve-run after reviewing the budget."
+                )
+
     def run(
         self,
         config_path: Path,
@@ -73,6 +103,7 @@ class ExperimentService:
         config_path = config_path.resolve()
         config = load_yaml(config_path)
         require_experiment_config(config)
+        self._require_real_training_preflight(config, config_path)
         experiment_config = get_mapping(config, "experiment")
         training_config = get_mapping(config, "training")
         data_config = get_mapping(config, "data")

@@ -26,6 +26,7 @@ conda run -n AIC python main.py approve-rules --note "Reviewed against the offic
 
 - `synthetic_binary_classification`：只用于检查基础设施。
 - `tabular_classification`：真实数值 CSV 的二分类/多分类基线，可选生成测试集预测文件。
+- `tabular_regression`：真实数值 CSV 的回归基线，以最小化 RMSE 为默认验证目标。
 - `image_segmentation`：成对图像/二值掩码的轻量 U-Net 基线，可选生成与原图同尺寸的 PNG 掩码提交目录。
 
 复制 `configs/tabular_classification.template.yaml` 为新配置，确认 `train_csv`、`target_column`、特征列、验证方式及提交列后运行：
@@ -37,6 +38,12 @@ conda run -n AIC python main.py plan
 ```
 
 每次运行都会冻结配置、数据版本、Git 状态、环境信息、训练曲线、指标与下一步建议，并同步到 SQLite 与 MLflow 本地记录。
+
+若真实训练配置请求 CUDA，必须先审核预算并为**该配置的当前内容**记录审批；改动配置后需要重新审批：
+
+```powershell
+conda run -n AIC python main.py approve-run --config configs/image_segmentation.yaml --note "Approved: 4 GPU hours on the local RTX workstation."
+```
 
 分割比赛可从 `configs/image_segmentation.template.yaml` 开始；图像与掩码需按文件名 stem 一一匹配。数据审计会额外报告前景比例、空掩码和跨 train/test 的精确重复风险。
 

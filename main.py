@@ -13,6 +13,7 @@ from agents.research_agent import search_research
 from agents.rules_agent import analyze_rules, approve_rule_specification
 from agents.strategy_agent import recommend_next_actions
 from app.api_server import serve as serve_api
+from app.approval_service import approve_training_config
 from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.reporting import generate_reports
@@ -52,6 +53,17 @@ def _parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--experiment-id", help="Explicit EXP-xxxx identifier")
     run_parser.add_argument("--hypothesis", help="Override the config hypothesis")
     run_parser.add_argument("--parent-id", help="Parent experiment identifier")
+
+    approve_run_parser = subparsers.add_parser(
+        "approve-run", help="Record human approval for one exact GPU training configuration"
+    )
+    approve_run_parser.add_argument(
+        "--config",
+        required=True,
+        help="Configuration path relative to the workspace",
+    )
+    approve_run_parser.add_argument("--note", required=True, help="Human budget and scope review note")
+    approve_run_parser.add_argument("--workspace", help="Workspace path")
 
     report_parser = subparsers.add_parser("report", help="Regenerate Markdown summaries")
     report_parser.add_argument("--workspace", help="Workspace path")
@@ -177,6 +189,15 @@ def main() -> int:
         generate_reports(workspace, str(direction))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "completed" else 1
+
+    if args.command == "approve-run":
+        config_path = _config_path(workspace, args.config)
+        outcome = approve_training_config(workspace, config_path, args.note)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "training_config_approved", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
 
     if args.command == "report":
         config_path = workspace / "configs" / "baseline_synthetic.yaml"

@@ -10,9 +10,11 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.experiment_service import ExperimentService
+from app.approval_service import approve_training_config
 from app.reporting import generate_reports
-from tools.configuration import write_yaml
+from tools.configuration import load_yaml, write_yaml
 from tools.files import read_json
+from tools.files import write_json_atomic
 from tools.tracking import ExperimentTracker
 
 
@@ -132,6 +134,52 @@ class FirstPhaseWorkflowTests(unittest.TestCase):
         self.assertEqual(calls["run_name"], "EXP-0001")
         self.assertEqual(calls["experiment"], "current_competition")
         self.assertIn(("val_accuracy", 0.8), calls["metrics"])
+
+    def test_real_runner_requires_rules_and_data_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            config_path = workspace / "configs" / "blocked.yaml"
+            write_yaml(
+                config_path,
+                {
+                    "experiment": {"hypothesis": "A real run needs safety gates."},
+                    "data": {"version": "real-v1"},
+                    "training": {"runner": "tabular_classification", "seed": 1},
+                    "validation": {"metric": "accuracy", "direction": "maximize"},
+                },
+            )
+            service = ExperimentService(project_root, workspace)
+
+            with self.assertRaisesRegex(PermissionError, "competition_spec.yaml"):
+                service.run(config_path, experiment_id="EXP-0001")
+
+    def test_gpu_config_requires_matching_human_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            config_path = workspace / "configs" / "gpu.yaml"
+            write_yaml(
+                config_path,
+                {
+                    "experiment": {"hypothesis": "Review GPU scope.", "estimated_gpu_hours": 2},
+                    "data": {"version": "real-v1"},
+                    "training": {"runner": "tabular_classification", "seed": 1, "device": "cuda"},
+                    "validation": {"metric": "accuracy", "direction": "maximize"},
+                },
+            )
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {"approval": {"requires_human_confirmation": False}},
+            )
+            write_json_atomic(workspace / "reports" / "data_statistics.json", {"file_count": 1})
+            service = ExperimentService(project_root, workspace)
+            config = load_yaml(config_path)
+
+            with self.assertRaisesRegex(PermissionError, "GPU training requires"):
+                service._require_real_training_preflight(config, config_path)
+            approve_training_config(workspace, config_path, "Approved two GPU hours.")
+            service._require_real_training_preflight(config, config_path)
 
 
 if __name__ == "__main__":
