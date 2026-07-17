@@ -35,6 +35,13 @@
 - 现实限制：官方仓库写明训练步骤仍为“Coming soon”；不能把它标为可立即完整复现的模型。
 - 状态：**研究参考**，只允许在发布了可复现实训入口、并获预训练规则确认后进入 probe。
 
+### P4 - DBF-Net：水体任务的局部/全局特征融合参考
+
+- 论文：Duan et al., *Journal of Geo-information Science*, 2026，面向遥感水体提取，讨论小而细长水体、边界和复杂光照下的误分割问题。
+- 对本赛题的推断：它支持“原图浅层细节与全局上下文都重要”的问题设定；其双主干动态融合并不自动适合当前 600MB 单模型约束。
+- 状态：**结构参考，不直接复现**；先完成 v16 的采样/OHEM 复现与单变量消融。
+- 论文：<https://www.dqxxkx.cn/CN/10.12082/dqxxkx.2026.250574>
+
 ## 自动检索健康度
 
 - 查询：`remote sensing semantic segmentation domain generalization`。
