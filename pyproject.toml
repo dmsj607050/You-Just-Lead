@@ -14,6 +14,10 @@ training = [
 mlflow = [
   "mlflow>=2.0",
 ]
+desktop = [
+  "keyring>=25.0",
+  "pyinstaller>=6.11",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

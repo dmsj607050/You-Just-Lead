@@ -15,6 +15,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.dashboard_service import dashboard_snapshot
+from app.deepseek_service import DeepSeekError, chat_completion, verify_connection
+from app.runtime_service import local_runtime_snapshot
+from app.settings_service import SettingsError, configure_deepseek, deepseek_settings_status
 from database.ledger import ExperimentLedger
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
@@ -22,6 +25,12 @@ from tools.provenance import utc_now
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORKSPACE = PROJECT_ROOT / "workspace" / "current_competition"
+DESKTOP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "http://127.0.0.1:1420", "http://localhost:1420"}
+SENSITIVE_LOCAL_ENDPOINTS = {
+    "/api/settings/deepseek",
+    "/api/settings/deepseek/test",
+    "/api/agent/deepseek",
+}
 
 
 def _draft_id(workspace: Path) -> str:
@@ -58,7 +67,16 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             raise ValueError("JSON body must be an object")
         return value
 
+    def _trusted_local_origin(self) -> bool:
+        """Block browser cross-site requests that could spend a local API key."""
+        origin = self.headers.get("Origin")
+        return origin is None or origin in DESKTOP_ORIGINS
+
     def do_OPTIONS(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path.rstrip("/")
+        if path in SENSITIVE_LOCAL_ENDPOINTS and not self._trusted_local_origin():
+            self._error(HTTPStatus.FORBIDDEN, "This endpoint is available only to the desktop app")
+            return
         self.send_response(HTTPStatus.NO_CONTENT)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
@@ -91,6 +109,10 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, snapshot["workflow"])
             elif path == "/api/capabilities":
                 self._send(HTTPStatus.OK, snapshot["capabilities"])
+            elif path == "/api/runtime/local":
+                self._send(HTTPStatus.OK, local_runtime_snapshot())
+            elif path == "/api/settings/deepseek":
+                self._send(HTTPStatus.OK, deepseek_settings_status())
             else:
                 self._error(HTTPStatus.NOT_FOUND, "Unknown endpoint")
         except Exception as exc:
@@ -99,6 +121,9 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
         try:
+            if path in SENSITIVE_LOCAL_ENDPOINTS and not self._trusted_local_origin():
+                self._error(HTTPStatus.FORBIDDEN, "This endpoint is available only to the desktop app")
+                return
             body = self._body()
             ledger = ExperimentLedger(self.project_root / "database" / "competition_agent.sqlite")
             if path == "/api/experiments/drafts":
@@ -126,10 +151,31 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 write_json_atomic(self.workspace / "experiments" / "approvals" / f"{experiment_id}.json", approval)
                 ledger.record_event("experiment_approval_recorded", approval)
                 self._send(HTTPStatus.CREATED, approval)
+            elif path == "/api/settings/deepseek":
+                status = configure_deepseek(str(body.get("api_key", "")), str(body.get("model", "")))
+                ledger.record_event("deepseek_configured", {"model": status["model"], "key_source": status["key_source"]})
+                self._send(HTTPStatus.OK, status)
+            elif path == "/api/settings/deepseek/test":
+                outcome = verify_connection()
+                self._send(HTTPStatus.OK if outcome["ok"] else HTTPStatus.BAD_GATEWAY, outcome)
+            elif path == "/api/agent/deepseek":
+                prompt = str(body.get("prompt", "")).strip()
+                stage = str(body.get("stage", "当前项目阶段")).strip()[:120]
+                if not 1 <= len(prompt) <= 8_000:
+                    raise ValueError("prompt must contain 1 to 8000 characters")
+                response = chat_completion(
+                    "你是竞赛模型训练 Agent。只能基于用户明确提供的内容提出分析、计划和风险提示。"
+                    "不得声称已经执行训练、下载代码、读取未提供文件或提交结果；高成本训练必须提醒用户审批。",
+                    f"当前阶段：{stage}\n\n用户请求：{prompt}",
+                )
+                ledger.record_event("deepseek_agent_response", {"stage": stage, "model": response["model"]})
+                self._send(HTTPStatus.OK, response)
             else:
                 self._error(HTTPStatus.NOT_FOUND, "Unknown endpoint")
-        except (ValueError, json.JSONDecodeError) as exc:
+        except (ValueError, SettingsError, json.JSONDecodeError) as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
+        except DeepSeekError as exc:
+            self._error(HTTPStatus.BAD_GATEWAY, str(exc))
         except Exception as exc:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(exc).__name__}: {exc}")
 
@@ -137,8 +183,17 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
         return
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765, workspace: Path = DEFAULT_WORKSPACE) -> None:
-    handler = type("WorkspaceApiHandler", (CompetitionApiHandler,), {"project_root": PROJECT_ROOT, "workspace": workspace.resolve()})
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    workspace: Path = DEFAULT_WORKSPACE,
+    project_root: Path = PROJECT_ROOT,
+) -> None:
+    handler = type(
+        "WorkspaceApiHandler",
+        (CompetitionApiHandler,),
+        {"project_root": project_root.resolve(), "workspace": workspace.resolve()},
+    )
     with ThreadingHTTPServer((host, port), handler) as server:
         print(f"Competition Agent API listening on http://{host}:{port}")
         server.serve_forever()

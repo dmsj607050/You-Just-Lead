@@ -18,6 +18,10 @@ database/*.sqlite
 .env
 __pycache__/
 .pytest_cache/
+.desktop-build-venv/
+/build/
+/dist/
+/*.spec
 
 # LaTeX build intermediates. Keep the generated source, PDF and evidence map.
 paper/generated_xunfei/*.aux
