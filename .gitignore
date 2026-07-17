@@ -19,5 +19,17 @@ database/*.sqlite
 __pycache__/
 .pytest_cache/
 
+# LaTeX build intermediates. Keep the generated source, PDF and evidence map.
+paper/generated_xunfei/*.aux
+paper/generated_xunfei/*.bbl
+paper/generated_xunfei/*.blg
+paper/generated_xunfei/*.fdb_latexmk
+paper/generated_xunfei/*.fls
+paper/generated_xunfei/*.log
+paper/generated_xunfei/*.out
+paper/generated_xunfei/*.synctex.gz
+paper/generated_xunfei/*.xdv
+paper/generated_xunfei/preview*.png
+
 # The deployable dashboard is maintained as its own repository in frontend/.
 /frontend/

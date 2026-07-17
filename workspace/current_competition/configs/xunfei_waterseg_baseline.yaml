@@ -1,0 +1,38 @@
+experiment:
+  hypothesis: "A compact full-resolution U-Net establishes an auditable global-IoU baseline for the Xunfei water-segmentation task."
+  change_type: baseline
+  expected_improvement: "Establish a reproducible local global-IoU reference before comparing the external v16 recipe."
+  estimated_gpu_hours: 8
+  rollback_plan: "Retain only the frozen baseline manifest and do not submit it when it underperforms the current v15 historical record."
+
+data:
+  version: "xunfei-train-a6634657711d43d15494a4f7a11d402c12c0f6f5080cb22f066e4730f3cc3e86"
+  train_images_dir: 'B:\2026xunfei\train\image'
+  train_masks_dir: 'B:\2026xunfei\train\mask'
+  mask_filename_suffix: "_mask"
+  submission_filename_suffix: "_mask"
+  image_size: [1024, 1024]
+  validation_fraction: 0.2
+  mask_foreground_threshold: 127
+  prediction_threshold: 0.5
+
+model:
+  base_channels: 16
+  dice_loss_weight: 1.0
+
+training:
+  runner: image_segmentation
+  seed: 45
+  epochs: 25
+  batch_size: 2
+  num_workers: 0
+  device: cuda
+
+optimizer:
+  name: adamw
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+
+validation:
+  metric: global_iou
+  direction: maximize

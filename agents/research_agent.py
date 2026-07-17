@@ -15,6 +15,7 @@ from tools.provenance import utc_now
 
 
 USER_AGENT = "competition-agent/0.2 (local research workflow)"
+QUERY_STOP_WORDS = {"a", "an", "and", "for", "from", "in", "of", "on", "the", "to", "via", "with"}
 
 
 def _request_json(url: str) -> dict[str, Any]:
@@ -28,6 +29,35 @@ def _request_json(url: str) -> dict[str, Any]:
 
 def _clean(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
+
+
+def _query_terms(query: str) -> list[str]:
+    """Keep meaningful, repeatable English terms for provider-side filtering."""
+    return [
+        term
+        for term in re.findall(r"[a-z0-9]+", query.lower())
+        if len(term) >= 3 and term not in QUERY_STOP_WORDS
+    ]
+
+
+def _arxiv_expression(query: str) -> str:
+    """Use documented explicit field clauses instead of an ambiguous free-text string."""
+    terms = _query_terms(query)
+    if not terms:
+        raise ValueError("Research query needs at least one meaningful term")
+    return " AND ".join(f"all:{term}" for term in terms)
+
+
+def _is_relevant(record: dict[str, Any], query: str) -> bool:
+    """Reject provider fallbacks that ignored a query and returned arbitrary newest work."""
+    terms = _query_terms(query)
+    if not terms:
+        return True
+    text = " ".join(
+        str(record.get(key) or "") for key in ("title", "abstract", "venue")
+    ).lower()
+    matched = sum(term in text for term in terms)
+    return matched >= min(2, len(terms))
 
 
 def _base_record(source: str, identifier: str, title: str) -> dict[str, Any]:
@@ -51,7 +81,7 @@ def _base_record(source: str, identifier: str, title: str) -> dict[str, Any]:
 
 def search_arxiv(query: str, limit: int) -> list[dict[str, Any]]:
     params = urllib.parse.urlencode(
-        {"search_query": f"all:{query}", "start": 0, "max_results": limit, "sortBy": "submittedDate", "sortOrder": "descending"}
+        {"search_query": _arxiv_expression(query), "start": 0, "max_results": limit, "sortBy": "submittedDate", "sortOrder": "descending"}
     )
     request = urllib.request.Request(
         f"https://export.arxiv.org/api/query?{params}", headers={"User-Agent": USER_AGENT}
@@ -71,7 +101,8 @@ def search_arxiv(query: str, limit: int) -> list[dict[str, Any]]:
             _clean(author.findtext(f"{atom}name") or "")
             for author in entry.findall(f"{atom}author")
         ]
-        records.append(record)
+        if _is_relevant(record, query):
+            records.append(record)
     return records
 
 
@@ -176,7 +207,7 @@ def search_research(
             records.extend(SOURCES[name](query, limit))
         except Exception as exc:  # provider outages must not discard successful sources
             failures[name] = f"{type(exc).__name__}: {exc}"
-    records = _deduplicate(records)
+    records = _deduplicate([record for record in records if _is_relevant(record, query)])
     for index, record in enumerate(records, 1):
         record["relevance_score"] = round(max(0.1, 1 - (index - 1) * 0.04), 3)
         record["reproduction_priority"] = round(record["relevance_score"] * (0.9 if record.get("code_url") else 0.55), 3)

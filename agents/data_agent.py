@@ -58,12 +58,14 @@ def dataset_inventory_sha256(data_dir: Path) -> str:
 
 def _split_name(path: Path) -> str:
     names = {part.lower() for part in path.parts}
-    if names & {"train", "training", "labels", "masks"}:
-        return "train"
-    if names & {"valid", "validation", "val"}:
-        return "validation"
+    # Explicit split names take precedence over a nested ``masks`` or ``labels``
+    # directory.  Test labels are uncommon but must never be reported as train.
     if names & {"test", "testing"}:
         return "test"
+    if names & {"valid", "validation", "val"}:
+        return "validation"
+    if names & {"train", "training", "labels", "masks"}:
+        return "train"
     return "unassigned"
 
 
@@ -182,15 +184,25 @@ def audit_dataset(workspace: Path, data_dir: Path | None = None) -> dict[str, An
     image_channels: Counter[int] = Counter()
     mask_ratios: list[float] = []
     csv_files: list[dict[str, Any]] = []
+    root_children = {child.name.lower() for child in root.iterdir() if child.is_dir()}
+    paired_image_mask_layout = bool(
+        root_children & {"image", "images"} and root_children & {"mask", "masks"}
+    )
 
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
         relative = path.relative_to(root).as_posix()
         suffix = path.suffix.lower()
+        top_level = path.relative_to(root).parts[0].lower()
+        split = (
+            "train"
+            if paired_image_mask_layout and top_level in {"image", "images", "mask", "masks"}
+            else _split_name(path.relative_to(root))
+        )
         record: dict[str, Any] = {
             "path": relative,
             "suffix": suffix or "[none]",
             "bytes": path.stat().st_size,
-            "split": _split_name(path.relative_to(root)),
+            "split": split,
             "sha256": _sha256(path),
         }
         record["kind"] = "image" if suffix in IMAGE_SUFFIXES else "table" if suffix in CSV_SUFFIXES else "file"

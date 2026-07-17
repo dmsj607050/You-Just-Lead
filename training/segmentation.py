@@ -38,14 +38,23 @@ def _parse_size(value: Any) -> tuple[int, int]:
     return height, width
 
 
-def _index_images(directory: Path) -> dict[str, Path]:
+def _index_images(directory: Path, *, stem_suffix: str = "") -> dict[str, Path]:
     if not directory.is_dir():
         raise FileNotFoundError(f"Image directory does not exist: {directory}")
-    indexed = {
-        path.stem: path
-        for path in sorted(directory.iterdir())
-        if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
-    }
+    indexed: dict[str, Path] = {}
+    for path in sorted(directory.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in IMAGE_SUFFIXES:
+            continue
+        stem = path.stem
+        if stem_suffix:
+            if not stem.endswith(stem_suffix):
+                continue
+            stem = stem[: -len(stem_suffix)]
+        if not stem:
+            raise ValueError(f"Image stem is empty after removing suffix for {path}")
+        if stem in indexed:
+            raise ValueError(f"Duplicate normalized image stem '{stem}' in {directory}")
+        indexed[stem] = path
     if not indexed:
         raise ValueError(f"No supported image files found in {directory}")
     return indexed
@@ -83,6 +92,15 @@ def _mean_iou(logits: Any, masks: Any, threshold: float) -> float:
     intersection = (predictions & targets).sum(dim=(1, 2, 3)).float()
     union = (predictions | targets).sum(dim=(1, 2, 3)).float()
     return float(((intersection + 1e-6) / (union + 1e-6)).mean().item())
+
+
+def _intersection_and_union(logits: Any, masks: Any, threshold: float) -> tuple[int, int]:
+    """Accumulate pixel totals for competitions scored with global IoU."""
+    predictions = logits.sigmoid().ge(threshold)
+    targets = masks.bool()
+    intersection = int((predictions & targets).sum().item())
+    union = int((predictions | targets).sum().item())
+    return intersection, union
 
 
 def _conv_block(nn: Any, inputs: int, outputs: int) -> Any:
@@ -143,7 +161,8 @@ class _SegmentationDataset:
 def _evaluate(model: Any, loader: Any, device: Any, bce: Any, dice_weight: float, threshold: float) -> tuple[float, float, float]:
     torch, _, _ = _dependencies()
     model.eval()
-    total_loss = total_iou = total_dice = 0.0
+    total_loss = total_dice = 0.0
+    total_intersection = total_union = 0
     batches = 0
     with torch.no_grad():
         for images, masks in loader:
@@ -152,10 +171,13 @@ def _evaluate(model: Any, loader: Any, device: Any, bce: Any, dice_weight: float
             dice = _dice_from_logits(logits, masks)
             loss = bce(logits, masks) + dice_weight * (1 - dice)
             total_loss += float(loss.item())
-            total_iou += _mean_iou(logits, masks, threshold)
+            intersection, union = _intersection_and_union(logits, masks, threshold)
+            total_intersection += intersection
+            total_union += union
             total_dice += float(dice.item())
             batches += 1
-    return total_loss / batches, total_iou / batches, total_dice / batches
+    global_iou = (total_intersection + 1e-6) / (total_union + 1e-6)
+    return total_loss / batches, global_iou, total_dice / batches
 
 
 def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[str, Any]:
@@ -168,7 +190,9 @@ def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[s
     size = _parse_size(data.get("image_size", [128, 128]))
     image_dir = Path(str(data.get("train_images_dir", ""))).expanduser().resolve()
     mask_dir = Path(str(data.get("train_masks_dir", ""))).expanduser().resolve()
-    images, masks = _index_images(image_dir), _index_images(mask_dir)
+    mask_suffix = str(data.get("mask_filename_suffix", ""))
+    images = _index_images(image_dir)
+    masks = _index_images(mask_dir, stem_suffix=mask_suffix)
     missing_masks = sorted(set(images) - set(masks))
     extra_masks = sorted(set(masks) - set(images))
     if missing_masks or extra_masks:
@@ -236,7 +260,7 @@ def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[s
             train_dice += float(dice.item())
             batches += 1
         validation_loss, validation_iou, validation_dice = _evaluate(model, validation_loader, device, bce, dice_weight, threshold)
-        history.append({"epoch": float(epoch), "train_loss": train_loss / batches, "train_mean_iou": train_iou / batches, "train_dice": train_dice / batches, "val_loss": validation_loss, "val_mean_iou": validation_iou, "val_dice": validation_dice})
+        history.append({"epoch": float(epoch), "train_loss": train_loss / batches, "train_mean_iou": train_iou / batches, "train_dice": train_dice / batches, "val_loss": validation_loss, "val_global_iou": validation_iou, "val_mean_iou": validation_iou, "val_dice": validation_dice})
         if validation_iou > best_iou:
             best_iou, best_epoch = validation_iou, epoch
             best_state = {name: value.detach().cpu().clone() for name, value in model.state_dict().items()}
@@ -252,6 +276,9 @@ def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[s
     test_directory = data.get("test_images_dir")
     if test_directory:
         test_images = _index_images(Path(str(test_directory)).expanduser().resolve())
+        output_suffix = str(data.get("submission_filename_suffix", ""))
+        if any(separator in output_suffix for separator in ("/", "\\")):
+            raise ValueError("data.submission_filename_suffix must not contain a path separator")
         submission_directory = artifact_dir / "submission_png"
         submission_directory.mkdir(exist_ok=True)
         model.eval()
@@ -260,9 +287,11 @@ def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[s
                 image, original_size = _image_tensor(image_path, size)
                 probability = model(image.unsqueeze(0).to(device)).sigmoid().squeeze().cpu().ge(threshold).to(torch.uint8).mul(255)
                 output = Image.frombytes("L", (size[1], size[0]), probability.contiguous().numpy().tobytes())
-                output.resize((original_size[1], original_size[0]), Image.Resampling.NEAREST).save(submission_directory / f"{stem}.png")
+                output.resize((original_size[1], original_size[0]), Image.Resampling.NEAREST).save(
+                    submission_directory / f"{stem}{output_suffix}.png"
+                )
         artifact_paths.append(str(submission_directory))
 
     peak_memory = round(torch.cuda.max_memory_allocated(device) / 1024**3, 4) if device.type == "cuda" else None
     best = history[best_epoch - 1]
-    return {"history": history, "best_epoch": best_epoch, "validation_metric": best_iou, "metrics": {"val_mean_iou": best_iou, "val_loss_at_best_mean_iou": best["val_loss"], "val_dice_at_best_mean_iou": best["val_dice"]}, "peak_gpu_memory_gb": peak_memory, "artifact_paths": artifact_paths}
+    return {"history": history, "best_epoch": best_epoch, "validation_metric": best_iou, "metrics": {"val_global_iou": best_iou, "val_loss_at_best_global_iou": best["val_loss"], "val_dice_at_best_global_iou": best["val_dice"]}, "peak_gpu_memory_gb": peak_memory, "artifact_paths": artifact_paths}

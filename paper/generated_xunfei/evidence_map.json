@@ -1,0 +1,7 @@
+{
+  "claims": [],
+  "data_statistics": "reports/data_statistics.json",
+  "generated_at": "2026-07-17T00:38:21+00:00",
+  "research_records": 28,
+  "rule_specification": "competition_spec.yaml"
+}

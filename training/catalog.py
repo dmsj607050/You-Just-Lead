@@ -41,6 +41,13 @@ RUNNER_CAPABILITIES: tuple[dict[str, Any], ...] = (
         "template": "configs/image_segmentation.template.yaml",
         "data_contract": "Train image and binary-mask folders with matching filename stems; optional test-image folder.",
     },
+    {
+        "runner": "waterseg_external",
+        "kind": "approved_external_training_project",
+        "task_types": ["waterseg_external"],
+        "template": "configs/xunfei_waterseg_v16_stage1.yaml",
+        "data_contract": "Audited image/mask folders plus a frozen, user-owned waterseg source tree and explicitly approved CUDA configuration.",
+    },
 )
 
 

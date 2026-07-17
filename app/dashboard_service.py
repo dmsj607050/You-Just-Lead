@@ -10,6 +10,7 @@ from database.ledger import ExperimentLedger
 from app.orchestrator.workflow import workflow_state
 from training.catalog import supported_runners
 from tools.configuration import load_yaml
+from tools.experiment_scope import current_competition_results
 from tools.files import read_json
 
 
@@ -36,7 +37,8 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
     """Build a JSON-safe dashboard state without treating Markdown as truth."""
     spec = load_yaml(workspace / "competition_spec.yaml") if (workspace / "competition_spec.yaml").exists() else {}
     manifests = {item["experiment_id"]: item for item in _records(workspace / "experiments" / "manifests")}
-    results = _records(workspace / "experiments" / "results")
+    all_results = _records(workspace / "experiments" / "results")
+    results = current_competition_results(workspace)
     direction = spec.get("evaluation", {}).get("direction", "maximize")
     completed = [item for item in results if item.get("status") == "completed" and item.get("validation_metric") is not None]
     best = (max if direction == "maximize" else min)(completed, key=lambda item: float(item["validation_metric"])) if completed else None
@@ -66,6 +68,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
         "competition": {
             "name": spec.get("competition", {}).get("name"),
             "task_type": spec.get("competition", {}).get("task_type"),
+            "preferred_runner": spec.get("competition", {}).get("preferred_runner"),
             "metric": spec.get("evaluation", {}).get("primary_metric"),
             "direction": direction,
             "requires_human_confirmation": spec.get("approval", {}).get("requires_human_confirmation", True),
@@ -77,6 +80,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
             "data_files": data_audit.get("file_count", 0),
             "data_issues": data_audit.get("issue_count", 0),
             "research_records": len(research.get("records", [])),
+            "infrastructure_experiments": len(all_results) - len(results),
         },
         "experiments": experiments,
         "data_audit": data_audit,

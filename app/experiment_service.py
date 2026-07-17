@@ -12,6 +12,7 @@ from typing import Any
 from agents.analysis_agent import analyze_history
 from agents.data_agent import dataset_inventory_sha256
 from agents.error_analysis_agent import analyze_prediction_errors
+from agents.optimization_ledger import render_optimization_ledger
 from app.approval_service import verify_training_config_approval
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
@@ -88,6 +89,16 @@ class ExperimentService:
         if spec.get("approval", {}).get("requires_human_confirmation", True):
             raise PermissionError(
                 "Real training is blocked until official rules receive human confirmation."
+            )
+        model = get_mapping(config, "model")
+        pretrained_reference = model.get("encoder_weights") or model.get("pretrained_model")
+        if pretrained_reference not in (None, False, "", "none", "None") and spec.get("constraints", {}).get(
+            "pretrained_models_allowed"
+        ) is not True:
+            raise PermissionError(
+                "This configuration requests pretrained model weights, but the official rules "
+                "do not explicitly permit them. Confirm the source and set "
+                "constraints.pretrained_models_allowed to true before training."
             )
         audit_path = self.workspace / "reports" / "data_statistics.json"
         if not audit_path.exists():
@@ -287,4 +298,5 @@ class ExperimentService:
         result_path = self.workspace / "experiments" / "results" / f"{resolved_id}.json"
         write_json_atomic(result_path, result)
         self.ledger.save_result(result)
+        render_optimization_ledger(self.workspace)
         return manifest, result

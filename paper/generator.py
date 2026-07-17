@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.configuration import load_yaml
+from tools.experiment_scope import current_competition_results, manifests_by_id
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
 
@@ -25,16 +26,27 @@ def _citation_key(record: dict[str, Any], index: int) -> str:
     return f"{normalized or 'reference'}{index}"
 
 
+def _curated_bibliography(workspace: Path) -> tuple[str, list[str]]:
+    """Prefer a reviewed BibTeX list over raw search hits when one is available."""
+    candidates = sorted((workspace / "research").glob("*_references.bib"))
+    if not candidates:
+        return "", []
+    content = candidates[0].read_text(encoding="utf-8")
+    keys = re.findall(r"@\w+\s*\{\s*([^,\s]+)", content)
+    return content.strip(), keys
+
+
 def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> dict[str, Any]:
     """Build TeX, BibTeX and an evidence map without manufacturing claims."""
     output = output_dir or workspace.parent.parent / "paper" / "generated"
     output.mkdir(parents=True, exist_ok=True)
     spec = load_yaml(workspace / "competition_spec.yaml") if (workspace / "competition_spec.yaml").exists() else {}
-    results = _records(workspace / "experiments" / "results")
-    manifests = {item["experiment_id"]: item for item in _records(workspace / "experiments" / "manifests")}
+    results = current_competition_results(workspace)
+    manifests = manifests_by_id(workspace)
     data_stats = read_json(workspace / "reports" / "data_statistics.json") if (workspace / "reports" / "data_statistics.json").exists() else {}
     research_path = workspace / "research" / "papers.json"
     research = read_json(research_path).get("records", []) if research_path.exists() else []
+    curated_bib, curated_keys = _curated_bibliography(workspace)
     completed = [result for result in results if result.get("status") == "completed" and result.get("validation_metric") is not None]
     direction = spec.get("evaluation", {}).get("direction", "maximize")
     best = (max if direction == "maximize" else min)(completed, key=lambda item: float(item["validation_metric"])) if completed else None
@@ -42,7 +54,7 @@ def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> d
     title = spec.get("competition", {}).get("name") or "Competition research report"
     metric = spec.get("evaluation", {}).get("primary_metric") or "validation metric"
     tex_lines = [
-        "\\documentclass[11pt]{article}",
+        "\\documentclass[11pt]{ctexart}",
         "\\usepackage[margin=1in]{geometry}",
         "\\usepackage{booktabs}",
         "\\usepackage[hidelinks]{hyperref}",
@@ -78,7 +90,15 @@ def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> d
     tex_lines.extend(["\\section{Limitations and next steps}", "All conclusions remain conditional on the official-rule confirmation, data-audit findings and held-out evaluation. The decision memo should be reviewed before the next run."])
 
     bib_lines: list[str] = []
-    if research:
+    if curated_keys:
+        tex_lines.append("\\section{Related work candidates}")
+        tex_lines.append(
+            "This initial report cites only the manually reviewed candidates. "
+            "The full automated radar remains a separate evidence record."
+        )
+        tex_lines.append("\\cite{" + ",".join(curated_keys) + "}.")
+        bib_lines.append(curated_bib)
+    elif research:
         tex_lines.append("\\section{Related work candidates}")
         tex_lines.append("The following records were retrieved for review; inclusion here is not a claim of reproduction or endorsement.")
         for index, record in enumerate(research[:20], 1):
@@ -86,7 +106,7 @@ def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> d
             tex_lines.append("\\cite{" + key + "} " + _tex(record.get("title")) + ".")
             authors = " and ".join(record.get("authors") or ["Unknown"])
             bib_lines.extend([f"@misc{{{key},", f"  title = {{{record.get('title', 'Untitled')}}},", f"  author = {{{authors}}},", f"  year = {{{record.get('year') or 'n.d.'}}},", f"  howpublished = {{\\url{{{record.get('url') or ''}}}}}", "}", ""])
-    if research:
+    if bib_lines:
         tex_lines.extend(["\\bibliographystyle{plain}", "\\bibliography{references}"])
     tex_lines.append("\\end{document}")
 

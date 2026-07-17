@@ -1,29 +1,43 @@
-# Copy to competition_spec.yaml after reading official rules.
 competition:
-  name: null
-  platform: null
-  task_type: null
+  name: "高分辨率遥感影像水体智能分割"
+  platform: "iFLYTEK AI 开发者大赛"
+  task_type: image_segmentation
+  preferred_runner: waterseg_external
   deadline: null
 
 evaluation:
-  primary_metric: null
+  primary_metric: global_water_iou
   direction: maximize
-  public_private_split: null
+  public_private_split: "Hidden test set; local rule summary says training/test locations are separated."
 
 submission:
-  format: null
-  filename_rule: null
-  daily_limit: null
+  format: "tar.gz inference package; runtime prediction-output bundle requires official confirmation"
+  filename_rule: "<input_stem>_mask.png; single-channel 1024x1024 PNG with values 0 or 255"
+  daily_limit: 3
+  validation_profile: xunfei_waterseg_inference_package
+  contract:
+    package_layout: "one top-level directory containing run.py and model/"
+    required_files: [run.py, model/model.ts, model/config.json]
+    mask_size: [1024, 1024]
+    mask_filename_suffix: "_mask"
+    runtime_output: unresolved
 
 constraints:
   external_data_allowed: null
   pretrained_models_allowed: null
   ensemble_allowed: null
   inference_time_limit_seconds: null
-  model_size_limit_mb: null
+  model_size_limit_mb: 600
 
 approval:
   requires_human_confirmation: true
-  unresolved_questions: []
+  unresolved_questions:
+    - "Confirm the active competition instance, its exact deadline, and whether the public page requires an authenticated view."
+    - "Confirm whether runtime results must be loose PNG files in /work/output or a submit.zip containing submit/*.png."
+    - "Confirm the rules for external data, ImageNet/foundation-model pretraining, and test-time augmentation."
+    - "Confirm inference hardware, dependency, time, and memory limits."
 
-risks: []
+risks:
+  - "The local rule summary is based on screenshots and is not a substitute for the current official rule page."
+  - "The current public algorithm-competition page showed '赛题上新中' when checked on 2026-07-16."
+  - "Existing TorchScript template writes submit.zip, while the local rule summary says PNG files should be written directly to /work/output."

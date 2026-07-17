@@ -1,0 +1,44 @@
+{
+  "audit_schema_version": 1,
+  "data_dir": "B:\\2026xunfei\\train",
+  "exact_duplicate_groups": [],
+  "file_count": 5536,
+  "file_kinds": {
+    "image": 5536
+  },
+  "generated_at": "2026-07-16T14:38:35+00:00",
+  "images": {
+    "channels": {
+      "1": 2768,
+      "3": 2768
+    },
+    "count": 5536,
+    "height": {
+      "max": 1024,
+      "mean": 1024.0,
+      "min": 1024
+    },
+    "width": {
+      "max": 1024,
+      "mean": 1024.0,
+      "min": 1024
+    }
+  },
+  "inventory_sha256": "a6634657711d43d15494a4f7a11d402c12c0f6f5080cb22f066e4730f3cc3e86",
+  "issue_count": 0,
+  "metadata_format": "jsonl",
+  "segmentation_masks": {
+    "count": 2768,
+    "empty_count": 0,
+    "foreground_ratio": {
+      "max": 0.31168461,
+      "mean": 0.01580207,
+      "min": 0.00307846
+    }
+  },
+  "splits": {
+    "train": 5536
+  },
+  "tables": [],
+  "total_bytes": 388863455
+}

@@ -6,15 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from tools.configuration import load_yaml
+from tools.experiment_scope import current_competition_results
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
 
 
 def _results(workspace: Path) -> list[dict[str, Any]]:
-    return sorted(
-        (read_json(path) for path in (workspace / "experiments" / "results").glob("EXP-*.json")),
-        key=lambda item: item["experiment_id"],
-    )
+    return current_competition_results(workspace)
 
 
 def _bounded(value: Any, default: float) -> float:
