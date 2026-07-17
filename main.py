@@ -10,7 +10,12 @@ from pathlib import Path
 from agents.data_agent import audit_dataset
 from agents.reproduction_agent import intake_repository, run_isolated_smoke_test
 from agents.research_agent import search_research
-from agents.rules_agent import analyze_rules, approve_rule_specification, rule_confirmation_readiness_for_workspace
+from agents.rules_agent import (
+    analyze_rules,
+    apply_official_rule_evidence,
+    approve_rule_specification,
+    rule_confirmation_readiness_for_workspace,
+)
 from agents.strategy_agent import recommend_next_actions
 from app.api_server import serve as serve_api
 from app.approval_service import approve_training_config
@@ -92,6 +97,14 @@ def _parser() -> argparse.ArgumentParser:
         "rules-readiness", help="List the evidence and rule fields required before approval"
     )
     readiness_parser.add_argument("--workspace", help="Workspace path")
+
+    evidence_parser = subparsers.add_parser(
+        "record-rule-evidence", help="Apply a complete, reviewed Xunfei official-rule evidence record"
+    )
+    evidence_parser.add_argument(
+        "--file", required=True, help="YAML evidence record relative to the workspace unless absolute"
+    )
+    evidence_parser.add_argument("--workspace", help="Workspace path")
 
     audit_parser = subparsers.add_parser(
         "audit-data", help="Profile raw competition data without modifying it"
@@ -250,6 +263,15 @@ def main() -> int:
         outcome = rule_confirmation_readiness_for_workspace(workspace)
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
         return 0 if outcome["ready"] else 1
+
+    if args.command == "record-rule-evidence":
+        evidence_path = _config_path(workspace, args.file)
+        outcome = apply_official_rule_evidence(workspace, evidence_path)
+        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+            "official_rule_evidence_recorded", outcome
+        )
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0
 
     if args.command == "research":
         sources = [item.strip() for item in args.sources.split(",") if item.strip()]

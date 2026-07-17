@@ -20,20 +20,13 @@
 
 ## 填完后的配置变更
 
-在 `competition_spec.yaml` 中：
+复制 [xunfei_rule_evidence.template.yaml](xunfei_rule_evidence.template.yaml) 到一个未纳入版本控制的文件。只从官方页面填写 `value` 和 `anchor`，并且不写入账号、Cookie、签名链接或其他密钥。随后运行：
 
-1. 填入精确 `competition.deadline`、`submission.daily_limit`、`submission.contract.runtime_output`；
-2. 将 `constraints.pretrained_models_allowed`、`external_data_allowed`、`ensemble_allowed` 写为明确的 `true` 或 `false`；
-3. 填入 `constraints.inference_time_limit_seconds` 与其他适用限制；
-4. 删除 `approval.unresolved_questions` 中已被官方原文解答的问题；
-5. 只有所有问题都删除后，才把 `approval.requires_human_confirmation` 设为 `false`。
+```powershell
+python main.py record-rule-evidence --workspace workspace\current_competition --file docs\my_xunfei_rule_evidence.yaml
+```
 
-同时在 `competition_spec.yaml` 的 `approval.official_evidence` 中记录：
-
-- `source_type`：例如 `authenticated_rule_page` 或 `official_pdf`；
-- `source_locator`：规则页 URL、已存档 PDF 路径或截图路径（不写任何账号、Cookie 或密钥）；
-- `reviewed_at`：复核时间；
-- `fields`：上述每个关键字段对应的原文、页码、章节名或截图锚点。
+该命令会写入已复核值、逐字段证据锚点与证据文件哈希，但**不会**批准规则或启动训练。
 
 先执行以下命令检查是否还缺任何字段或证据：
 

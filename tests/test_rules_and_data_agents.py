@@ -8,7 +8,12 @@ import unittest
 from pathlib import Path
 
 from agents.data_agent import audit_dataset
-from agents.rules_agent import analyze_rules, approve_rule_specification
+from agents.rules_agent import (
+    apply_official_rule_evidence,
+    analyze_rules,
+    approve_rule_specification,
+    rule_confirmation_readiness,
+)
 from tools.configuration import load_yaml
 from tools.files import read_json
 
@@ -19,6 +24,62 @@ PNG_1X1 = base64.b64decode(
 
 
 class RulesAndDataAgentTests(unittest.TestCase):
+    def test_xunfei_evidence_record_is_complete_but_not_an_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "workspace"
+            spec_path = workspace / "competition_spec.yaml"
+            from tools.configuration import write_yaml
+
+            write_yaml(
+                spec_path,
+                {
+                    "competition": {"preferred_runner": "waterseg_external"},
+                    "submission": {"validation_profile": "xunfei_waterseg_inference_package"},
+                    "approval": {"requires_human_confirmation": True, "unresolved_questions": ["review rules"]},
+                },
+            )
+            values = {
+                "competition.name": "Water Cup",
+                "competition.platform": "iFLYTEK",
+                "competition.task_type": "image_segmentation",
+                "competition.deadline": "2026-08-27 23:59 Asia/Shanghai",
+                "evaluation.primary_metric": "global_water_iou",
+                "evaluation.direction": "maximize",
+                "submission.format": "tar.gz inference package",
+                "submission.filename_rule": "<input_stem>_mask.png",
+                "submission.daily_limit": 3,
+                "constraints.model_size_limit_mb": 600,
+                "submission.contract.package_layout": "one top-level directory containing run.py and model/",
+                "submission.contract.required_files": ["run.py", "model/model.ts", "model/config.json"],
+                "submission.contract.mask_size": [1024, 1024],
+                "submission.contract.mask_filename_suffix": "_mask",
+                "submission.contract.runtime_output": "loose_png",
+                "constraints.external_data_allowed": False,
+                "constraints.pretrained_models_allowed": True,
+                "constraints.ensemble_allowed": False,
+                "constraints.inference_limit_evidence": "Official rules page: limit not separately published.",
+            }
+            evidence_path = workspace / "docs" / "rule_evidence.yaml"
+            write_yaml(
+                evidence_path,
+                {
+                    "source": {
+                        "source_type": "authenticated_rule_page",
+                        "source_locator": "https://challenge.example.test/water/rules",
+                        "reviewed_at": "2026-07-17T00:00:00+08:00",
+                    },
+                    "fields": {key: {"value": value, "anchor": f"Rules section for {key}"} for key, value in values.items()},
+                },
+            )
+
+            outcome = apply_official_rule_evidence(workspace, evidence_path)
+            applied = load_yaml(spec_path)
+
+            self.assertTrue(outcome["readiness"]["ready"])
+            self.assertTrue(applied["approval"]["requires_human_confirmation"])
+            self.assertEqual(applied["approval"]["unresolved_questions"], [])
+            self.assertTrue(rule_confirmation_readiness(applied)["ready"])
+
     def test_rules_agent_creates_reviewable_specification(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary) / "workspace"

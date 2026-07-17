@@ -81,11 +81,24 @@ def _deep_get(payload: dict[str, Any], dotted_name: str) -> Any:
     return value
 
 
+def _deep_set(payload: dict[str, Any], dotted_name: str, value: Any) -> None:
+    keys = dotted_name.split(".")
+    parent = payload
+    for key in keys[:-1]:
+        next_value = parent.get(key)
+        if not isinstance(next_value, dict):
+            next_value = {}
+            parent[key] = next_value
+        parent = next_value
+    parent[keys[-1]] = value
+
+
 def _meaningful(value: Any) -> bool:
     if value is None:
         return False
     if isinstance(value, str):
-        return bool(value.strip()) and value.strip().lower() not in {"unresolved", "unknown", "tbd", "todo"}
+        normalized = value.strip().lower()
+        return bool(normalized) and normalized not in {"unresolved", "unknown", "tbd", "todo", "待填", "待确认"} and "待填" not in normalized
     if isinstance(value, (list, tuple, dict)):
         return bool(value)
     return True
@@ -183,6 +196,96 @@ def rule_confirmation_readiness_for_workspace(workspace: Path) -> dict[str, Any]
         }
     outcome = rule_confirmation_readiness(load_yaml(spec_path))
     outcome["spec_path"] = str(spec_path)
+    return outcome
+
+
+def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[str, Any]:
+    """Apply a complete, human-reviewed Xunfei rule evidence record.
+
+    The caller supplies a compact YAML record whose values and source anchors
+    are copied from an official rule page or official PDF.  This action records
+    evidence and deliberately *does not* approve the rules or a GPU run.
+    """
+    spec_path = workspace / "competition_spec.yaml"
+    if not spec_path.exists():
+        raise FileNotFoundError("competition_spec.yaml is required before applying rule evidence")
+    evidence_path = evidence_path.resolve()
+    if not evidence_path.is_file():
+        raise FileNotFoundError(f"Rule evidence record does not exist: {evidence_path}")
+    spec = load_yaml(spec_path)
+    if not _is_xunfei_waterseg_spec(spec):
+        raise ValueError("This evidence-record workflow is currently scoped to the Xunfei water-segmentation adapter")
+    record = load_yaml(evidence_path)
+    source = record.get("source")
+    fields = record.get("fields")
+    if not isinstance(source, dict):
+        raise ValueError("Rule evidence must contain a source mapping")
+    if not isinstance(fields, dict):
+        raise ValueError("Rule evidence must contain a fields mapping")
+    required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+    unknown = sorted(set(fields) - set(required))
+    if unknown:
+        raise ValueError("Rule evidence contains unsupported fields: " + ", ".join(unknown))
+    missing: list[str] = []
+    anchors: dict[str, str] = {}
+    values: dict[str, Any] = {}
+    for name in required:
+        item = fields.get(name)
+        if not isinstance(item, dict):
+            missing.append(name)
+            continue
+        value = item.get("value")
+        anchor = item.get("anchor")
+        if not _meaningful(value) or not _meaningful(anchor):
+            missing.append(name)
+            continue
+        values[name] = value
+        anchors[name] = str(anchor).strip()
+    source_missing = [name for name in ("source_type", "source_locator", "reviewed_at") if not _meaningful(source.get(name))]
+    if "..." in str(source.get("source_locator", "")):
+        source_missing.append("source_locator")
+    if missing or source_missing:
+        details = [f"field {name}" for name in missing] + [f"source.{name}" for name in source_missing]
+        raise ValueError("Incomplete official rule evidence: " + ", ".join(details))
+
+    output_mode = str(values["submission.contract.runtime_output"]).lower()
+    if output_mode not in {"loose_png", "submit_zip"}:
+        raise ValueError("submission.contract.runtime_output must be loose_png or submit_zip")
+    for boolean_field in (
+        "constraints.external_data_allowed",
+        "constraints.pretrained_models_allowed",
+        "constraints.ensemble_allowed",
+    ):
+        if not isinstance(values[boolean_field], bool):
+            raise ValueError(f"{boolean_field} must be a YAML boolean: true or false")
+
+    for name, value in values.items():
+        _deep_set(spec, name, value)
+    approval = spec.setdefault("approval", {})
+    approval["official_evidence"] = {
+        "source_type": str(source["source_type"]).strip(),
+        "source_locator": str(source["source_locator"]).strip(),
+        "reviewed_at": str(source["reviewed_at"]).strip(),
+        "confirmation_file": str(evidence_path),
+        "confirmation_file_sha256": file_sha256(evidence_path),
+        "fields": anchors,
+    }
+    # Evidence capture and permission to run are intentionally separate.
+    approval["requires_human_confirmation"] = True
+    approval["unresolved_questions"] = []
+    approval.pop("approved_at", None)
+    approval.pop("approved_note", None)
+    write_yaml(spec_path, spec)
+    readiness = rule_confirmation_readiness(spec)
+    outcome = {
+        "spec_path": str(spec_path),
+        "evidence_path": str(evidence_path),
+        "applied_fields": required,
+        "requires_human_confirmation": True,
+        "readiness": readiness,
+        "next_action": "Run approve-rules after independently reviewing the recorded evidence.",
+    }
+    write_json_atomic(workspace / "reports" / "official_rule_evidence_applied.json", outcome)
     return outcome
 
 
