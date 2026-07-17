@@ -3,7 +3,7 @@ competition:
   platform: "iFLYTEK AI 开发者大赛"
   task_type: image_segmentation
   preferred_runner: waterseg_external
-  deadline: null
+  deadline: "2026-08-27 (public listing; exact cutoff time and time zone require authenticated rule-page confirmation)"
 
 evaluation:
   primary_metric: global_water_iou
@@ -32,12 +32,12 @@ constraints:
 approval:
   requires_human_confirmation: true
   unresolved_questions:
-    - "Confirm the active competition instance, its exact deadline, and whether the public page requires an authenticated view."
+    - "Confirm the exact 2026-08-27 cutoff time and time zone from the authenticated rule page."
     - "Confirm whether runtime results must be loose PNG files in /work/output or a submit.zip containing submit/*.png."
     - "Confirm the rules for external data, ImageNet/foundation-model pretraining, and test-time augmentation."
     - "Confirm inference hardware, dependency, time, and memory limits."
 
 risks:
   - "The local rule summary is based on screenshots and is not a substitute for the current official rule page."
-  - "The current public algorithm-competition page showed '赛题上新中' when checked on 2026-07-16."
+  - "A recent official public listing confirms the 2026 water-segmentation challenge and the 2026-08-27 date, but not the exact cutoff time in this evidence record."
   - "Existing TorchScript template writes submit.zip, while the local rule summary says PNG files should be written directly to /work/output."
