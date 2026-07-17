@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from agents.rules_agent import rule_confirmation_readiness_for_workspace
 from agents.strategy_agent import recommend_next_actions
 from database.ledger import ExperimentLedger
 from app.orchestrator.workflow import workflow_state
@@ -63,6 +64,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
     data_audit = _json_if_exists(workspace / "reports" / "data_statistics.json", {})
     research = _json_if_exists(workspace / "research" / "papers.json", {})
     next_actions = recommend_next_actions(workspace, persist=False)
+    rule_readiness = rule_confirmation_readiness_for_workspace(workspace)
     ledger = ExperimentLedger(project_root / "database" / "competition_agent.sqlite")
     return {
         "competition": {
@@ -71,7 +73,8 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
             "preferred_runner": spec.get("competition", {}).get("preferred_runner"),
             "metric": spec.get("evaluation", {}).get("primary_metric"),
             "direction": direction,
-            "requires_human_confirmation": spec.get("approval", {}).get("requires_human_confirmation", True),
+            "requires_human_confirmation": spec.get("approval", {}).get("requires_human_confirmation", True) or not rule_readiness["ready"],
+            "rule_readiness": rule_readiness,
         },
         "summary": {
             "completed_experiments": len(completed),

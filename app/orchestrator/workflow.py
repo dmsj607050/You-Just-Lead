@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from agents.rules_agent import rule_confirmation_readiness
 from agents.strategy_agent import recommend_next_actions
 from tools.experiment_scope import current_competition_results
 from training.catalog import recommend_runner, supported_runners
@@ -42,13 +43,17 @@ def workflow_state(workspace: Path) -> dict[str, Any]:
     else:
         spec = load_yaml(spec_path)
         competition = spec.get("competition", {})
+        readiness = rule_confirmation_readiness(spec)
         suggested_runner = _runner_by_name(competition.get("preferred_runner")) or recommend_runner(
             competition.get("task_type")
         )
-        if spec.get("approval", {}).get("requires_human_confirmation", True):
+        if spec.get("approval", {}).get("requires_human_confirmation", True) or not readiness["ready"]:
             stage = "rules_review"
             components["rules"] = "awaiting_human_confirmation"
             blockers.extend(spec.get("approval", {}).get("unresolved_questions", []) or ["Official rules require human confirmation."])
+            blockers.extend(
+                f"Rule evidence missing: {item['field']}" for item in readiness["gaps"][:5]
+            )
         elif not audit_path.exists():
             stage = "data_audit"
             components["rules"] = "approved"

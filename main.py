@@ -10,7 +10,7 @@ from pathlib import Path
 from agents.data_agent import audit_dataset
 from agents.reproduction_agent import intake_repository, run_isolated_smoke_test
 from agents.research_agent import search_research
-from agents.rules_agent import analyze_rules, approve_rule_specification
+from agents.rules_agent import analyze_rules, approve_rule_specification, rule_confirmation_readiness_for_workspace
 from agents.strategy_agent import recommend_next_actions
 from app.api_server import serve as serve_api
 from app.approval_service import approve_training_config
@@ -87,6 +87,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     approve_rules_parser.add_argument("--note", required=True, help="Short human review note")
     approve_rules_parser.add_argument("--workspace", help="Workspace path")
+
+    readiness_parser = subparsers.add_parser(
+        "rules-readiness", help="List the evidence and rule fields required before approval"
+    )
+    readiness_parser.add_argument("--workspace", help="Workspace path")
 
     audit_parser = subparsers.add_parser(
         "audit-data", help="Profile raw competition data without modifying it"
@@ -240,6 +245,11 @@ def main() -> int:
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
         return 0
+
+    if args.command == "rules-readiness":
+        outcome = rule_confirmation_readiness_for_workspace(workspace)
+        print(json.dumps(outcome, ensure_ascii=False, indent=2))
+        return 0 if outcome["ready"] else 1
 
     if args.command == "research":
         sources = [item.strip() for item in args.sources.split(",") if item.strip()]

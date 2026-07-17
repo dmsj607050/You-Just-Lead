@@ -81,6 +81,8 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, experiment) if experiment else self._error(HTTPStatus.NOT_FOUND, "Experiment not found")
             elif path == "/api/rules":
                 self._send(HTTPStatus.OK, snapshot["competition"])
+            elif path == "/api/rule-readiness":
+                self._send(HTTPStatus.OK, snapshot["competition"]["rule_readiness"])
             elif path == "/api/data-audit":
                 self._send(HTTPStatus.OK, snapshot["data_audit"])
             elif path == "/api/next-actions":

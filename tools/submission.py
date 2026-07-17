@@ -15,6 +15,7 @@ import zipfile
 from tools.configuration import load_yaml
 from tools.files import write_json_atomic
 from tools.provenance import file_sha256, utc_now
+from agents.rules_agent import rule_confirmation_readiness
 
 
 def _csv_checks(path: Path, spec: dict[str, Any]) -> list[dict[str, str]]:
@@ -213,8 +214,13 @@ def validate_submission(workspace: Path, candidate: Path) -> dict[str, Any]:
     if not spec_path.exists():
         raise FileNotFoundError("competition_spec.yaml is required before submission validation")
     spec = load_yaml(spec_path)
-    if spec.get("approval", {}).get("requires_human_confirmation", True):
-        raise PermissionError("Rules have not received human confirmation")
+    readiness = rule_confirmation_readiness(spec)
+    if spec.get("approval", {}).get("requires_human_confirmation", True) or not readiness["ready"]:
+        details = ", ".join(item["field"] for item in readiness["gaps"][:4])
+        raise PermissionError(
+            "Rules have not received complete human confirmation"
+            + (f" (missing: {details})" if details else "")
+        )
     candidate = candidate.resolve()
     if not candidate.exists():
         raise FileNotFoundError(f"Submission candidate does not exist: {candidate}")

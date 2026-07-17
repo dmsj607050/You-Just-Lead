@@ -23,6 +23,38 @@ from tools.files import read_json, write_json_atomic
 from tools.submission import validate_submission
 
 
+def _approved_spec(name: str, task_type: str, metric: str) -> dict:
+    """Minimal complete rule record for workflows that are not rule-gate tests."""
+    fields = {
+        "competition.name": "official section: competition overview",
+        "competition.platform": "official section: platform",
+        "competition.task_type": "official section: task",
+        "competition.deadline": "official section: schedule",
+        "evaluation.primary_metric": "official section: evaluation",
+        "evaluation.direction": "official section: evaluation direction",
+        "submission.format": "official section: submission",
+        "submission.filename_rule": "official section: submission filename",
+        "submission.daily_limit": "official section: submission quota",
+        "constraints.model_size_limit_mb": "official section: runtime limits",
+    }
+    return {
+        "competition": {"name": name, "platform": "Test Platform", "task_type": task_type, "deadline": "2026-12-31 23:59 UTC"},
+        "evaluation": {"primary_metric": metric, "direction": "maximize"},
+        "submission": {"format": "csv", "filename_rule": "submission.csv", "daily_limit": 3},
+        "constraints": {"model_size_limit_mb": 100},
+        "approval": {
+            "requires_human_confirmation": False,
+            "unresolved_questions": [],
+            "official_evidence": {
+                "source_type": "official_document",
+                "source_locator": "https://example.test/rules",
+                "reviewed_at": "2026-01-01T00:00:00Z",
+                "fields": fields,
+            },
+        },
+    }
+
+
 class WorkflowExtensionTests(unittest.TestCase):
     def test_task_catalog_recommends_only_supported_runner(self) -> None:
         self.assertEqual(recommend_runner("semantic segmentation")["runner"], "image_segmentation")
@@ -33,13 +65,9 @@ class WorkflowExtensionTests(unittest.TestCase):
     def test_submission_validation_requires_approved_rules_and_checks_csv(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary) / "workspace"
-            write_yaml(
-                workspace / "competition_spec.yaml",
-                {
-                    "submission": {"format": "csv", "required_columns": ["id", "prediction"], "id_column": "id", "expected_rows": 2},
-                    "approval": {"requires_human_confirmation": False},
-                },
-            )
+            spec = _approved_spec("Submission Cup", "classification", "accuracy")
+            spec["submission"].update({"required_columns": ["id", "prediction"], "id_column": "id", "expected_rows": 2})
+            write_yaml(workspace / "competition_spec.yaml", spec)
             candidate = workspace / "submissions" / "candidate.csv"
             candidate.parent.mkdir(parents=True)
             candidate.write_text("id,prediction\nA,0\nB,1\n", encoding="utf-8")
@@ -54,14 +82,7 @@ class WorkflowExtensionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = root / "workspace" / "current"
-            write_yaml(
-                workspace / "competition_spec.yaml",
-                {
-                    "competition": {"name": "API Cup", "task_type": "classification"},
-                    "evaluation": {"primary_metric": "accuracy", "direction": "maximize"},
-                    "approval": {"requires_human_confirmation": False, "unresolved_questions": []},
-                },
-            )
+            write_yaml(workspace / "competition_spec.yaml", _approved_spec("API Cup", "classification", "accuracy"))
             handler = type(
                 "TestApiHandler",
                 (CompetitionApiHandler,),
@@ -126,14 +147,7 @@ class WorkflowExtensionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = root / "workspace" / "current"
-            write_yaml(
-                workspace / "competition_spec.yaml",
-                {
-                    "competition": {"name": "Demo Cup", "task_type": "classification"},
-                    "evaluation": {"primary_metric": "accuracy", "direction": "maximize"},
-                    "approval": {"requires_human_confirmation": False, "unresolved_questions": []},
-                },
-            )
+            write_yaml(workspace / "competition_spec.yaml", _approved_spec("Demo Cup", "classification", "accuracy"))
             write_json_atomic(workspace / "reports" / "data_statistics.json", {"file_count": 12, "issue_count": 1, "exact_duplicate_groups": []})
             write_json_atomic(
                 workspace / "experiments" / "manifests" / "EXP-0001.json",

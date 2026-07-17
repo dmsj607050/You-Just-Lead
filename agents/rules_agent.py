@@ -41,6 +41,151 @@ REQUIRED_FIELDS = (
 )
 
 
+# A rule extraction is only a draft.  Before a real-data run we require a
+# reviewer to attach the exact source they used and the source anchors for the
+# fields that materially change the training or submission plan.  This is
+# deliberately stricter for the Xunfei water-segmentation adapter because its
+# output contract and pretrained-weight policy are currently consequential.
+BASE_CONFIRMATION_FIELDS = (
+    "competition.name",
+    "competition.platform",
+    "competition.task_type",
+    "competition.deadline",
+    "evaluation.primary_metric",
+    "evaluation.direction",
+    "submission.format",
+    "submission.filename_rule",
+    "submission.daily_limit",
+    "constraints.model_size_limit_mb",
+)
+
+XUNFEI_CONFIRMATION_FIELDS = (
+    "submission.contract.package_layout",
+    "submission.contract.required_files",
+    "submission.contract.mask_size",
+    "submission.contract.mask_filename_suffix",
+    "submission.contract.runtime_output",
+    "constraints.external_data_allowed",
+    "constraints.pretrained_models_allowed",
+    "constraints.ensemble_allowed",
+    "constraints.inference_limit_evidence",
+)
+
+
+def _deep_get(payload: dict[str, Any], dotted_name: str) -> Any:
+    value: Any = payload
+    for key in dotted_name.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value
+
+
+def _meaningful(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip()) and value.strip().lower() not in {"unresolved", "unknown", "tbd", "todo"}
+    if isinstance(value, (list, tuple, dict)):
+        return bool(value)
+    return True
+
+
+def _is_xunfei_waterseg_spec(spec: dict[str, Any]) -> bool:
+    submission = spec.get("submission", {})
+    competition = spec.get("competition", {})
+    return (
+        isinstance(submission, dict)
+        and submission.get("validation_profile") in {
+            "xunfei_waterseg_inference_package",
+            "xunfei_waterseg_runtime_output",
+        }
+    ) or str(competition.get("preferred_runner", "")) == "waterseg_external"
+
+
+def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return explicit, machine-readable gaps before human rule approval.
+
+    This does not decide whether a rule is true.  It makes the human review
+    auditable and prevents an incomplete, manually edited YAML file from
+    unlocking a costly training run.
+    """
+    approval = spec.get("approval", {}) if isinstance(spec.get("approval"), dict) else {}
+    strict_xunfei_profile = _is_xunfei_waterseg_spec(spec)
+    # Generic competitions have different rule schemas, so their existing
+    # extractor remains the source of required fields.  The fixed contract
+    # below applies only to the fully integrated Xunfei adapter, where a wrong
+    # output bundle or pretrained-weight assumption would directly invalidate
+    # a run.
+    required_fields = list(BASE_CONFIRMATION_FIELDS) if strict_xunfei_profile else []
+    if strict_xunfei_profile:
+        required_fields.extend(XUNFEI_CONFIRMATION_FIELDS)
+
+    gaps: list[dict[str, str]] = []
+    for field in required_fields:
+        value = _deep_get(spec, field)
+        if not _meaningful(value):
+            gaps.append({"field": field, "reason": "The confirmed value is missing or unresolved."})
+
+    if strict_xunfei_profile:
+        output_mode = str(_deep_get(spec, "submission.contract.runtime_output") or "").lower()
+        if output_mode not in {"loose_png", "submit_zip"}:
+            gaps.append(
+                {
+                    "field": "submission.contract.runtime_output",
+                    "reason": "Use exactly loose_png or submit_zip after reading the official runtime contract.",
+                }
+            )
+
+    if strict_xunfei_profile:
+        evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
+        for field in ("source_type", "source_locator", "reviewed_at"):
+            if not _meaningful(evidence.get(field)):
+                gaps.append(
+                    {
+                        "field": f"approval.official_evidence.{field}",
+                        "reason": "Record the official rule-page or document evidence used for review.",
+                    }
+                )
+        field_evidence = evidence.get("fields") if isinstance(evidence.get("fields"), dict) else {}
+        for field in required_fields:
+            if not _meaningful(field_evidence.get(field)):
+                gaps.append(
+                    {
+                        "field": f"approval.official_evidence.fields.{field}",
+                        "reason": "Add an exact quote, section heading, page number, or screenshot anchor for this field.",
+                    }
+                )
+
+    unresolved = approval.get("unresolved_questions", [])
+    if not isinstance(unresolved, list):
+        gaps.append({"field": "approval.unresolved_questions", "reason": "This must be a list and must be empty before approval."})
+    elif unresolved:
+        gaps.append({"field": "approval.unresolved_questions", "reason": f"Resolve all {len(unresolved)} listed rule question(s)."})
+
+    return {
+        "ready": not gaps,
+        "profile": "xunfei_waterseg" if _is_xunfei_waterseg_spec(spec) else "generic",
+        "required_fields": required_fields,
+        "gaps": gaps,
+    }
+
+
+def rule_confirmation_readiness_for_workspace(workspace: Path) -> dict[str, Any]:
+    """Load the current spec and return the approval readiness projection."""
+    spec_path = workspace / "competition_spec.yaml"
+    if not spec_path.exists():
+        return {
+            "ready": False,
+            "profile": "unknown",
+            "required_fields": [],
+            "gaps": [{"field": "competition_spec.yaml", "reason": "Create a reviewed competition specification first."}],
+        }
+    outcome = rule_confirmation_readiness(load_yaml(spec_path))
+    outcome["spec_path"] = str(spec_path)
+    return outcome
+
+
 def _read_text(path: Path) -> str:
     for encoding in ("utf-8-sig", "utf-8", "gb18030"):
         try:
@@ -133,10 +278,16 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
         if spec.get("constraints", {}).get(field) is None:
             unresolved.append(f"Confirm constraints.{field} from the official rules.")
 
+    previous_approval = spec.get("approval", {}) if isinstance(spec.get("approval"), dict) else {}
     spec["approval"] = {
         "requires_human_confirmation": bool(unresolved),
         "unresolved_questions": unresolved,
     }
+    # Re-analysis may refresh extracted values, but it must not silently erase
+    # a human's attached official evidence or a prior review record.
+    for key in ("official_evidence", "approved_at", "approved_note"):
+        if key in previous_approval:
+            spec["approval"][key] = previous_approval[key]
     spec["rule_source"] = {
         "path": str(source_path),
         "sha256": file_sha256(source_path),
@@ -201,9 +352,12 @@ def approve_rule_specification(workspace: Path, note: str) -> dict[str, Any]:
     if not spec_path.exists():
         raise FileNotFoundError("Run rule analysis or create competition_spec.yaml before approval.")
     spec = load_yaml(spec_path)
-    unresolved = list(spec.get("approval", {}).get("unresolved_questions", []))
-    if unresolved:
-        raise ValueError("Cannot approve a specification with unresolved questions: " + "; ".join(unresolved))
+    readiness = rule_confirmation_readiness(spec)
+    if not readiness["ready"]:
+        details = "; ".join(f"{item['field']}: {item['reason']}" for item in readiness["gaps"][:8])
+        if len(readiness["gaps"]) > 8:
+            details += f"; and {len(readiness['gaps']) - 8} more gap(s)"
+        raise ValueError("Cannot approve an incomplete rule specification: " + details)
     if not note.strip():
         raise ValueError("A human review note is required for approval.")
     approval = spec.setdefault("approval", {})
@@ -215,6 +369,12 @@ def approve_rule_specification(workspace: Path, note: str) -> dict[str, Any]:
         }
     )
     write_yaml(spec_path, spec)
-    outcome = {"spec_path": str(spec_path), "approved": True, "approved_at": approval["approved_at"], "note": approval["approved_note"]}
+    outcome = {
+        "spec_path": str(spec_path),
+        "approved": True,
+        "approved_at": approval["approved_at"],
+        "note": approval["approved_note"],
+        "readiness": readiness,
+    }
     write_json_atomic(workspace / "reports" / "rule_approval.json", outcome)
     return outcome

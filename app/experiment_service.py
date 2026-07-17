@@ -13,6 +13,7 @@ from agents.analysis_agent import analyze_history
 from agents.data_agent import dataset_inventory_sha256
 from agents.error_analysis_agent import analyze_prediction_errors
 from agents.optimization_ledger import render_optimization_ledger
+from agents.rules_agent import rule_confirmation_readiness
 from app.approval_service import verify_training_config_approval
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
@@ -86,9 +87,12 @@ class ExperimentService:
                 "Real training requires competition_spec.yaml. Analyze official rules first."
             )
         spec = load_yaml(spec_path)
-        if spec.get("approval", {}).get("requires_human_confirmation", True):
+        readiness = rule_confirmation_readiness(spec)
+        if spec.get("approval", {}).get("requires_human_confirmation", True) or not readiness["ready"]:
+            details = "; ".join(item["field"] for item in readiness["gaps"][:4])
             raise PermissionError(
-                "Real training is blocked until official rules receive human confirmation."
+                "Real training is blocked until official rules receive complete human confirmation"
+                + (f" (missing: {details})." if details else ".")
             )
         model = get_mapping(config, "model")
         pretrained_reference = model.get("encoder_weights") or model.get("pretrained_model")

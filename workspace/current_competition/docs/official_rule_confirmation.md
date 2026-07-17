@@ -28,6 +28,19 @@
 4. 删除 `approval.unresolved_questions` 中已被官方原文解答的问题；
 5. 只有所有问题都删除后，才把 `approval.requires_human_confirmation` 设为 `false`。
 
+同时在 `competition_spec.yaml` 的 `approval.official_evidence` 中记录：
+
+- `source_type`：例如 `authenticated_rule_page` 或 `official_pdf`；
+- `source_locator`：规则页 URL、已存档 PDF 路径或截图路径（不写任何账号、Cookie 或密钥）；
+- `reviewed_at`：复核时间；
+- `fields`：上述每个关键字段对应的原文、页码、章节名或截图锚点。
+
+先执行以下命令检查是否还缺任何字段或证据：
+
+```powershell
+python main.py rules-readiness --workspace workspace\current_competition
+```
+
 ## 审批与启动顺序
 
 规则确认本身、GPU 预算批准、训练执行是三个独立步骤：
