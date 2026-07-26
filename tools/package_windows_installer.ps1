@@ -21,7 +21,7 @@ Push-Location $frontendRoot
 try {
     npm run desktop:build
     if ($LASTEXITCODE -ne 0) { throw "Desktop frontend build failed." }
-    & $cargo build --manifest-path "src-tauri\Cargo.toml" --release
+    & $cargo build --manifest-path "src-tauri\Cargo.toml" --release --features custom-protocol
     if ($LASTEXITCODE -ne 0) { throw "Desktop application build failed." }
 } finally {
     Pop-Location
