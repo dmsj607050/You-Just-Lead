@@ -7,7 +7,7 @@ SetCompressor /SOLID lzma
 !cd ".."
 
 !define PRODUCT_NAME "You Just Lead"
-!define PRODUCT_VERSION "0.1.0"
+!define PRODUCT_VERSION "0.1.1"
 !define PRODUCT_PUBLISHER "You Just Lead"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\You Just Lead"
 
@@ -19,7 +19,7 @@ Icon "frontend\src-tauri\icons\icon.ico"
 UninstallIcon "frontend\src-tauri\icons\icon.ico"
 BrandingText "You Just Lead"
 
-VIProductVersion "0.1.0.0"
+VIProductVersion "0.1.1.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${PRODUCT_VERSION}"
