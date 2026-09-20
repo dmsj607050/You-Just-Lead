@@ -13,6 +13,8 @@ from agents.rules_agent import (
     analyze_rules,
     approve_rule_specification,
     rule_confirmation_readiness,
+    RuleImportError,
+    import_rule_source,
 )
 from tools.configuration import load_yaml
 from tools.files import read_json
@@ -116,6 +118,45 @@ class RulesAndDataAgentTests(unittest.TestCase):
             self.assertTrue(approval["approved"])
             self.assertFalse(load_yaml(workspace / "competition_spec.yaml")["approval"]["requires_human_confirmation"])
 
+    def test_imported_rule_file_is_stored_and_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "workspace"
+            source_text = "\n".join(
+                [
+                    "Competition name: Imported Vision Cup",
+                    "Platform: Kaggle",
+                    "Task type: image classification",
+                    "Metric: accuracy",
+                    "Metric direction: maximize",
+                    "Submission format: csv",
+                    "External data: prohibited",
+                    "Pretrained: allowed",
+                    "Ensemble: not allowed",
+                ]
+            )
+            outcome = import_rule_source(
+                workspace,
+                filename="official_rules.md",
+                content_base64=base64.b64encode(source_text.encode("utf-8")).decode("ascii"),
+            )
+
+            self.assertEqual(outcome["source"]["kind"], "file")
+            self.assertTrue(Path(outcome["source"]["path"]).exists())
+            self.assertEqual(outcome["spec"]["competition"]["name"], "Imported Vision Cup")
+            self.assertEqual(outcome["analysis"]["evidence_count"], 9)
+            self.assertIn("Imported Vision Cup", outcome["report_markdown"])
+
+    def test_import_rejects_image_without_ocr_and_private_rule_url(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "workspace"
+            with self.assertRaises(RuleImportError):
+                import_rule_source(
+                    workspace,
+                    filename="rule.png",
+                    content_base64=base64.b64encode(PNG_1X1).decode("ascii"),
+                )
+            with self.assertRaises(RuleImportError):
+                import_rule_source(workspace, source_url="http://127.0.0.1/rules")
     def test_data_audit_detects_duplicates_missing_values_and_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary) / "workspace"

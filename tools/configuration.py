@@ -8,6 +8,16 @@ from typing import Any
 import yaml
 
 
+# Configuration keys whose values point at real competition data inputs.
+DATA_PATH_KEYS = (
+    "train_csv",
+    "test_csv",
+    "train_images_dir",
+    "train_masks_dir",
+    "test_images_dir",
+)
+
+
 class ConfigError(ValueError):
     """Raised when an experiment configuration is invalid."""
 
@@ -19,6 +29,28 @@ def load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ConfigError(f"Configuration must be a mapping: {path}")
     return payload
+
+
+def get_nested(payload: dict[str, Any], dotted_name: str) -> Any:
+    """按点号路径取值，中间不是映射就返回 None。"""
+    value: Any = payload
+    for key in dotted_name.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value
+
+
+def display_value(value: Any) -> str | None:
+    """把配置里的标量折成一行可显示文本，空值统一为 None。"""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item) for item in value) if value else None
+    text = str(value).strip()
+    return text or None
 
 
 def get_mapping(config: dict[str, Any], name: str) -> dict[str, Any]:

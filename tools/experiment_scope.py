@@ -5,16 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tools.configuration import DATA_PATH_KEYS
 from tools.files import read_json
-
-
-DATA_PATH_KEYS = (
-    "train_csv",
-    "test_csv",
-    "train_images_dir",
-    "train_masks_dir",
-    "test_images_dir",
-)
 
 
 def _audit_context(workspace: Path) -> tuple[Path, str] | None:
@@ -37,19 +29,23 @@ def _is_within(candidate: Path, root: Path) -> bool:
     return True
 
 
-def is_current_competition_manifest(workspace: Path, manifest: dict[str, Any]) -> bool:
-    """Exclude synthetic and stale experiments from the current leaderboard view."""
+def scope_exclusion(workspace: Path, manifest: dict[str, Any]) -> str | None:
+    """Return why an experiment is outside the current audit scope, or None.
+
+    原因用固定标识而不是英文句子：界面负责把它翻成人话，也与
+    「不做假结论」的约定一致——排除必须给出可核对的具体理由。
+    """
     context = _audit_context(workspace)
     if context is None:
-        return False
+        return "no_audit"
     audited_root, fingerprint = context
     config = manifest.get("config") if isinstance(manifest.get("config"), dict) else {}
     training = config.get("training") if isinstance(config.get("training"), dict) else {}
     if training.get("runner") == "synthetic_binary_classification":
-        return False
+        return "synthetic_runner"
     data = config.get("data") if isinstance(config.get("data"), dict) else {}
     if fingerprint in str(data.get("version") or ""):
-        return True
+        return None
     for key in DATA_PATH_KEYS:
         value = data.get(key)
         if not value:
@@ -58,8 +54,13 @@ def is_current_competition_manifest(workspace: Path, manifest: dict[str, Any]) -
         if not candidate.is_absolute():
             candidate = workspace / candidate
         if _is_within(candidate, audited_root):
-            return True
-    return False
+            return None
+    return "outside_audit_scope"
+
+
+def is_current_competition_manifest(workspace: Path, manifest: dict[str, Any]) -> bool:
+    """Exclude synthetic and stale experiments from the current leaderboard view."""
+    return scope_exclusion(workspace, manifest) is None
 
 
 def manifests_by_id(workspace: Path) -> dict[str, dict[str, Any]]:

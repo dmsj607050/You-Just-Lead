@@ -294,4 +294,4 @@ def run_image_segmentation(config: dict[str, Any], artifact_dir: Path) -> dict[s
 
     peak_memory = round(torch.cuda.max_memory_allocated(device) / 1024**3, 4) if device.type == "cuda" else None
     best = history[best_epoch - 1]
-    return {"history": history, "best_epoch": best_epoch, "validation_metric": best_iou, "metrics": {"val_global_iou": best_iou, "val_loss_at_best_global_iou": best["val_loss"], "val_dice_at_best_global_iou": best["val_dice"]}, "peak_gpu_memory_gb": peak_memory, "artifact_paths": artifact_paths}
+    return {"history": history, "best_epoch": best_epoch, "validation_metric": best_iou, "metrics": {"val_global_iou": best_iou, "val_mean_iou": best_iou, "val_loss_at_best_global_iou": best["val_loss"], "val_dice_at_best_global_iou": best["val_dice"]}, "peak_gpu_memory_gb": peak_memory, "artifact_paths": artifact_paths}

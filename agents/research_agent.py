@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 import re
 import urllib.parse
 import urllib.request
@@ -71,6 +72,7 @@ def _base_record(source: str, identifier: str, title: str) -> dict[str, Any]:
         "abstract": None,
         "url": None,
         "code_url": None,
+        "pdf_url": None,
         "official_code": False,
         "license": None,
         "task": None,
@@ -97,6 +99,7 @@ def search_arxiv(query: str, limit: int) -> list[dict[str, Any]]:
         published = entry.findtext(f"{atom}published") or ""
         record["year"] = int(published[:4]) if published[:4].isdigit() else None
         record["url"] = entry.findtext(f"{atom}id")
+        record["pdf_url"] = f"https://arxiv.org/pdf/{identifier}.pdf"
         record["authors"] = [
             _clean(author.findtext(f"{atom}name") or "")
             for author in entry.findall(f"{atom}author")
@@ -116,6 +119,7 @@ def search_openalex(query: str, limit: int) -> list[dict[str, Any]]:
         record["year"] = item.get("publication_year")
         record["venue"] = (item.get("primary_location") or {}).get("source", {}).get("display_name")
         record["url"] = item.get("doi") or item.get("id")
+        record["pdf_url"] = (item.get("best_oa_location") or {}).get("pdf_url")
         record["authors"] = [
             str((authorship.get("author") or {}).get("display_name"))
             for authorship in item.get("authorships", [])
@@ -139,6 +143,7 @@ def search_semantic_scholar(query: str, limit: int) -> list[dict[str, Any]]:
         record["venue"] = item.get("venue")
         record["abstract"] = item.get("abstract")
         record["url"] = item.get("url") or (item.get("openAccessPdf") or {}).get("url")
+        record["pdf_url"] = (item.get("openAccessPdf") or {}).get("url")
         record["authors"] = [str(author.get("name")) for author in item.get("authors", []) if author.get("name")]
         records.append(record)
     return records
@@ -202,9 +207,15 @@ def search_research(
 
     records: list[dict[str, Any]] = []
     failures: dict[str, str] = {}
+    provider_records: dict[str, list[dict[str, Any]]] = {}
+    # Providers have independent network timeouts; fan them out so one slow
+    # source does not serially delay every other public result.
+    with ThreadPoolExecutor(max_workers=min(4, len(chosen))) as executor:
+        futures = {name: executor.submit(SOURCES[name], query, limit) for name in chosen}
     for name in chosen:
         try:
-            records.extend(SOURCES[name](query, limit))
+            provider_records[name] = futures[name].result()
+            records.extend(provider_records[name])
         except Exception as exc:  # provider outages must not discard successful sources
             failures[name] = f"{type(exc).__name__}: {exc}"
     records = _deduplicate([record for record in records if _is_relevant(record, query)])

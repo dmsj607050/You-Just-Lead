@@ -108,3 +108,16 @@ npm run dev
 ```
 
 前端在 API 可达时读取真实实验、数据审计和决策状态；不可达时明确显示演示数据模式。API 还提供 `/api/workflow`（当前阶段、阻塞项与推荐动作）和 `/api/capabilities`（内置任务适配器及数据契约），便于前端按真实状态引导下一步。已私密发布的云端界面无法直接读取你电脑上的数据，若要让云端展示真实数据，需要另行部署受认证保护的后端服务。
+
+### 让同一局域网内的移动客户端接入
+
+桌面端与本机前端继续使用回环地址。要让手机或鸿蒙应用访问，改用局域网地址启动：
+
+```powershell
+$env:YJL_API_TOKEN = "pick-a-long-random-value"
+conda run -n AIC python main.py serve --host 0.0.0.0 --port 8765
+```
+
+启动时会打印本机在局域网中的可访问地址与当前令牌。非回环绑定下，会消耗本地 API Key 或触发真实工作的端点必须携带 `X-YJL-Token` 请求头，包括 `/api/agent/deepseek`、`/api/rules/approve`、`/api/experiments/execute`、`/api/decisions/approve`、`/api/data-audit/run` 等；只读端点保持开放。未设置 `YJL_API_TOKEN` 时每次启动都会生成新令牌，客户端需要重新配置。
+
+局域网模式与桌面端不要共用同一个端口：桌面端走回环端口，移动端走另一个端口，两者读写同一工作区。若客户端是带 `Origin` 头的 Web 组件，可通过 `YJL_ALLOWED_ORIGINS`（逗号分隔）把它加入允许列表；该列表在局域网模式下不替代令牌，令牌始终是唯一凭据。

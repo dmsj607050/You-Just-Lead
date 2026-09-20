@@ -10,3 +10,4 @@ Current next step: resolve the official-rule questions, then approve exactly one
 
 - `EXP-0001` — completed; runner/data are not bound to the current audited competition.
 - `EXP-0002` — completed; runner/data are not bound to the current audited competition.
+- `EXP-TEST-SYN` — completed; runner/data are not bound to the current audited competition.

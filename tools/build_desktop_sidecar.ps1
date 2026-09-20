@@ -18,7 +18,7 @@ if ([string]::IsNullOrWhiteSpace($Python)) {
 
 Push-Location $projectRoot
 try {
-    & $Python -m pip install "PyYAML>=6" "keyring>=25" "pyinstaller>=6.11"
+    & $Python -m pip install "PyYAML>=6" "pypdf>=5.0" "keyring>=25" "pyinstaller>=6.11"
     & $Python -m PyInstaller --noconfirm --clean --onefile --name "competition-agent-api" "--paths=$projectRoot" (Join-Path $projectRoot "app\desktop_entry.py")
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $projectRoot "dist\competition-agent-api.exe") -Destination (Join-Path $outputDir "competition-agent-api-$targetTriple.exe") -Force

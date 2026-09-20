@@ -10,15 +10,19 @@ from pathlib import Path
 from typing import Any
 
 from agents.analysis_agent import analyze_history
-from agents.data_agent import dataset_inventory_sha256
 from agents.error_analysis_agent import analyze_prediction_errors
 from agents.optimization_ledger import render_optimization_ledger
-from agents.rules_agent import rule_confirmation_readiness
-from app.approval_service import verify_training_config_approval
+from app.authorization import authorise, training_run_request
 from database.ledger import ExperimentLedger
 from schemas.experiment import ExperimentManifest, ExperimentResult
-from tools.configuration import get_mapping, load_yaml, require_experiment_config, write_yaml
-from tools.files import read_json, write_json_atomic
+from tools.configuration import (
+    DATA_PATH_KEYS,
+    get_mapping,
+    load_yaml,
+    require_experiment_config,
+    write_yaml,
+)
+from tools.files import write_json_atomic
 from tools.provenance import environment_snapshot, file_sha256, git_provenance, utc_now
 from tools.tracking import ExperimentTracker
 from training.runner import execute_training
@@ -77,78 +81,8 @@ class ExperimentService:
         self.tracker = ExperimentTracker(self.workspace / "experiments" / "tracking")
 
     def _require_real_training_preflight(self, config: dict[str, Any], config_path: Path) -> None:
-        """Block real-data runs until rule and data evidence are available."""
-        runner = str(get_mapping(config, "training").get("runner", ""))
-        if runner == "synthetic_binary_classification":
-            return
-        spec_path = self.workspace / "competition_spec.yaml"
-        if not spec_path.exists():
-            raise PermissionError(
-                "Real training requires competition_spec.yaml. Analyze official rules first."
-            )
-        spec = load_yaml(spec_path)
-        readiness = rule_confirmation_readiness(spec)
-        if spec.get("approval", {}).get("requires_human_confirmation", True) or not readiness["ready"]:
-            details = "; ".join(item["field"] for item in readiness["gaps"][:4])
-            raise PermissionError(
-                "Real training is blocked until official rules receive complete human confirmation"
-                + (f" (missing: {details})." if details else ".")
-            )
-        model = get_mapping(config, "model")
-        pretrained_reference = model.get("encoder_weights") or model.get("pretrained_model")
-        if pretrained_reference not in (None, False, "", "none", "None") and spec.get("constraints", {}).get(
-            "pretrained_models_allowed"
-        ) is not True:
-            raise PermissionError(
-                "This configuration requests pretrained model weights, but the official rules "
-                "do not explicitly permit them. Confirm the source and set "
-                "constraints.pretrained_models_allowed to true before training."
-            )
-        audit_path = self.workspace / "reports" / "data_statistics.json"
-        if not audit_path.exists():
-            raise PermissionError(
-                "Real training is blocked until the deterministic data audit is complete."
-            )
-        audit = read_json(audit_path)
-        audited_data_dir = audit.get("data_dir")
-        audited_inventory = audit.get("inventory_sha256")
-        if not audited_data_dir or not audited_inventory:
-            raise PermissionError(
-                "The data audit does not contain a content fingerprint. Re-run audit-data."
-            )
-        try:
-            actual_inventory = dataset_inventory_sha256(Path(str(audited_data_dir)))
-        except OSError as exc:
-            raise PermissionError(
-                "The audited data directory can no longer be read. Re-run audit-data."
-            ) from exc
-        if actual_inventory != audited_inventory:
-            raise PermissionError(
-                "Raw data changed after its audit. Re-run audit-data before training."
-            )
-        self._require_audited_data_inputs(config, Path(str(audited_data_dir)).resolve())
-        requested_device = str(get_mapping(config, "training").get("device", "cpu"))
-        if requested_device.startswith("cuda"):
-            verify_training_config_approval(self.workspace, config_path)
-
-    def _require_audited_data_inputs(self, config: dict[str, Any], audited_root: Path) -> None:
-        """Require each configured real-data input to be present in the audited tree."""
-        data = get_mapping(config, "data")
-        input_paths = [(key, data[key]) for key in DATA_PATH_KEYS if data.get(key)]
-        if not input_paths:
-            raise PermissionError(
-                "Real training requires declared data input paths inside the audited directory."
-            )
-        for key, value in input_paths:
-            candidate = Path(str(value)).expanduser().resolve()
-            if not candidate.exists():
-                raise PermissionError(f"Configured data input does not exist: {key}={candidate}")
-            try:
-                candidate.relative_to(audited_root)
-            except ValueError as exc:
-                raise PermissionError(
-                    f"Configured data input is outside the audited directory: {key}={candidate}"
-                ) from exc
+        """Block real-data runs until the authorization gateway allows this exact run."""
+        authorise(training_run_request(config, config_path), self.workspace)
 
     def _resolve_runtime_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """Resolve known data inputs relative to the current competition workspace.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -15,10 +16,13 @@ class ExperimentLedger:
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.database_path)
+        connection = sqlite3.connect(self.database_path, timeout=15)
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=15000")
+        return connection
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS experiments (
@@ -42,9 +46,10 @@ class ExperimentLedger:
                 )
                 """
             )
+            connection.commit()
 
     def save_manifest(self, manifest: dict[str, Any]) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO experiments (
@@ -61,9 +66,10 @@ class ExperimentLedger:
                     json.dumps(manifest, ensure_ascii=False),
                 ),
             )
+            connection.commit()
 
     def save_result(self, result: dict[str, Any]) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 UPDATE experiments
@@ -78,9 +84,10 @@ class ExperimentLedger:
                     result["experiment_id"],
                 ),
             )
+            connection.commit()
 
     def summaries(self) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 """
                 SELECT experiment_id, status, created_at, finished_at, validation_metric
@@ -103,7 +110,7 @@ class ExperimentLedger:
         """Append an immutable workflow event for non-experiment actions."""
         from tools.provenance import utc_now
 
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO workflow_events (event_type, created_at, payload_json)
@@ -111,9 +118,10 @@ class ExperimentLedger:
                 """,
                 (event_type, utc_now(), json.dumps(payload, ensure_ascii=False)),
             )
+            connection.commit()
 
     def recent_events(self, limit: int = 20) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 """
                 SELECT event_id, event_type, created_at, payload_json

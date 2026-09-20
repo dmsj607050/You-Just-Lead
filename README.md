@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="You Just Lead" width="420">
+</p>
+
 # Competition Agent
 
 面向机器学习竞赛的实验驱动研发工作流系统。
@@ -11,15 +15,17 @@
 
 ## 首次使用
 
-1. 将 `workspace/current_competition/competition_spec.template.yaml` 复制为 `competition_spec.yaml`，根据官方规则填写。
-2. 将原始比赛资料放进 `workspace/current_competition/input/`，不要修改原始文件。
+1. 新建一个项目：App 的启动页点「新建项目」会在 `workspace/<项目>/` 建好目录骨架，并从
+   `competition_spec.template.yaml` 复制一份 `competition_spec.yaml`；也可以手工照做。
+   有哪些项目、当前是哪一个记在 `workspace/projects.json`，命令行默认作用在当前项目上。
+2. 按官方规则填写该项目的 `competition_spec.yaml`，原始比赛资料放进它的 `input/`，不要修改原始文件。
 3. 每次训练前创建运行清单到 `experiments/manifests/`；训练后将结构化结果写入 `experiments/results/`。
 4. 从结果生成实验日志、最佳方案和下一步建议。
 
 ## 目录原则
 
 - `agents/`、`tools/`、`schemas/`：后端可复用能力，不保存某一比赛的产物。
-- `workspace/current_competition/`：当前比赛的规则、报告、实验、模型与提交候选。
+- `workspace/`：每个子目录是一个项目（一场竞赛的工作区），`projects.json` 是项目注册表。
 - `database/`：Agent 状态、审批、论文与实验关系的结构化存储。
 - `paper/`：从实验记录生成的论文草稿、表格和证据映射。
 

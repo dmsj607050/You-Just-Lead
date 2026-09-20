@@ -1,44 +1,29 @@
 {
   "audit_schema_version": 1,
-  "data_dir": "B:\\2026xunfei\\train",
+  "data_dir": "B:\\You Just Lead\\competition-agent\\workspace\\current_competition\\data\\raw",
   "exact_duplicate_groups": [],
-  "file_count": 5536,
+  "file_count": 1,
   "file_kinds": {
-    "image": 5536
+    "file": 1
   },
-  "generated_at": "2026-07-16T14:38:35+00:00",
+  "generated_at": "2026-08-19T14:51:42+00:00",
   "images": {
-    "channels": {
-      "1": 2768,
-      "3": 2768
-    },
-    "count": 5536,
-    "height": {
-      "max": 1024,
-      "mean": 1024.0,
-      "min": 1024
-    },
-    "width": {
-      "max": 1024,
-      "mean": 1024.0,
-      "min": 1024
-    }
+    "channels": {},
+    "count": 0,
+    "height": null,
+    "width": null
   },
-  "inventory_sha256": "a6634657711d43d15494a4f7a11d402c12c0f6f5080cb22f066e4730f3cc3e86",
+  "inventory_sha256": "72fc4304c2c2b9a77aaa3414fae4b1aed1bb8178a22d91b7fbabd3f6cd08e3c2",
   "issue_count": 0,
   "metadata_format": "jsonl",
   "segmentation_masks": {
-    "count": 2768,
+    "count": 0,
     "empty_count": 0,
-    "foreground_ratio": {
-      "max": 0.31168461,
-      "mean": 0.01580207,
-      "min": 0.00307846
-    }
+    "foreground_ratio": null
   },
   "splits": {
-    "train": 5536
+    "unassigned": 1
   },
   "tables": [],
-  "total_bytes": 388863455
+  "total_bytes": 1
 }

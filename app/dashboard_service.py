@@ -46,6 +46,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
     experiments = []
     for result in reversed(results):
         manifest = manifests.get(result["experiment_id"], {})
+        approval = _json_if_exists(workspace / "experiments" / "approvals" / f"{result['experiment_id']}.json", {})
         experiments.append(
             {
                 "id": result["experiment_id"],
@@ -59,6 +60,11 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
                 "diagnosis": result.get("diagnosis", {}),
                 "error_analysis": result.get("error_analysis", {}),
                 "history": _history_for(result),
+                # 人工批准记录（experiments/approvals/<id>.json）。界面据此把「记录批准」
+                # 换成「已批准」，否则同一道关口会被重复点。
+                "approved": bool(approval),
+                "approved_at": approval.get("approved_at"),
+                "approved_by": approval.get("approved_by"),
             }
         )
     data_audit = _json_if_exists(workspace / "reports" / "data_statistics.json", {})

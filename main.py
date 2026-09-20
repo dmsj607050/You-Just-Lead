@@ -21,6 +21,7 @@ from app.api_server import serve as serve_api
 from app.approval_service import approve_training_config
 from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
+from app.project_registry import current_workspace
 from app.reporting import generate_reports
 from database.ledger import ExperimentLedger
 from paper.generator import generate_paper_package
@@ -30,11 +31,11 @@ from training.catalog import supported_runners
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DEFAULT_WORKSPACE = PROJECT_ROOT / "workspace" / "current_competition"
 
 
 def _workspace(value: str | None) -> Path:
-    return Path(value).resolve() if value else DEFAULT_WORKSPACE
+    """--workspace 优先；没给就用注册表里的当前项目，与 App 进的是同一个工作区。"""
+    return Path(value).resolve() if value else current_workspace(PROJECT_ROOT)
 
 
 def _config_path(workspace: Path, value: str) -> Path:
@@ -187,6 +188,13 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _parser().parse_args()
+
+    if args.command == "serve":
+        # 起服务不需要先有工作区：项目由注册表决定，一个项目都没选时也能启动，
+        # App 会停在项目选择页。传了 --workspace 才固定到那一个工作区。
+        serve_api(args.host, args.port, Path(args.workspace).resolve() if args.workspace else None)
+        return 0
+
     workspace = _workspace(getattr(args, "workspace", None))
     ensure_workspace_layout(workspace)
 
@@ -322,10 +330,6 @@ def main() -> int:
             "paper_package_generated", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
-        return 0
-
-    if args.command == "serve":
-        serve_api(args.host, args.port, workspace)
         return 0
 
     if args.command == "workflow":

@@ -1,26 +1,20 @@
 # Data profile
 
-- Source: `B:\2026xunfei\train`
-- Files: **5536**
-- Total bytes: **388863455**
+- Source: `B:\You Just Lead\competition-agent\workspace\current_competition\data\raw`
+- Files: **1**
+- Total bytes: **1**
 - Quality issues: **0**
 - Exact duplicate groups: **0**
 
 ## Inventory
 
-- image: 5536
+- file: 1
 - No files found
 
 ## Split hints
 
-- train: 5536
+- unassigned: 1
 - No train/test folder names detected
-
-## Images
-
-- Width range: 1024–1024
-- Height range: 1024–1024
-- Channel distribution: {1: 2768, 3: 2768}
 
 ## Derived artefacts
 

@@ -7,11 +7,20 @@ ambiguous, therefore every missing or weakly extracted field remains in the
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import ipaddress
 import re
+import socket
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from tools.configuration import load_yaml, write_yaml
+from tools.configuration import display_value, get_nested, load_yaml, write_yaml
 from tools.files import write_json_atomic
 from tools.provenance import file_sha256, utc_now
 
@@ -23,6 +32,7 @@ FIELD_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "competition.platform": (r"^(?:platform|平台)\s*[:：]\s*(.+)$",),
     "competition.task_type": (r"^(?:task(?:\s+type)?|任务(?:类型)?)\s*[:：]\s*(.+)$",),
+    "data.requirements": (r"^(?:data(?:set)?(?:\s+requirements?)?|数据(?:要求|集要求)?)\s*[:：]\s*(.+)$",),
     "competition.deadline": (r"^(?:deadline|截止(?:日期|时间)?)\s*[:：]\s*(.+)$",),
     "evaluation.primary_metric": (r"^(?:primary\s+metric|metric|评价指标|评测指标)\s*[:：]\s*(.+)$",),
     "evaluation.direction": (r"^(?:metric\s+direction|direction|指标方向)\s*[:：]\s*(maximize|minimize|最大化|最小化)\s*$",),
@@ -39,6 +49,35 @@ REQUIRED_FIELDS = (
     "evaluation.primary_metric",
     "submission.format",
 )
+
+MAX_RULE_SOURCE_BYTES = 12 * 1024 * 1024
+IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
+
+class RuleImportError(ValueError):
+    """Raised when a local or remote rule source cannot be safely imported."""
+
+class _VisibleTextParser(HTMLParser):
+    """Small dependency-free HTML-to-text adapter for official rule pages."""
+    def __init__(self) -> None:
+        super().__init__()
+        self._parts: list[str] = []
+        self._ignored_depth = 0
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"script", "style", "noscript", "svg"}:
+            self._ignored_depth += 1
+        elif tag in {"p", "div", "li", "tr", "br", "h1", "h2", "h3", "h4", "h5", "h6"}:
+            self._parts.append("\n")
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style", "noscript", "svg"} and self._ignored_depth:
+            self._ignored_depth -= 1
+        elif tag in {"p", "div", "li", "tr", "br", "h1", "h2", "h3", "h4", "h5", "h6"}:
+            self._parts.append("\n")
+    def handle_data(self, data: str) -> None:
+        if not self._ignored_depth:
+            self._parts.append(data)
+    def text(self) -> str:
+        lines = [re.sub(r"\s+", " ", line).strip() for line in "".join(self._parts).splitlines()]
+        return "\n".join(line for line in lines if line)
 
 
 # A rule extraction is only a draft.  Before a real-data run we require a
@@ -73,12 +112,7 @@ XUNFEI_CONFIRMATION_FIELDS = (
 
 
 def _deep_get(payload: dict[str, Any], dotted_name: str) -> Any:
-    value: Any = payload
-    for key in dotted_name.split("."):
-        if not isinstance(value, dict):
-            return None
-        value = value.get(key)
-    return value
+    return get_nested(payload, dotted_name)
 
 
 def _deep_set(payload: dict[str, Any], dotted_name: str, value: Any) -> None:
@@ -93,7 +127,8 @@ def _deep_set(payload: dict[str, Any], dotted_name: str, value: Any) -> None:
     parent[keys[-1]] = value
 
 
-def _meaningful(value: Any) -> bool:
+def is_meaningful(value: Any) -> bool:
+    """判断规格里的一个值是否已经真正填好（占位词如「待填」不算）。"""
     if value is None:
         return False
     if isinstance(value, str):
@@ -137,7 +172,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
     gaps: list[dict[str, str]] = []
     for field in required_fields:
         value = _deep_get(spec, field)
-        if not _meaningful(value):
+        if not is_meaningful(value):
             gaps.append({"field": field, "reason": "The confirmed value is missing or unresolved."})
 
     if strict_xunfei_profile:
@@ -153,7 +188,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
     if strict_xunfei_profile:
         evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
         for field in ("source_type", "source_locator", "reviewed_at"):
-            if not _meaningful(evidence.get(field)):
+            if not is_meaningful(evidence.get(field)):
                 gaps.append(
                     {
                         "field": f"approval.official_evidence.{field}",
@@ -162,7 +197,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
                 )
         field_evidence = evidence.get("fields") if isinstance(evidence.get("fields"), dict) else {}
         for field in required_fields:
-            if not _meaningful(field_evidence.get(field)):
+            if not is_meaningful(field_evidence.get(field)):
                 gaps.append(
                     {
                         "field": f"approval.official_evidence.fields.{field}",
@@ -236,12 +271,12 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
             continue
         value = item.get("value")
         anchor = item.get("anchor")
-        if not _meaningful(value) or not _meaningful(anchor):
+        if not is_meaningful(value) or not is_meaningful(anchor):
             missing.append(name)
             continue
         values[name] = value
         anchors[name] = str(anchor).strip()
-    source_missing = [name for name in ("source_type", "source_locator", "reviewed_at") if not _meaningful(source.get(name))]
+    source_missing = [name for name in ("source_type", "source_locator", "reviewed_at") if not is_meaningful(source.get(name))]
     if "..." in str(source.get("source_locator", "")):
         source_missing.append("source_locator")
     if missing or source_missing:
@@ -289,25 +324,233 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
     return outcome
 
 
+# 界面录入证据时每个字段的值控件类型。只有类型敏感的字段需要特判，其余按文本处理；
+# 列表与数值不允许在界面里改写，避免把 1024,1024 这种输入写成字符串。
+EVIDENCE_FIELD_KINDS = {
+    "submission.contract.runtime_output": "runtime_output",
+    "constraints.external_data_allowed": "boolean",
+    "constraints.pretrained_models_allowed": "boolean",
+    "constraints.ensemble_allowed": "boolean",
+    "submission.contract.required_files": "list",
+    "submission.contract.mask_size": "list",
+    "submission.daily_limit": "number",
+    "constraints.model_size_limit_mb": "number",
+    "evaluation.direction": "direction",
+}
+
+
+def rule_evidence_form_for_workspace(workspace: Path) -> dict[str, Any]:
+    """界面「录入官方证据」需要的表单状态：逐字段现值/锚点 + 值控件类型。
+
+    只读，不改任何文件。`supported` 为假时界面禁用录入：证据记录与应用目前只对
+    完成集成的讯飞水体分割档案开放，通用竞赛的规则来源不同，不能套同一张表。
+    """
+    spec_path = workspace / "competition_spec.yaml"
+    spec = load_yaml(spec_path) if spec_path.exists() else {}
+    readiness = rule_confirmation_readiness_for_workspace(workspace)
+    approval = spec.get("approval") if isinstance(spec.get("approval"), dict) else {}
+    evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
+    anchors = evidence.get("fields") if isinstance(evidence.get("fields"), dict) else {}
+
+    fields: list[dict[str, Any]] = []
+    for name in readiness.get("required_fields", []):
+        value = _deep_get(spec, name)
+        anchor = anchors.get(name)
+        fields.append(
+            {
+                "field": name,
+                "value": display_value(value),
+                "has_value": is_meaningful(value),
+                "anchor": display_value(anchor),
+                "has_anchor": is_meaningful(anchor),
+                "kind": EVIDENCE_FIELD_KINDS.get(name, "text"),
+            }
+        )
+
+    return {
+        "supported": bool(spec) and _is_xunfei_waterseg_spec(spec),
+        "profile": readiness.get("profile"),
+        "spec_path": str(spec_path) if spec_path.exists() else None,
+        "source": {
+            "source_type": display_value(evidence.get("source_type")),
+            "source_locator": display_value(evidence.get("source_locator")),
+            "reviewed_at": display_value(evidence.get("reviewed_at")),
+            "confirmation_file": display_value(evidence.get("confirmation_file")),
+        },
+        "fields": fields,
+        "required_field_count": len(fields),
+        "missing_value_count": sum(1 for item in fields if not item["has_value"]),
+        "missing_anchor_count": sum(1 for item in fields if not item["has_anchor"]),
+    }
+
+
+def build_rule_evidence_record(
+    *,
+    spec: dict[str, Any],
+    source: dict[str, Any],
+    overrides: dict[str, Any],
+) -> dict[str, Any]:
+    """把界面提交的改动合并到规格现值与已有锚点上，得到一份完整的证据记录。
+
+    界面只提交「人实际填的东西」，其余字段沿用规格里的值，所以数值/布尔/列表
+    不需要在客户端往返一遍、也不会被字符串化。缺值或缺锚点在这里就被拦下，
+    免得写出一份自以为完整的证据。
+    """
+    required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+    approval = spec.get("approval") if isinstance(spec.get("approval"), dict) else {}
+    evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
+    anchors = evidence.get("fields") if isinstance(evidence.get("fields"), dict) else {}
+
+    record_fields: dict[str, dict[str, Any]] = {}
+    missing: list[str] = []
+    for name in required:
+        override = overrides.get(name)
+        override = override if isinstance(override, dict) else {}
+        value = _deep_get(spec, name)
+        anchor = anchors.get(name)
+        # 布尔字段用 value_flag 传，显式的 false 不能被当成「没填」。
+        if "value_flag" in override:
+            value = bool(override["value_flag"])
+        elif is_meaningful(override.get("value_text")):
+            value = str(override["value_text"]).strip()
+        if is_meaningful(override.get("anchor")):
+            anchor = str(override["anchor"]).strip()
+        if not is_meaningful(value) or not is_meaningful(anchor):
+            missing.append(name)
+            continue
+        record_fields[name] = {"value": value, "anchor": anchor}
+
+    if missing:
+        raise ValueError("Incomplete official rule evidence: " + ", ".join(f"field {name}" for name in missing))
+    return {"source": dict(source), "fields": record_fields}
+
+
 def _read_text(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix in IMAGE_SUFFIXES:
+        raise RuleImportError("Image OCR is not configured. Upload a PDF, Markdown, text file, or rule-page URL instead.")
+    if suffix == ".pdf":
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise RuleImportError("PDF support requires the pypdf package in the local Agent runtime.") from exc
+        try:
+            reader = PdfReader(str(path))
+        except Exception as exc:
+            raise RuleImportError(f"Unable to open PDF rule document: {exc}") from exc
+        text = "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+        if not text:
+            raise RuleImportError("No selectable text was found in this PDF. Use a text PDF or provide OCR text for a scanned document.")
+        return text
+    data = path.read_bytes()
     for encoding in ("utf-8-sig", "utf-8", "gb18030"):
         try:
-            return path.read_text(encoding=encoding)
+            decoded = data.decode(encoding)
+            if decoded:
+                break
         except UnicodeDecodeError:
             continue
-    return path.read_text(encoding="utf-8", errors="replace")
+    else:
+        decoded = data.decode("utf-8", errors="replace")
+    if suffix in {".htm", ".html", ".xhtml"} or "<html" in decoded[:1000].lower():
+        parser = _VisibleTextParser()
+        parser.feed(decoded)
+        parsed = parser.text()
+        if parsed:
+            return parsed
 
+    return decoded
 
-def _set_nested(payload: dict[str, Any], dotted_name: str, value: Any) -> None:
-    parent, field = dotted_name.split(".")
-    payload.setdefault(parent, {})[field] = value
+def _safe_rule_filename(filename: str, default: str) -> str:
+    candidate = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename).name).strip("._")
+    return candidate or default
 
+def _validate_public_rule_url(source_url: str):
+    parsed = urlparse(source_url.strip())
+    if parsed.scheme not in {"http", "https"}:
+        raise RuleImportError("Rule-page URLs must use http or https.")
+    host = parsed.hostname
+    if not host or host.lower() in {"localhost", "localhost.localdomain"}:
+        raise RuleImportError("Local rule-page URLs are not allowed.")
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(host, None)}
+    except OSError as exc:
+        raise RuleImportError(f"Unable to resolve rule-page host: {exc}") from exc
+    for address in addresses:
+        try:
+            ip_address = ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        if not ip_address.is_global:
+            raise RuleImportError("Rule-page URL must resolve to a public address.")
+    return parsed
 
-def _get_nested(payload: dict[str, Any], dotted_name: str) -> Any:
-    parent, field = dotted_name.split(".")
-    value = payload.get(parent, {})
-    return value.get(field) if isinstance(value, dict) else None
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
+def _download_rule_page(source_url: str) -> tuple[bytes, str, Any]:
+    parsed = _validate_public_rule_url(source_url)
+    opener = build_opener(_NoRedirect)
+    request = Request(source_url, headers={"User-Agent": "YouJustLead/0.1"})
+    try:
+        with opener.open(request, timeout=20) as response:
+            declared_size = int(response.headers.get("Content-Length", "0") or "0")
+            if declared_size > MAX_RULE_SOURCE_BYTES:
+                raise RuleImportError("Rule page is larger than the 12 MB import limit.")
+            payload = response.read(MAX_RULE_SOURCE_BYTES + 1)
+            media_type = response.headers.get_content_type()
+    except HTTPError as exc:
+        raise RuleImportError(f"Unable to download rule page (HTTP {exc.code}).") from exc
+    except URLError as exc:
+        raise RuleImportError(f"Unable to download rule page: {exc.reason}") from exc
+    if len(payload) > MAX_RULE_SOURCE_BYTES:
+        raise RuleImportError("Rule page is larger than the 12 MB import limit.")
+    return payload, media_type, parsed
+
+def import_rule_source(workspace: Path, *, filename: str = "", content_base64: str = "", source_url: str = "") -> dict[str, Any]:
+    has_upload = bool(content_base64.strip())
+    has_url = bool(source_url.strip())
+    if has_upload == has_url:
+        raise RuleImportError("Provide exactly one rule file or one rule-page URL.")
+    if has_upload:
+        encoded = content_base64.split(",", 1)[-1].strip()
+        try:
+            payload = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise RuleImportError("Rule-file upload is not valid base64 data.") from exc
+        source_kind = "file"
+        safe_name = _safe_rule_filename(filename, "official_rules.txt")
+    else:
+        payload, media_type, parsed = _download_rule_page(source_url)
+        suffix = Path(parsed.path).suffix.lower()
+        if not suffix:
+            suffix = ".pdf" if media_type == "application/pdf" else ".html"
+        source_kind = "url"
+        safe_name = _safe_rule_filename(f"{parsed.hostname or 'rule-page'}{suffix}", f"rule-page{suffix}")
+    if not payload:
+        raise RuleImportError("Rule source is empty.")
+    if len(payload) > MAX_RULE_SOURCE_BYTES:
+        raise RuleImportError("Rule source is larger than the 12 MB import limit.")
+    source_dir = workspace / "input" / "rules"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256(payload).hexdigest()
+    stored_source = source_dir / f"{digest[:12]}_{safe_name}"
+    stored_source.write_bytes(payload)
+    analysis = analyze_rules(stored_source, workspace)
+    spec_path = workspace / "competition_spec.yaml"
+    spec = load_yaml(spec_path)
+    if has_url:
+        spec.setdefault("rule_source", {})["origin_url"] = source_url.strip()
+        write_yaml(spec_path, spec)
+    report_path = Path(analysis["rules_report"])
+    return {
+        "source": {"kind": source_kind, "filename": stored_source.name, "path": str(stored_source), "sha256": digest, "url": source_url.strip() or None},
+        "analysis": analysis,
+        "spec": spec,
+        "readiness": rule_confirmation_readiness(spec),
+        "report_markdown": report_path.read_text(encoding="utf-8") if report_path.exists() else "",
+    }
 
 def _yes_no(value: str) -> bool | None:
     normalized = value.lower().strip()
@@ -363,7 +606,7 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
                     value = match.group(1).strip()
                     if dotted_name == "evaluation.direction":
                         value = {"最大化": "maximize", "最小化": "minimize"}.get(value, value.lower())
-                    _set_nested(spec, dotted_name, value)
+                    _deep_set(spec, dotted_name, value)
                     evidence[dotted_name] = {"line": line_number, "text": line, "value": value}
                     break
             if dotted_name in evidence:
@@ -375,7 +618,7 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
 
     unresolved: list[str] = []
     for field in REQUIRED_FIELDS:
-        if not _get_nested(spec, field):
+        if not _deep_get(spec, field):
             unresolved.append(f"Confirm {field} from the official rules.")
     for field in ("external_data_allowed", "pretrained_models_allowed", "ensemble_allowed"):
         if spec.get("constraints", {}).get(field) is None:
@@ -388,7 +631,7 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
     }
     # Re-analysis may refresh extracted values, but it must not silently erase
     # a human's attached official evidence or a prior review record.
-    for key in ("official_evidence", "approved_at", "approved_note"):
+    for key in ("official_evidence",):
         if key in previous_approval:
             spec["approval"][key] = previous_approval[key]
     spec["rule_source"] = {
@@ -409,7 +652,7 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
         "## Extracted specification",
         "",
     ]
-    for section in ("competition", "evaluation", "submission", "constraints"):
+    for section in ("competition", "data", "evaluation", "submission", "constraints"):
         rule_lines.append(f"### {section.title()}")
         for key, value in spec.get(section, {}).items():
             rule_lines.append(f"- **{key}**: {value if value is not None else 'unresolved'}")
