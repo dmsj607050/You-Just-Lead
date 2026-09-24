@@ -1,1 +1,0 @@
-{"default":{"identifier":"default","description":"Default desktop capabilities for the local competition Agent.","local":true,"windows":["main"],"permissions":["core:default","shell:default",{"identifier":"shell:allow-execute","allow":[{"args":true,"name":"competition-agent-api","sidecar":true}]}]}}
