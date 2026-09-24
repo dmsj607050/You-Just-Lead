@@ -23,7 +23,7 @@ database/*.sqlite
 .env
 __pycache__/
 .pytest_cache/
-.desktop-build-venv/
+.local-agent-build-venv/
 /build/
 /dist/
 /*.spec
@@ -46,5 +46,5 @@ paper/generated_xunfei/*.synctex.gz
 paper/generated_xunfei/*.xdv
 paper/generated_xunfei/preview*.png
 
-# 桌面 dashboard 已迁到客户端仓库（YouJustLead-Harmony 的 desktop/），本仓库不再保留它。
-# 见 docs/architecture.md D7。
+# 桌面仪表盘已废弃并从客户端仓库移除（用户 2026-09-24 决定只保留端侧应用），
+# 本仓库本来就不保留它。见 docs/architecture.md D7。

@@ -91,27 +91,32 @@ conda run -n AIC python main.py paper
 
 `plan` 生成受规则约束的待办队列；`paper` 生成 `paper/generated/competition_report.tex`、`references.bib` 和证据映射。它不会虚构未记录的结果。
 
-## 5. 连接前端
+## 5. 连接端侧应用
 
-先启动只监听本机的 API：
+端侧应用读两样东西：本机工作区文件，以及（可选）本地 Agent 的 HTTP 接口。
+
+先启动只监听本机的 Agent：
 
 ```powershell
 conda run -n AIC python main.py serve --port 8765
 ```
 
-在另一个终端连接前端：
+没有 Python 环境的机器上，用打包好的**本地执行器**起同一个服务（见 `docs/architecture.md` D7）：
 
 ```powershell
-cd ..\..\YouJustLead\desktop   # 桌面端在客户端仓库，与后端仓库同级
-$env:NEXT_PUBLIC_COMPETITION_API_URL = "http://127.0.0.1:8765"
-npm run dev
+powershell -ExecutionPolicy Bypass -File tools\build_local_agent.ps1
+dist\competition-agent-api.exe serve --port 8765
 ```
 
-前端在 API 可达时读取真实实验、数据审计和决策状态；不可达时明确显示演示数据模式。API 还提供 `/api/workflow`（当前阶段、阻塞项与推荐动作）和 `/api/capabilities`（内置任务适配器及数据契约），便于前端按真实状态引导下一步。已私密发布的云端界面无法直接读取你电脑上的数据，若要让云端展示真实数据，需要另行部署受认证保护的后端服务。
+然后在鸿蒙端应用里把后端地址指向 `http://127.0.0.1:8765`（模拟器与主机同网时改用局域网地址，见下一节）。
+API 可达时应用读真实实验、数据审计与决策状态；不可达时应用切到**离线模式**，直接读工作区里已经
+落盘的证据（规则就绪度、数据审计、实验历史、账本、文献检索、论文证据），并把需要重算的能力标成
+"需外部执行器"。API 还提供 `/api/workflow`（当前阶段、阻塞项与推荐动作）和 `/api/capabilities`
+（内置任务适配器及数据契约），便于应用按真实状态引导下一步。
 
-### 让同一局域网内的移动客户端接入
+### 让同一局域网内的手机接入
 
-桌面端与本机前端继续使用回环地址。要让手机或鸿蒙应用访问，改用局域网地址启动：
+要让手机或鸿蒙设备通过局域网访问，改用局域网地址启动：
 
 ```powershell
 $env:YJL_API_TOKEN = "pick-a-long-random-value"
@@ -120,4 +125,4 @@ conda run -n AIC python main.py serve --host 0.0.0.0 --port 8765
 
 启动时会打印本机在局域网中的可访问地址与当前令牌。非回环绑定下，会消耗本地 API Key 或触发真实工作的端点必须携带 `X-YJL-Token` 请求头，包括 `/api/agent/deepseek`、`/api/rules/approve`、`/api/experiments/execute`、`/api/decisions/approve`、`/api/data-audit/run` 等；只读端点保持开放。未设置 `YJL_API_TOKEN` 时每次启动都会生成新令牌，客户端需要重新配置。
 
-局域网模式与桌面端不要共用同一个端口：桌面端走回环端口，移动端走另一个端口，两者读写同一工作区。若客户端是带 `Origin` 头的 Web 组件，可通过 `YJL_ALLOWED_ORIGINS`（逗号分隔）把它加入允许列表；该列表在局域网模式下不替代令牌，令牌始终是唯一凭据。
+局域网模式与回环模式不要共用同一个端口：本机走回环端口，设备走另一个端口，两者读写同一工作区。若客户端是带 `Origin` 头的 Web 组件，可通过 `YJL_ALLOWED_ORIGINS`（逗号分隔）把它加入允许列表；该列表在局域网模式下不替代令牌，令牌始终是唯一凭据。

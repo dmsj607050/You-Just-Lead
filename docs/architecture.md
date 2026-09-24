@@ -90,31 +90,30 @@
 
 - 依据：`tools/files.py`、`tests/test_files_atomic.py`（确定性回归，在旧实现上必然失败）。
 
-### D7 桌面 dashboard 是**独立交付物**，属 Legacy，不在 v1 架构内
+### D7 桌面仪表盘已**废弃并移除**，v1 只有端侧应用
 
-<!-- 这一条先后更正过两个错误前提：最早文档写"源码已经不在了"（不是事实）；
-     后来写"源码只在第三方仓库里、归属待用户拍板"（已被用户拍板结束）。 -->
+<!-- 这一条被更正过三次：最早文档写"源码已经不在了"（不是事实）；后来写"源码在第三方仓库、
+     归属待用户拍板"；再后来按"内容都发到自己的 GitHub"搬进了客户端仓库。 -->
 
-**2026-09-24 用户拍板**：所有内容都发布在用户自己的 GitHub 上，不用第三方托管；桌面 dashboard
-也收进**客户端仓库**。据此已完成搬迁：
+**2026-09-24 用户拍板（最终）**：只要鸿蒙端应用，旧的仪表盘不要了。据此：
 
-| 项 | 现在的实况 |
+| 项 | 实况 |
 |---|---|
-| 源码 | `YouJustLead-Harmony` 这个**客户端仓库**的 `desktop/`（与鸿蒙端 `entry/` 同仓） |
-| 本地路径 | `B:\YouJustLead\desktop` |
-| 版本控制 | 客户端仓库本体，**不再是嵌套仓库** |
-| 打包脚本 | 已随桌面端迁到 `desktop/tools/`（sidecar / Tauri release / NSIS） |
-| 后端仓库位置 | 由 `-BackendRoot` 参数、`YJL_BACKEND_ROOT` 或"两仓库同级"的布局解析 |
-| 第三方托管 | **已废弃**，`git.chatgpt-team.site` 不再是它的远程；旧历史另存 `output/frontend-history-backup.git`（11 个提交） |
-| 未提交改动 | 0（搬迁时一并提交） |
-| 产物 | `B:\You Just Lead\you-just-lead-desktop.exe`（13 MB）、`competition-agent/dist/competition-agent-api.exe`（9.7 MB） |
+| 客户端仓库 | `YouJustLead-Harmony` **只有端侧应用**（`entry/` 等 DevEco 工程），没有 `desktop/` |
+| 仪表盘源码 | **已从两个仓库移除**；历史留在客户端仓库的提交里（引入 `43aeaf1`、移除 `a26ca7f`），需要时可取回 |
+| 第三方托管 | 已废弃，`git.chatgpt-team.site` 不再被任何东西引用 |
+| 本机残留 | `B:\You Just Lead\you-just-lead-desktop.exe`（13 MB 安装包）、`output\frontend-history-backup.git`（历史镜像） |
+| 判定 | 仪表盘**不在 v1 架构内，也不再作为交付物存在** |
 
-搬迁前实况（供追溯）：源码在 `competition-agent/frontend/`，Next.js + Tauri，自带 `.git`，
-96 个受控文件，主干 `main` 领先 `origin/main` 1 个提交，远程为第三方托管，另有 11 个文件未提交。
+**两件名字里带 dashboard / desktop、但不是那个仪表盘的东西，不要连坐删掉**：
 
-**决定**：桌面端**降级为 Legacy，不进入 v1 架构**（第 1 节那张图里没有它）。
-v1 的交付形态是鸿蒙端 + 本地 Python 执行器；桌面 dashboard 不再投入功能开发。
-**搬仓库只回答"发布在哪"，不改变 Legacy 这个定位。**
+- `app/dashboard_service.py` 与 `GET /api/dashboard`：这是后端给**端侧应用**的聚合快照接口，
+  端侧 `BackendClient.ets` 正在调它。
+- `app/local_agent_entry.py` + `tools/build_local_agent.ps1`：Windows **本地执行器**
+  （产物 `dist/competition-agent-api.exe`，发布清单里 `required_for_release=true`）。
+  端侧应用连的就是它。
+
+v1 的交付形态：**鸿蒙端应用 + 本地 Python 执行器**。
 
 ### D8 版本只有一处来源，发布与否是可判定的
 

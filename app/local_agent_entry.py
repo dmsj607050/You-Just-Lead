@@ -1,4 +1,11 @@
-"""Entry point for the packaged Windows desktop Agent sidecar."""
+"""Entry point for the packaged Windows local agent.
+
+This is what ``tools/build_local_agent.ps1`` freezes into
+``dist/competition-agent-api.exe``: the executable a machine without a Python
+environment starts so that the on-device app has a local Agent to talk to on
+127.0.0.1.  It is a release artefact (see ``app/release_service.py``), not a
+component of any desktop UI.
+"""
 
 from __future__ import annotations
 
@@ -59,7 +66,7 @@ def _workspace() -> tuple[Path, Path]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="You Just Lead desktop Agent sidecar")
+    parser = argparse.ArgumentParser(description="You Just Lead local agent")
     parser.add_argument("command", nargs="?", default="serve", choices=["serve"])
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8765, type=int)

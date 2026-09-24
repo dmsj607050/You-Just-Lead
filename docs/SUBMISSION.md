@@ -27,4 +27,4 @@
 
 后端基础闭环：`python main.py init`、`python main.py run --experiment-id EXP-0001`、`python main.py status`。
 
-桌面端重新打包：进入客户端仓库的 `desktop/`（本机 `B:\YouJustLead\desktop`）后运行 `npm run desktop:package`。
+本地执行器重新打包：`powershell -ExecutionPolicy Bypass -File tools\build_local_agent.ps1`，产物是 `dist/competition-agent-api.exe`（发布清单里 `required_for_release` 的那一件）。
