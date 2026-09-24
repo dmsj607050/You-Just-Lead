@@ -16,12 +16,16 @@
  */
 
 import { LedgerEvent, eventCount, readEvents } from './LocalLedger';
+import { SPEC_FILE, currentApproval } from './LocalRuleGate';
+import { RuleReadiness, ruleReadiness } from './LocalRules';
 import { LocalWorkspace } from './LocalWorkspace';
+import { YamlMap, parseYaml } from './YamlLite';
 
 const DATA_STATISTICS_FILE: string = 'reports/data_statistics.json';
 const MANIFEST_DIR: string = 'experiments/manifests';
 const RESULT_DIR: string = 'experiments/results';
 const EVIDENCE_MAP_FILE: string = 'paper/generated/evidence_map.json';
+const RESEARCH_FILE: string = 'research/papers.json';
 
 /** `reports/data_statistics.json` 里用到的部分。 */
 interface DatasetStatisticsFile {
@@ -69,6 +73,48 @@ interface EvidenceMapFile {
   generated_at: string;
 }
 
+/** `research/papers.json` 里用到的部分（`agents/research_agent.py::search_research` 的产物）。 */
+interface ResearchFile {
+  query: string;
+  searched_at: string;
+  records: Object[];
+  provider_failures: Record<string, string>;
+}
+
+/** 文献链摘要。 */
+export interface ResearchStatus {
+  present: boolean;
+  recordCount: number;
+  query: string;
+  searchedAt: string;
+  /** 检索时有几个来源失败 —— 它不影响"有没有记录"，但影响可信度，所以要露出来。 */
+  failedProviderCount: number;
+}
+
+/**
+ * 一条证据链的离线状态。
+ *
+ * `key` 只做标识，文案由视图层按 key 取；数字给界面自己拼句子。
+ * 每条链的"接上了"判定都写在下面对应的读取函数里，且与后端 `trace_service.py` 的口径一致：
+ * **只认工作区里已经落盘的东西**，不算"理论上应该有"。
+ */
+export interface TraceChain {
+  key: string;
+  /** 这一环接上了没有。 */
+  complete: boolean;
+  /** 主数字：锚点数 / 文件数 / 完成实验数 / 文献数 / 声明数。 */
+  primary: number;
+  /** 次数字，用于 `primary / secondary` 这类表达。 */
+  secondary: number;
+}
+
+/** 四条链 + 论文终点，以及"断在哪一环"。 */
+export interface TraceStatus {
+  chains: TraceChain[];
+  /** 第一条没接上的链的 key；全通时为空串。 */
+  brokenAt: string;
+}
+
 /** 数据审计摘要。文件不在时 `present` 为 false，其余字段为 0/空。 */
 export interface DatasetStatus {
   present: boolean;
@@ -113,6 +159,9 @@ export interface OfflineStatus {
   /** 账本总条数：界面上要能说清"显示的是最近几条 / 一共几条"，不能看起来像全部。 */
   eventTotal: number;
   evidence: EvidenceStatus;
+  research: ResearchStatus;
+  /** 四条链 + 论文终点，以及断在哪一环。 */
+  trace: TraceStatus;
 }
 
 /**
@@ -206,6 +255,114 @@ export function readEvidenceStatus(workspace: LocalWorkspace): EvidenceStatus {
   };
 }
 
+export function readResearchStatus(workspace: LocalWorkspace): ResearchStatus {
+  const empty: ResearchStatus = {
+    present: false,
+    recordCount: 0,
+    query: '',
+    searchedAt: '',
+    failedProviderCount: 0
+  };
+  const file: ResearchFile | null = readJson<ResearchFile>(workspace, RESEARCH_FILE);
+  if (file === null) {
+    return empty;
+  }
+  const failures: Record<string, string> | undefined = file.provider_failures;
+  return {
+    present: true,
+    recordCount: file.records === undefined ? 0 : file.records.length,
+    query: file.query,
+    searchedAt: file.searched_at,
+    failedProviderCount: failures === undefined ? 0 : Object.keys(failures).length
+  };
+}
+
+/** 规则链：必备字段的锚点覆盖 + 有没有人工批准。两件事都算数，缺一件这一环就没接上。 */
+function readRuleChain(workspace: LocalWorkspace): TraceChain {
+  const empty: TraceChain = { key: 'rule', complete: false, primary: 0, secondary: 0 };
+  if (!workspace.exists(SPEC_FILE)) {
+    return empty;
+  }
+  let spec: YamlMap;
+  try {
+    spec = parseYaml(workspace.readText(SPEC_FILE));
+  } catch (error) {
+    return empty;
+  }
+  const readiness: RuleReadiness = ruleReadiness(spec);
+  const approved: boolean = !currentApproval(spec).required;
+  let anchored: number = 0;
+  for (const item of readiness.fields) {
+    if (item.hasAnchor) {
+      anchored++;
+    }
+  }
+  return {
+    key: 'rule',
+    complete: readiness.requiredFieldCount > 0 && readiness.gapCount === 0 && approved,
+    primary: anchored,
+    secondary: readiness.requiredFieldCount
+  };
+}
+
+/**
+ * 四条链 + 论文终点，并指出**断在哪一环**。
+ *
+ * 这是后端「溯源」页在端侧的对应物：不重新设计链路，只把工作区里已经落盘的东西按同样的顺序
+ * 串一遍。断了就明说断在哪 —— 离线下最有用的一句话就是这个。
+ */
+export function readTraceStatus(workspace: LocalWorkspace): TraceStatus {
+  const dataset: DatasetStatus = readDatasetStatus(workspace);
+  const experiments: ExperimentStatus[] = readExperimentStatuses(workspace);
+  const research: ResearchStatus = readResearchStatus(workspace);
+  const evidence: EvidenceStatus = readEvidenceStatus(workspace);
+
+  let completed: number = 0;
+  for (const item of experiments) {
+    if (item.status === 'completed') {
+      completed++;
+    }
+  }
+
+  const chains: TraceChain[] = [
+    readRuleChain(workspace),
+    {
+      key: 'data',
+      // 指纹是"数据被固定下来"的证据，没有指纹就谈不上可复现。
+      complete: dataset.present && dataset.fingerprint.length > 0,
+      primary: dataset.fileCount,
+      secondary: dataset.issueCount
+    },
+    {
+      key: 'experiment',
+      complete: completed > 0,
+      primary: completed,
+      secondary: experiments.length
+    },
+    {
+      key: 'research',
+      complete: research.recordCount > 0,
+      primary: research.recordCount,
+      secondary: research.failedProviderCount
+    },
+    {
+      key: 'paper',
+      complete: evidence.claimCount > 0,
+      primary: evidence.claimCount,
+      secondary: evidence.researchRecords
+    }
+  ];
+
+  let broken: string = '';
+  for (const chain of chains) {
+    if (!chain.complete) {
+      broken = chain.key;
+      break;
+    }
+  }
+  return { chains: chains, brokenAt: broken };
+}
+
 /** 一次读齐离线状态。`eventLimit` 控制账本显示多少条（账本可能很长）。 */
 export function readOfflineStatus(workspace: LocalWorkspace, eventLimit: number): OfflineStatus {
   return {
@@ -213,6 +370,8 @@ export function readOfflineStatus(workspace: LocalWorkspace, eventLimit: number)
     experiments: readExperimentStatuses(workspace),
     events: readEvents(workspace, eventLimit),
     eventTotal: eventCount(workspace),
-    evidence: readEvidenceStatus(workspace)
+    evidence: readEvidenceStatus(workspace),
+    research: readResearchStatus(workspace),
+    trace: readTraceStatus(workspace)
   };
 }

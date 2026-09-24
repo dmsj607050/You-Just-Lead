@@ -17,6 +17,9 @@ import {
   EvidenceStatus,
   ExperimentStatus,
   OfflineStatus,
+  ResearchStatus,
+  TraceChain,
+  TraceStatus,
   readOfflineStatus
 } from '../common/LocalStatus';
 import { LocalWorkspace } from '../common/LocalWorkspace';
@@ -63,6 +66,14 @@ function emptyEvidence(): EvidenceStatus {
   return { present: false, claimCount: 0, researchRecords: 0, generatedAt: '' };
 }
 
+function emptyResearch(): ResearchStatus {
+  return { present: false, recordCount: 0, query: '', searchedAt: '', failedProviderCount: 0 };
+}
+
+function emptyTrace(): TraceStatus {
+  return { chains: [], brokenAt: '' };
+}
+
 @Component
 export struct LocalStatusPage {
   /**
@@ -81,6 +92,8 @@ export struct LocalStatusPage {
   @State events: LedgerEvent[] = [];
   @State eventTotal: number = 0;
   @State evidence: EvidenceStatus = emptyEvidence();
+  @State research: ResearchStatus = emptyResearch();
+  @State trace: TraceStatus = emptyTrace();
   @State errorText: string = '';
   @State busy: boolean = false;
 
@@ -118,6 +131,8 @@ export struct LocalStatusPage {
       this.events = status.events;
       this.eventTotal = status.eventTotal;
       this.evidence = status.evidence;
+      this.research = status.research;
+      this.trace = status.trace;
     } catch (err) {
       this.errorText = describeError(err as Object);
     } finally {
@@ -214,6 +229,97 @@ export struct LocalStatusPage {
     .width('100%')
     .padding({ top: 10, bottom: 10 })
     .border({ width: { top: 1 }, color: AppTheme.BORDER })
+  }
+
+  /** 链的名字与数值都按 key 取文案：模块常量里不能调 t()，所以映射放在组件里。 */
+  private chainLabel(key: string): string {
+    return this.tr(`localStatus.chain.${key}`);
+  }
+
+  private chainValue(chain: TraceChain): string {
+    const numbers: string[] = [`${chain.primary}`, `${chain.secondary}`];
+    if (chain.key === 'rule') {
+      return this.trf('localStatus.chain.ruleValue', numbers);
+    }
+    if (chain.key === 'data') {
+      return this.trf('localStatus.chain.dataValue', numbers);
+    }
+    if (chain.key === 'experiment') {
+      return this.trf('localStatus.chain.experimentValue', numbers);
+    }
+    if (chain.key === 'research') {
+      return this.trf('localStatus.chain.researchValue', numbers);
+    }
+    return this.trf('localStatus.chain.paperValue', numbers);
+  }
+
+  /**
+   * 证据链：离线时最有用的一句话就是「断在哪一环」，所以这张卡放在最前面。
+   */
+  @Builder
+  TraceCard() {
+    CardPanel({
+      title: this.tr('localStatus.trace'),
+      subtitle: this.tr('localStatus.traceHint')
+    }) {
+      ForEach(this.trace.chains, (chain: TraceChain) => {
+        Row() {
+          Text(this.chainLabel(chain.key))
+            .fontSize(13)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+            .width(112)
+          Text(this.chainValue(chain))
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          StatusBadge({
+            text: chain.complete ? this.tr('localStatus.chainLinked') : this.tr('localStatus.chainBroken'),
+            tone: chain.complete ? 'ok' : 'danger'
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .padding({ top: 9, bottom: 9 })
+      }, (chain: TraceChain) => `${chain.key}-${chain.complete}-${chain.primary}-${chain.secondary}`)
+
+      if (this.trace.chains.length > 0) {
+        Text(this.trace.brokenAt.length > 0
+          ? this.trf('localStatus.traceBroken', [this.chainLabel(this.trace.brokenAt)])
+          : this.tr('localStatus.traceAllLinked'))
+          .fontSize(12)
+          .fontColor(this.trace.brokenAt.length > 0 ? AppTheme.DANGER : AppTheme.PRIMARY_DARK)
+          .width('100%')
+          .margin({ top: 8 })
+      }
+    }
+  }
+
+  @Builder
+  ResearchCard() {
+    CardPanel({
+      title: this.tr('localStatus.research'),
+      subtitle: this.tr('localStatus.researchHint')
+    }) {
+      if (!this.research.present) {
+        EmptyHint({ text: this.tr('localStatus.researchNone') })
+      } else {
+        KeyValueRow({ label: this.tr('localStatus.researchQuery'), value: this.research.query })
+        KeyValueRow({
+          label: this.tr('localStatus.evidenceRecords'),
+          value: `${this.research.recordCount}`
+        })
+        KeyValueRow({
+          label: this.tr('localStatus.researchFailures'),
+          value: `${this.research.failedProviderCount}`
+        })
+        KeyValueRow({
+          label: this.tr('localStatus.researchSearchedAt'),
+          value: formatTimestamp(this.research.searchedAt)
+        })
+      }
+    }
   }
 
   @Builder
@@ -362,10 +468,12 @@ export struct LocalStatusPage {
             .width('100%')
         }
       } else {
+        this.TraceCard()
         this.DatasetCard()
         this.ExperimentsCard()
         this.LedgerCard()
         this.EvidenceCard()
+        this.ResearchCard()
         this.ExecutorCard()
       }
     }
