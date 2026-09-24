@@ -616,6 +616,9 @@ const ENTRIES: Entry[] = [
   { key: 'cap.title', zh: '内置能力', en: 'Capabilities' },
   { key: 'cap.searchPlaceholder', zh: '搜索适配器', en: 'Search adapters' },
   { key: 'cap.empty', zh: '后端未连接，暂时读不到内置能力清单。', en: "Backend offline; the capability list can't be loaded right now." },
+  { key: 'cap.noMatch', zh: '没有匹配的适配器，换个词试试。', en: 'No adapter matches; try another word.' },
+  { key: 'cap.clear', zh: '清空', en: 'Clear' },
+  { key: 'cap.matchCount', zh: '匹配 {0} 个 / 共 {1} 个适配器', en: '{0} of {1} adapters match' },
 
   { key: 'card.workflow', zh: '研究工作流', en: 'Research workflow' }
 ];
