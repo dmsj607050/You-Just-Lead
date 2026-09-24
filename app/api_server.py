@@ -31,7 +31,12 @@ from agents.rules_agent import (
     rule_confirmation_readiness_for_workspace,
     rule_evidence_form_for_workspace,
 )
-from agents.research_agent import search_research
+from agents.research_agent import build_research_query, search_research
+from agents.candidate_agent import (
+    assess_investigated,
+    candidates_for_workspace,
+    record_decision,
+)
 from agents.materials_agent import MaterialIntakeError
 from app.data_audit_scheduler import DataAuditScheduler, DataAuditSchedulerError
 from app.dashboard_service import dashboard_snapshot
@@ -73,6 +78,8 @@ SENSITIVE_LOCAL_ENDPOINTS = {
     "/api/rules/approve",
     "/api/rules/evidence",
     "/api/research/search",
+    "/api/research/decide",
+    "/api/research/assess",
     "/api/materials/intake",
     "/api/data-audit/run",
     "/api/build/scaffold",
@@ -147,21 +154,18 @@ def _rule_report(workspace: Path) -> dict[str, Any]:
         "report_markdown": report_path.read_text(encoding="utf-8") if report_path.exists() else "",
         "analysis": read_json(extraction_path) if extraction_path.exists() else None,
     }
+
+
 def _research_report(workspace: Path) -> dict[str, Any]:
-    research_dir = workspace / "research"
-    papers_path = research_dir / "papers.json"
-    radar_path = research_dir / "research_radar.md"
-    payload = read_json(papers_path) if papers_path.exists() else {
-        "query": None,
-        "searched_at": None,
-        "sources": [],
-        "records": [],
-        "provider_failures": {},
-    }
-    if not isinstance(payload, dict):
-        payload = {"query": None, "records": [], "provider_failures": {}}
-    payload["report_markdown"] = radar_path.read_text(encoding="utf-8") if radar_path.exists() else ""
-    return payload
+    """检索结果 + 取舍 + 评判合成一份：界面只读这一个接口。
+
+    取舍与评判各自落盘（`candidate_decisions.json` / `candidate_assessments.json`），
+    所以重跑检索不会覆盖人的决定。这里只是把它们按 `paper_id` 合到记录上。
+    """
+    report = candidates_for_workspace(workspace)
+    radar_path = workspace / "research" / "research_radar.md"
+    report["report_markdown"] = radar_path.read_text(encoding="utf-8") if radar_path.exists() else ""
+    return report
 
 
 def _apply_rule_evidence(workspace: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -472,7 +476,15 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     raise ValueError("paper_ids must be a list of selected research record IDs")
                 self._send(HTTPStatus.ACCEPTED, self.material_scheduler.submit(paper_ids))
             elif path == "/api/research/search":
-                query = str(body.get("query", "")).strip()
+                spec_path = self.workspace / "competition_spec.yaml"
+                spec = load_yaml(spec_path) if spec_path.exists() else {}
+                raw_query = str(body.get("query", "")).strip()
+                # 不填检索式就按规则规格拼一条：这是「按规则自动检索」的入口，
+                # 界面上不该逼着人自己编检索词。
+                from_spec = len(raw_query) == 0
+                query = build_research_query(spec) if from_spec else raw_query
+                if not query:
+                    raise ValueError("research query is empty and the competition spec has no usable task or modality terms")
                 if not 2 <= len(query) <= 400:
                     raise ValueError("research query must contain 2 to 400 characters")
                 raw_sources = body.get("sources")
@@ -486,17 +498,54 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     query,
                     limit=limit,
                     sources=[item.strip() for item in raw_sources if item.strip()] if raw_sources else None,
+                    spec=spec,
                 )
                 report = _research_report(self.workspace)
                 ledger.record_event(
                     "research_searched",
                     {
                         "query": query,
+                        "from_spec": from_spec,
                         "records": outcome["records"],
                         "provider_failures": outcome["provider_failures"],
                     },
                 )
                 self._send(HTTPStatus.OK, report)
+            elif path == "/api/research/decide":
+                paper_id = str(body.get("paper_id", "")).strip()
+                if not paper_id:
+                    raise ValueError("paper_id is required")
+                outcome = record_decision(
+                    self.workspace,
+                    paper_id,
+                    str(body.get("decision", "")).strip(),
+                    str(body.get("note", "")),
+                )
+                ledger.record_event(
+                    "research_candidate_decided",
+                    {"paper_id": paper_id, "decision": outcome["decision"], "has_note": bool(body.get("note"))},
+                )
+                self._send(HTTPStatus.OK, _research_report(self.workspace))
+            elif path == "/api/research/assess":
+                raw_ids = body.get("paper_ids")
+                if raw_ids is not None and (
+                    not isinstance(raw_ids, list) or not all(isinstance(item, str) for item in raw_ids)
+                ):
+                    raise ValueError("paper_ids must be a list of research record IDs")
+                # 不传就评判所有已标记「调研」的候选；已舍弃的不花这次查询。
+                outcome = assess_investigated(
+                    self.workspace,
+                    paper_ids=[item for item in raw_ids if item] if raw_ids is not None else None,
+                )
+                ledger.record_event(
+                    "research_candidates_assessed",
+                    {
+                        "assessed": outcome["assessed"],
+                        "verdicts": outcome["verdicts"],
+                        "skipped": outcome["skipped"],
+                    },
+                )
+                self._send(HTTPStatus.OK, _research_report(self.workspace))
             elif path == "/api/rules/import":
                 outcome = import_rule_source(
                     self.workspace,

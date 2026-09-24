@@ -9,7 +9,7 @@ from pathlib import Path
 
 from agents.data_agent import audit_dataset
 from agents.reproduction_agent import intake_repository, run_isolated_smoke_test
-from agents.research_agent import search_research
+from agents.research_agent import build_research_query, search_research
 from agents.rules_agent import (
     analyze_rules,
     apply_official_rule_evidence,
@@ -122,7 +122,9 @@ def _parser() -> argparse.ArgumentParser:
     research_parser = subparsers.add_parser(
         "research", help="Search public paper and code providers and persist a research radar"
     )
-    research_parser.add_argument("--query", required=True, help="Task or method query")
+    research_parser.add_argument(
+        "--query", help="Task or method query; omit it to build the query from the competition spec"
+    )
     research_parser.add_argument("--limit", default=5, type=int, help="Results per provider (1-25)")
     research_parser.add_argument(
         "--sources",
@@ -302,9 +304,16 @@ def main() -> int:
 
     if args.command == "research":
         sources = [item.strip() for item in args.sources.split(",") if item.strip()]
-        outcome = search_research(workspace, args.query, limit=args.limit, sources=sources)
+        # 不给 --query 就按规则规格拼一条：这是「按规则自动检索」的命令行入口。
+        spec_path = workspace / "competition_spec.yaml"
+        spec = load_yaml(spec_path) if spec_path.exists() else {}
+        query = (args.query or "").strip() or build_research_query(spec)
+        if not query:
+            print("error: pass --query, or import a competition spec that names a task type and modalities")
+            return 2
+        outcome = search_research(workspace, query, limit=args.limit, sources=sources, spec=spec)
         ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
-            "research_searched", outcome
+            "research_searched", {**outcome, "from_spec": not (args.query or "").strip()}
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
         return 0

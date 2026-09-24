@@ -62,11 +62,19 @@ conda run -n AIC python main.py validate-submission --path submissions/candidate
 
 ## 3. 研究与复现
 
-检索是显式触发的网络操作，结果会落盘为 `research/papers.json` 和 `research/research_radar.md`：
+检索是显式触发的网络操作，结果会落盘为 `research/papers.json` 和 `research/research_radar.md`。不传 `--query` 就按 `competition_spec.yaml` 里的任务类型与模态自动拼检索式（App 上就是「按规则检索」）：
 
 ```powershell
+conda run -n AIC python main.py research --limit 6
 conda run -n AIC python main.py research --query "semantic segmentation boundary loss" --limit 5
 ```
+
+每条候选的相关性由四项可复算的分量加权得出（词命中 / 任务匹配 / 是否带代码 / 年份），分量明细写在记录的 `relevance_parts` 里。候选的取舍与价值评判在 App 的「文献」页完成：
+
+- **取舍**：逐条标 `investigate`（调研）或 `discard`（舍弃），落盘在 `research/candidate_decisions.json`；
+- **评判**：对标记为调研的候选，用论文标题去 GitHub 找实现仓库，再结合许可、任务匹配、年份给出结论，落盘在 `research/candidate_assessments.json`。
+
+两份文件都独立于 `papers.json`，所以**重跑检索不会覆盖人已经做过的决定**；如果新一次检索里没有某条记录，它的取舍仍留在文件里，只是不再计入界面顶部的计数。
 
 第三方仓库先只创建审批记录：
 
