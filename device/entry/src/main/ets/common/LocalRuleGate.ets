@@ -16,10 +16,11 @@
 import { appendEvent, utcNow, utcStamp } from './LocalLedger';
 import { LocalWorkspace } from './LocalWorkspace';
 import {
-  BASE_CONFIRMATION_FIELDS,
   RuleReadiness,
-  XUNFEI_CONFIRMATION_FIELDS,
+  isKnownProfile,
   isMeaningful,
+  requiredFieldsForProfile,
+  ruleProfileName,
   ruleReadiness
 } from './LocalRules';
 import {
@@ -43,11 +44,14 @@ export const RUNTIME_OUTPUT_OPTIONS: string[] = ['loose_png', 'submit_zip'];
 /** 主指标方向：同样只能二选一。 */
 export const DIRECTION_OPTIONS: string[] = ['maximize', 'minimize'];
 
-/** 必须是真布尔（不能写成字符串）的字段。 */
+/** 必须是真布尔（不能写成字符串）的字段（与 Python 侧 BOOLEAN_EVIDENCE_FIELDS 一致）。 */
 const BOOLEAN_FIELDS: string[] = [
+  'constraints.offline_only',
   'constraints.external_data_allowed',
   'constraints.pretrained_models_allowed',
-  'constraints.ensemble_allowed'
+  'constraints.ensemble_allowed',
+  'constraints.test_data_reuse_allowed',
+  'submission.contract.empty_file_required'
 ];
 
 /** 证据来源三项：官方规则页或官方文档的位置。 */
@@ -126,9 +130,9 @@ interface ApprovalLedgerPayload {
   gap_count: number;
 }
 
-/** 讯飞档案的必备字段全表（通用 10 项 + 追加 9 项）。 */
-function requiredFields(): string[] {
-  return BASE_CONFIRMATION_FIELDS.concat(XUNFEI_CONFIRMATION_FIELDS);
+/** 当前档案的必备字段全表；还没认领档案时为空（此时不允许录证据）。 */
+function requiredFields(spec: YamlMap): string[] {
+  return requiredFieldsForProfile(ruleProfileName(spec));
 }
 
 /** 取节点，undefined 折成 null（规格里的空值本来也是 null）。 */
@@ -189,9 +193,9 @@ export function importSpecText(workspace: LocalWorkspace, text: string): void {
   workspace.writeText(SPEC_FILE, text);
 }
 
-/** 规格能否走这套证据记录（目前只有讯飞水体分割档案）。 */
+/** 规格能否走这套证据记录：工作区得先认领一份有字段清单的档案。 */
 export function gateSupported(spec: YamlMap): boolean {
-  return spec.size() > 0 && ruleReadiness(spec).profile === 'xunfei_waterseg';
+  return spec.size() > 0 && isKnownProfile(ruleProfileName(spec));
 }
 
 /** 规格里已记录的来源三项，作为表单初值。 */
@@ -240,7 +244,7 @@ function mergeEvidence(spec: YamlMap, inputs: GateFieldInput[]): MergedEvidence 
   const anchors: YamlMap = new YamlMap();
   const missing: string[] = [];
 
-  for (const name of requiredFields()) {
+  for (const name of requiredFields(spec)) {
     let value: YamlNode | undefined = yamlGet(spec, name);
     let anchor: YamlNode | undefined = existingAnchors.get(name);
     const input: GateFieldInput | undefined = inputOf(inputs, name);
@@ -266,8 +270,8 @@ function mergeEvidence(spec: YamlMap, inputs: GateFieldInput[]): MergedEvidence 
   return { values: values, anchors: anchors, missing: missing };
 }
 
-/** 组装要落盘的证据记录：`source` + `fields`，与 Python 侧同一结构。 */
-function buildRecord(values: YamlMap, anchors: YamlMap, source: GateSource): YamlMap {
+/** 组装要落盘的证据记录：`profile` + `source` + `fields`，与 Python 侧同一结构。 */
+function buildRecord(values: YamlMap, anchors: YamlMap, source: GateSource, profile: string): YamlMap {
   const sourceMap: YamlMap = new YamlMap();
   sourceMap.set('source_type', source.sourceType);
   sourceMap.set('source_locator', source.sourceLocator);
@@ -282,6 +286,7 @@ function buildRecord(values: YamlMap, anchors: YamlMap, source: GateSource): Yam
   }
 
   const record: YamlMap = new YamlMap();
+  record.set('profile', profile);
   record.set('source', sourceMap);
   record.set('fields', fieldsMap);
   return record;
@@ -296,8 +301,9 @@ function buildRecord(values: YamlMap, anchors: YamlMap, source: GateSource): Yam
 export async function applyOfficialEvidence(workspace: LocalWorkspace, source: GateSource,
   inputs: GateFieldInput[]): Promise<GateOutcome> {
   const spec: YamlMap = readSpec(workspace);
+  const profile: string = ruleProfileName(spec);
   if (!gateSupported(spec)) {
-    throw new Error('当前规格不是讯飞水体分割档案，这套证据记录不适用');
+    throw new Error('工作区还没认领规则档案（competition.rule_profile），没有字段清单可录');
   }
 
   const clean: GateSource = {
@@ -317,11 +323,17 @@ export async function applyOfficialEvidence(workspace: LocalWorkspace, source: G
     throw new Error(`还差 ${merged.missing.length} 个字段没齐：${merged.missing.join('、')}`);
   }
   // 类型必须在落盘前就对：规格是要被程序读的，字符串 "false" 会被当成真值。
-  const outputMode: string = displayValue(merged.values.get('submission.contract.runtime_output')).toLowerCase();
-  if (!RUNTIME_OUTPUT_OPTIONS.includes(outputMode)) {
-    throw new Error('submission.contract.runtime_output 只能是 loose_png 或 submit_zip');
+  if (profile === 'xunfei_waterseg') {
+    const outputMode: string = displayValue(merged.values.get('submission.contract.runtime_output')).toLowerCase();
+    if (!RUNTIME_OUTPUT_OPTIONS.includes(outputMode)) {
+      throw new Error('submission.contract.runtime_output 只能是 loose_png 或 submit_zip');
+    }
   }
+  const required: string[] = requiredFields(spec);
   for (const name of BOOLEAN_FIELDS) {
+    if (required.indexOf(name) < 0) {
+      continue;
+    }
     if (typeof merged.values.get(name) !== 'boolean') {
       throw new Error(`${name} 必须是 YAML 布尔值（true / false）`);
     }
@@ -332,13 +344,15 @@ export async function applyOfficialEvidence(workspace: LocalWorkspace, source: G
   const evidenceRelative: string = `${EVIDENCE_DIR}/rule_evidence_${stamp}_${shortToken()}.yaml`;
   const backupRelative: string = `${EVIDENCE_DIR}/spec_backup_${stamp}.yaml`;
   const originalText: string = workspace.readText(SPEC_FILE);
-  workspace.writeText(evidenceRelative, dumpYaml(buildRecord(merged.values, merged.anchors, clean)));
+  workspace.writeText(evidenceRelative, dumpYaml(buildRecord(merged.values, merged.anchors, clean, profile)));
   const evidenceSha256: string = await LocalWorkspace.sha256Of(workspace.join(evidenceRelative));
 
   try {
     // 备份原文：下面要整份重写规格，留一份原文才谈得上"可回溯"。
     workspace.writeText(backupRelative, originalText);
 
+    // 档案名随证据一起落盘：读取方（就绪度、提交校验）据此选字段清单。
+    yamlSet(spec, 'competition.rule_profile', profile);
     for (const name of merged.values.keys()) {
       yamlSet(spec, name, nodeOf(merged.values, name));
     }

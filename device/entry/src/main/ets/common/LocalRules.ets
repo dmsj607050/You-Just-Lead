@@ -37,6 +37,51 @@ export const XUNFEI_CONFIRMATION_FIELDS: string[] = [
   'constraints.inference_limit_evidence'
 ];
 
+/**
+ * AIC2026 三模态目标检测档案的追加字段
+ * （与 Python 侧 AIC_DETECTION_CONFIRMATION_FIELDS 一致）。
+ */
+export const AIC_DETECTION_CONFIRMATION_FIELDS: string[] = [
+  'data.modalities',
+  'data.class_count',
+  'data.label_format',
+  'submission.contract.line_columns',
+  'submission.contract.per_image_file',
+  'submission.contract.empty_file_required',
+  'submission.contract.max_boxes_per_image',
+  'submission.contract.package_layout',
+  'submission.contract.coordinate_space',
+  'constraints.offline_only',
+  'constraints.external_data_allowed',
+  'constraints.pretrained_models_allowed',
+  'constraints.ensemble_allowed',
+  'constraints.test_data_reuse_allowed'
+];
+
+/**
+ * 已知的规则档案名（与 Python 侧 RULE_PROFILES 的键一致）。
+ *
+ * 这里是名单 + `requiredFieldsForProfile` 两张表，而不是一张 map：ArkTS 对索引签名
+ * 定得很严，用「名单 + 分支」在两端更好对齐，也更好读。
+ */
+export const RULE_PROFILES: string[] = ['xunfei_waterseg', 'aic_multimodal_detection'];
+
+/** 档案名是否认得出来。认不出来的档案没有字段清单，不能录证据。 */
+export function isKnownProfile(profile: string): boolean {
+  return RULE_PROFILES.indexOf(profile) >= 0;
+}
+
+/** 某个档案在人工复核时必须逐条给出「值 + 锚点」的字段清单；通用档案为空。 */
+export function requiredFieldsForProfile(profile: string): string[] {
+  if (profile === 'aic_multimodal_detection') {
+    return BASE_CONFIRMATION_FIELDS.concat(AIC_DETECTION_CONFIRMATION_FIELDS);
+  }
+  if (profile === 'xunfei_waterseg') {
+    return BASE_CONFIRMATION_FIELDS.concat(XUNFEI_CONFIRMATION_FIELDS);
+  }
+  return [];
+}
+
 const PLACEHOLDERS: string[] = ['unresolved', 'unknown', 'tbd', 'todo', '待填', '待确认'];
 
 /**
@@ -51,13 +96,18 @@ export function evidenceFieldKind(field: string): string {
   }
   if (field === 'constraints.external_data_allowed'
     || field === 'constraints.pretrained_models_allowed'
-    || field === 'constraints.ensemble_allowed') {
+    || field === 'constraints.ensemble_allowed'
+    || field === 'constraints.offline_only'
+    || field === 'constraints.test_data_reuse_allowed'
+    || field === 'submission.contract.empty_file_required') {
     return 'boolean';
   }
-  if (field === 'submission.contract.required_files' || field === 'submission.contract.mask_size') {
+  if (field === 'submission.contract.required_files' || field === 'submission.contract.mask_size'
+    || field === 'data.modalities' || field === 'submission.contract.line_columns') {
     return 'list';
   }
-  if (field === 'submission.daily_limit' || field === 'constraints.model_size_limit_mb') {
+  if (field === 'submission.daily_limit' || field === 'constraints.model_size_limit_mb'
+    || field === 'data.class_count' || field === 'submission.contract.max_boxes_per_image') {
     return 'number';
   }
   if (field === 'evaluation.direction') {
@@ -92,13 +142,29 @@ export function isMeaningful(value: YamlNode | undefined): boolean {
   return true;
 }
 
-/** 是否是讯飞水体分割档案：决定要不要走那 9 个追加字段。 */
-export function isXunfeiWatersegSpec(spec: YamlMap): boolean {
-  const profile: YamlNode | undefined = yamlGet(spec, 'submission.validation_profile');
-  if (profile === 'xunfei_waterseg_inference_package' || profile === 'xunfei_waterseg_runtime_output') {
-    return true;
+/**
+ * 工作区认哪一份规则档案（与 Python 侧 `rule_profile_name` 一致）。
+ *
+ * 先看显式声明的 `competition.rule_profile`；再兼容讯飞水体分割当年用来声明档案的
+ * `submission.validation_profile`（那里放的是提交校验档案名，只在认得出来时映射过去）。
+ * 认不出来就是通用档案——它没有必备字段清单，由未澄清问题单独把关。
+ */
+export function ruleProfileName(spec: YamlMap): string {
+  const declared: string = displayValue(yamlGet(spec, 'competition.rule_profile'));
+  if (isKnownProfile(declared)) {
+    return declared;
   }
-  return displayValue(yamlGet(spec, 'competition.preferred_runner')) === 'waterseg_external';
+  const legacy: string = displayValue(yamlGet(spec, 'submission.validation_profile'));
+  if (isKnownProfile(legacy)) {
+    return legacy;
+  }
+  if (legacy === 'xunfei_waterseg_inference_package' || legacy === 'xunfei_waterseg_runtime_output') {
+    return 'xunfei_waterseg';
+  }
+  if (displayValue(yamlGet(spec, 'competition.preferred_runner')) === 'waterseg_external') {
+    return 'xunfei_waterseg';
+  }
+  return 'generic';
 }
 
 /** 一个必备字段的当前状态。 */
@@ -133,10 +199,9 @@ export interface RuleReadiness {
  * 再逐个字段的锚点，最后未澄清问题。数字对不上就说明一端写歪了，不要凑。
  */
 export function ruleReadiness(spec: YamlMap): RuleReadiness {
-  const strict: boolean = isXunfeiWatersegSpec(spec);
-  const required: string[] = strict
-    ? BASE_CONFIRMATION_FIELDS.concat(XUNFEI_CONFIRMATION_FIELDS)
-    : [];
+  const profile: string = ruleProfileName(spec);
+  const profiled: boolean = profile !== 'generic';
+  const required: string[] = requiredFieldsForProfile(profile);
   const anchors: YamlNode | undefined = yamlGet(spec, 'approval.official_evidence.fields');
   const anchorMap: YamlMap = anchors instanceof YamlMap ? anchors : new YamlMap();
 
@@ -167,11 +232,14 @@ export function ruleReadiness(spec: YamlMap): RuleReadiness {
     });
   }
 
-  if (strict) {
+  if (profile === 'xunfei_waterseg') {
     const outputMode: string = displayValue(yamlGet(spec, 'submission.contract.runtime_output')).toLowerCase();
     if (outputMode !== 'loose_png' && outputMode !== 'submit_zip') {
       gaps++;
     }
+  }
+
+  if (profiled) {
     for (const name of ['source_type', 'source_locator', 'reviewed_at']) {
       if (!isMeaningful(yamlGet(spec, `approval.official_evidence.${name}`))) {
         gaps++;
@@ -195,7 +263,7 @@ export function ruleReadiness(spec: YamlMap): RuleReadiness {
   }
 
   return {
-    profile: strict ? 'xunfei_waterseg' : 'generic',
+    profile: profile,
     ready: gaps === 0,
     requiredFieldCount: required.length,
     missingValueCount: missingValue,
