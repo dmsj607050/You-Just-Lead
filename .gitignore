@@ -18,6 +18,13 @@ workspace/*/experiments/artifacts/*
 !workspace/*/experiments/artifacts/.gitkeep
 workspace/*/experiments/tracking/*
 !workspace/*/experiments/tracking/.gitkeep
+
+# 克隆下来的第三方仓库与复现运行的产物都不进版本库。
+# sources/ 里是别人的代码（外层仓库把它当嵌套仓库收录会得到一个取不到内容的 gitlink，
+# 而且它本来就不该由我们分发）；runs/ 里是容器跑出来的权重、日志与产物，几十 MB 起步。
+# 计划（plans/）与批准记录（approvals/）都很小，而且是人做的决定的证据，照常进版本库。
+workspace/*/reproductions/sources/
+workspace/*/reproductions/runs/
 database/*.db
 database/*.sqlite
 .env

@@ -1,0 +1,92 @@
+{
+  "commands": [
+    {
+      "command": "python scripts/train.py --data data/ --epochs 15 --batch-size 2",
+      "confidence": "documented",
+      "id": "cmd-1",
+      "origin": "documented",
+      "source": "README.md:99"
+    },
+    {
+      "command": "python scripts/train.py --data data/ --epochs 15 --backbone mit_b0",
+      "confidence": "documented",
+      "id": "cmd-2",
+      "origin": "documented",
+      "source": "README.md:120"
+    },
+    {
+      "command": "python scripts/train.py --data data/ --epochs 15 --backbone mit_b1",
+      "confidence": "documented",
+      "id": "cmd-3",
+      "origin": "documented",
+      "source": "README.md:123"
+    },
+    {
+      "command": "python scripts/train.py --data data/ --epochs 15 --backbone mit_b4",
+      "confidence": "documented",
+      "id": "cmd-4",
+      "origin": "documented",
+      "source": "README.md:126"
+    },
+    {
+      "command": "python scripts/test.py --data data/ --model trimodaldet.pth",
+      "confidence": "documented",
+      "id": "cmd-5",
+      "origin": "documented",
+      "source": "README.md:144"
+    }
+  ],
+  "commit": "9c536280854745ba3fbc3d904f835a0b5b2c34e4",
+  "created_at": "2026-09-24T14:44:31+00:00",
+  "dataset": {
+    "file_count": 8001,
+    "host_path": "B:\\AIC\\datasets\\train\\AIC2026_Train_2000",
+    "inventory_sha256": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+    "target": "/data"
+  },
+  "dependency_manifest": "requirements.txt",
+  "entrypoints": [
+    {
+      "kind": "train",
+      "path": "scripts/train.py"
+    },
+    {
+      "kind": "evaluate",
+      "path": "scripts/test.py"
+    }
+  ],
+  "execution_policy": "Two phases: a networked phase that only downloads wheels, then a network-isolated phase that installs them and runs the approved command. The repository is mounted read-only; the audited dataset is mounted read-only.",
+  "image": "python:3.12-slim",
+  "local_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\reproductions\\sources\\trimodal-uav-det",
+  "mounts": {
+    "dataset": {
+      "present": true,
+      "read_only": true,
+      "target": "/data"
+    },
+    "output": {
+      "read_only": false,
+      "target": "/output"
+    },
+    "source": {
+      "read_only": true,
+      "target": "/src"
+    },
+    "work": {
+      "read_only": false,
+      "target": "/work"
+    }
+  },
+  "paper_id": "arxiv:2604.16630v1",
+  "plan_id": "REPRO-trimodal-uav-det",
+  "readme": "README.md",
+  "repository": "https://github.com/radlab-sketch/trimodal-uav-det.git",
+  "requires_gpu": true,
+  "resources": {
+    "cpus": "4",
+    "memory": "8g",
+    "timeout_seconds": 3600
+  },
+  "slug": "trimodal-uav-det",
+  "title": "Tri-Modal Fusion Transformers for UAV-based Object Detection"
+}

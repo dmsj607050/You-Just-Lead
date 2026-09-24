@@ -1,0 +1,20 @@
+{
+  "approved": true,
+  "commit": "9c536280854745ba3fbc3d904f835a0b5b2c34e4",
+  "execution_policy": "No downloaded code is executed by this intake workflow.",
+  "local_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\reproductions\\sources\\trimodal-uav-det",
+  "next_step": "Review the static report. Build or run code only in a separately approved isolated environment.",
+  "repository": "https://github.com/radlab-sketch/trimodal-uav-det.git",
+  "requested_at": "2026-09-24T14:32:20+00:00",
+  "requested_commit": null,
+  "static_signals": {
+    "dockerfile": false,
+    "environment_files": [],
+    "license_file": null,
+    "readme": "README.md",
+    "requirements_files": [
+      "requirements.txt"
+    ]
+  },
+  "status": "static_inspection_complete"
+}

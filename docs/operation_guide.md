@@ -90,6 +90,35 @@ conda run -n AIC python main.py reproduce --repository https://github.com/owner/
 
 完整复现仍应采用专门批准的数据挂载、镜像与资源预算，而不是直接在宿主机运行第三方代码。
 
+### 3.1 隔离容器里跑 baseline
+
+App 的「复现」页把上一步的结论变成一次可审计的运行。命令行等价物是这两个接口：
+
+```powershell
+# 生成计划（会 clone 仓库做静态检查，仍不执行任何代码）
+curl -X POST http://127.0.0.1:8765/api/reproductions/plan -H "Content-Type: application/json" `
+  -d '{\"paper_id\":\"arxiv:2604.16630v1\"}'
+
+# 批准并运行（note 必填；command 可留空，留空则用计划里选中的那条原文）
+curl -X POST http://127.0.0.1:8765/api/reproductions/run -H "Content-Type: application/json" `
+  -d '{\"plan_id\":\"REPRO-trimodal-uav-det\",\"command_id\":\"cmd-1\",\"note\":\"核对过 README 与许可\",\"command\":\"python scripts/train.py --data /data --epochs 1\"}'
+```
+
+计划来自仓库自身的文本，不猜：入口脚本按文件名归类，候选命令从 README 里抄并带上**行号出处**（`README.md:99`），没有文档命令时才退化成带 `fallback` 标记的探测命令。数据只挂已审计的目录（`/data`，只读），没有审计过就不挂。
+
+运行分两个阶段，**隔离发生在执行那一刻**：
+
+| 阶段 | 网络 | 做什么 |
+| --- | --- | --- |
+| `download_wheels` | bridge | 只 `pip download` 拉 wheel 到 `/work/wheels`，不跑仓库代码 |
+| `install_and_run` | none | 从本地 wheel 安装，然后在 `/work/src`（仓库的**副本**）里跑批准过的命令 |
+
+仓库本身始终以只读挂在 `/src`：训练要往仓库目录写权重，所以命令在副本里跑，原始克隆不被改动。产物落在 `reproductions/runs/<run_id>/`（`run.json`、`download.log`、`run.log`、`work/`、`output/`），运行记录里会列出命令写出的文件，并把 JSON 顶层键 / CSV 表头摘出来 —— 指标就在那里，系统不去猜哪个文件是结果。
+
+批准绑定的是**内容**：批准文件里记着计划内容的 sha256，执行前重算一次，不匹配就拒绝运行。所以批准之后改动计划不会悄悄生效，必须重新批准。
+
+**前置条件：Docker。** 这一页需要 Docker Desktop（Windows 上用 WSL2 后端）；没装时接口会如实报错（`Docker is not usable: docker executable not found on PATH`），不会排一个永远跑不动的作业。要跑 GPU 训练还需要在 WSL2 里装 `nvidia-container-toolkit`，此时计划里 `requires_gpu` 为真才加 `--gpus all`。
+
 ## 4. 决策与论文
 
 ```powershell

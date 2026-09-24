@@ -47,6 +47,11 @@ from app.settings_service import SettingsError, configure_deepseek, deepseek_set
 from app.trace_service import paper_package_report, trace_snapshot
 from app.training_scaffold_service import TrainingScaffoldError, build_training_scaffold, latest_training_scaffold
 from app.material_scheduler import MaterialScheduler, MaterialSchedulerError
+from app.reproduction_service import (
+    ReproductionError,
+    ReproductionService,
+    recover_interrupted_runs,
+)
 from app.project_registry import (
     ProjectError,
     ProjectNotSelected,
@@ -80,6 +85,8 @@ SENSITIVE_LOCAL_ENDPOINTS = {
     "/api/research/search",
     "/api/research/decide",
     "/api/research/assess",
+    "/api/reproductions/plan",
+    "/api/reproductions/run",
     "/api/materials/intake",
     "/api/data-audit/run",
     "/api/build/scaffold",
@@ -218,6 +225,23 @@ def _workspace_display(project_root: Path) -> str:
 
 _SCHEDULER_CACHE: dict[str, tuple[TrainingScheduler, MaterialScheduler, DataAuditScheduler]] = {}
 _SCHEDULER_LOCK = threading.Lock()
+_REPRODUCTION_CACHE: dict[str, ReproductionService] = {}
+
+
+def reproduction_service_for(project_root: Path, workspace: Path) -> ReproductionService:
+    """按工作区取一份复现服务。
+
+    它持有正在运行的作业句柄，和调度器一样不能每次请求重建；缓存与调度器共用同一把锁，
+    这样 `forget_schedulers` 一次就能把两者都清掉。
+    """
+    key = str(workspace.resolve())
+    with _SCHEDULER_LOCK:
+        cached = _REPRODUCTION_CACHE.get(key)
+        if cached is None:
+            cached = ReproductionService(project_root.resolve(), workspace.resolve())
+            _REPRODUCTION_CACHE[key] = cached
+            recover_interrupted_runs(cached)
+        return cached
 
 
 def schedulers_for(
@@ -246,6 +270,7 @@ def forget_schedulers(workspace: Path) -> None:
     """工作区被删掉后丢弃它的调度器缓存。"""
     with _SCHEDULER_LOCK:
         _SCHEDULER_CACHE.pop(str(workspace.resolve()), None)
+        _REPRODUCTION_CACHE.pop(str(workspace.resolve()), None)
 
 
 class CompetitionApiHandler(BaseHTTPRequestHandler):
@@ -275,6 +300,10 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     @property
     def data_audit_scheduler(self) -> DataAuditScheduler:
         return schedulers_for(self.project_root, self.workspace)[2]
+
+    @property
+    def reproduction_service(self) -> ReproductionService:
+        return reproduction_service_for(self.project_root, self.workspace)
 
     def _send(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -374,6 +403,20 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, _research_report(self.workspace))
             elif path == "/api/capabilities":
                 self._send(HTTPStatus.OK, {"runners": supported_runners()})
+            elif path == "/api/reproductions":
+                service = self.reproduction_service
+                self._send(
+                    HTTPStatus.OK,
+                    {
+                        "docker": service.docker_status(),
+                        "plans": service.plans(),
+                        "runs": service.runs(),
+                    },
+                )
+            elif path.startswith("/api/reproductions/runs/"):
+                run_id = path.rsplit("/", 1)[-1]
+                run = self.reproduction_service.run_detail(run_id)
+                self._send(HTTPStatus.OK, run) if run else self._error(HTTPStatus.NOT_FOUND, "Reproduction run not found")
             elif path == "/api/materials/jobs":
                 self._send(
                     HTTPStatus.OK,
@@ -546,6 +589,27 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     },
                 )
                 self._send(HTTPStatus.OK, _research_report(self.workspace))
+            elif path == "/api/reproductions/plan":
+                # 生成计划会 clone 仓库（仍只做静态检查）—— 点这个按钮就是批准 clone。
+                # 代码要被*执行*还得再走 /api/reproductions/run 那道批准。
+                paper_id = str(body.get("paper_id", "")).strip()
+                if not paper_id:
+                    raise ValueError("paper_id is required")
+                image = str(body.get("image", "")).strip() or None
+                plan = self.reproduction_service.make_plan(paper_id, image=image)
+                self._send(HTTPStatus.CREATED, plan)
+            elif path == "/api/reproductions/run":
+                plan_id = str(body.get("plan_id", "")).strip()
+                command_id = str(body.get("command_id", "")).strip()
+                if not plan_id or not command_id:
+                    raise ValueError("plan_id and command_id are required")
+                # 命令可以在批准前改写（README 里写的是仓库自己的相对路径，这里是 /data）。
+                # 改写后的那一行会原样记进批准文件 —— 批准的就是实际要跑的命令。
+                override = str(body.get("command", "")).strip()
+                run = self.reproduction_service.submit(
+                    plan_id, command_id, str(body.get("note", "")), command_override=override or None
+                )
+                self._send(HTTPStatus.ACCEPTED, run)
             elif path == "/api/rules/import":
                 outcome = import_rule_source(
                     self.workspace,
@@ -657,7 +721,7 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.CONFLICT, str(exc))
         except ProjectError as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
-        except (ValueError, RuleImportError, MaterialIntakeError, RuntimeProbeError, TrainingScaffoldError, SettingsError, json.JSONDecodeError) as exc:
+        except (ValueError, RuleImportError, MaterialIntakeError, RuntimeProbeError, TrainingScaffoldError, SettingsError, ReproductionError, json.JSONDecodeError) as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except (SchedulerError, MaterialSchedulerError, DataAuditSchedulerError) as exc:
             self._error(HTTPStatus.CONFLICT, str(exc))
