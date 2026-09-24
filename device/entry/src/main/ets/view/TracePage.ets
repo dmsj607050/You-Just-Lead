@@ -19,7 +19,7 @@ import {
   formatTimestamp
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, KeyValueRow, PageHeader, StatTileGrid, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /**
  * 溯源页：把「这条结论凭什么成立」摊开成四条链。
@@ -28,6 +28,9 @@ import { CardPanel, EmptyHint, KeyValueRow, PageHeader, StatTileGrid, StatusBadg
  * 数据：审计指纹 → 每个实验的数据版本 → 是否计入当前赛题
  * 实验：假设与配置指纹 → 结果与产物 → 人工批准
  * 文献：检索条件 → 记录与引用文件，检索失败也如实上报
+ *
+ * 四条链加论文终点**不堆在一列**：顶部分段导航一次只显示一段，色点表示这条链通不通。
+ * 规则链在 AIC 这样的赛题下有二十几个字段，堆在一起会有十几屏，读者会丢失方位。
  *
  * 页面本身只读：缺什么就显示缺什么，不会替后端补结论。
  */
@@ -75,6 +78,13 @@ export struct TracePage {
   @State snapshot: TraceSnapshot | null = null;
   /** 展开的实验 id；同时只展开一条，长页面才不至于来回跳。 */
   @State openExperiment: string = '';
+  /**
+   * 当前分段：rule / data / experiment / research / paper。
+   *
+   * 原来这四张链卡加论文卡堆在一列里，规则链光字段就有二十几行，整页十几屏，
+   * 读的人不知道自己读到哪一段了。现在一次只渲染一段，段与段之间用色点导航切。
+   */
+  @State section: string = 'rule';
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
@@ -227,6 +237,85 @@ export struct TracePage {
     return this.snapshot === null ? 0 : this.snapshot.paper.bib_entries;
   }
 
+  /**
+   * 已带锚点的字段比例。
+   *
+   * 原先这是一个大统计块。它只在规则段里有意义，收进来之后页面顶部就不必再压一排数字。
+   */
+  private anchorRatioText(): string {
+    if (this.snapshot === null || this.snapshot.rule.required_field_count === 0) {
+      return '';
+    }
+    const total: number = this.snapshot.rule.required_field_count;
+    const withAnchor: number = total - this.snapshot.rule.missing_anchor_count;
+    return `${this.tr('trace.statAnchors')} ${withAnchor}/${total}`;
+  }
+
+  /** 规则链通不通：没批准是待办，批准了又冒出缺口是告警。 */
+  private ruleTone(): string {
+    if (this.snapshot === null) {
+      return 'muted';
+    }
+    if (!this.snapshot.rule.approved) {
+      return 'warn';
+    }
+    return this.snapshot.rule.ready ? 'ok' : 'warn';
+  }
+
+  /** 数据链通不通：审计在册且有指纹才算通。 */
+  private dataTone(): string {
+    if (this.snapshot === null) {
+      return 'muted';
+    }
+    return this.snapshot.data.audit.available ? 'ok' : 'warn';
+  }
+
+  /** 实验链通不通：有在册实验、且产物没丢才算通。 */
+  private experimentTone(): string {
+    if (this.snapshot === null) {
+      return 'muted';
+    }
+    if (this.inScopeCount() === 0) {
+      return 'warn';
+    }
+    return this.artifactMissingCount() > 0 ? 'danger' : 'ok';
+  }
+
+  /** 文献链通不通：有检索记录才算通，没有是中性（还没轮到这里），不是错。 */
+  private researchTone(): string {
+    if (this.snapshot === null) {
+      return 'muted';
+    }
+    return this.snapshot.research.record_count > 0 ? 'ok' : 'muted';
+  }
+
+  /** 论文终点通不通：有声明但结果文件丢了是红的，不是黄的。 */
+  private paperTone(): string {
+    if (this.snapshot === null || !this.paperAvailable()) {
+      return 'muted';
+    }
+    if (this.claims().length === 0) {
+      return 'warn';
+    }
+    for (const claim of this.claims()) {
+      if (!claim.result_exists) {
+        return 'danger';
+      }
+    }
+    return 'ok';
+  }
+
+  /** 分段导航的项。标签走 this.tr()，语言切换时会跟着重建。 */
+  private railItems(): RailItemSpec[] {
+    return [
+      { key: 'rule', label: this.tr('trace.section.rule'), tone: this.ruleTone() },
+      { key: 'data', label: this.tr('trace.section.data'), tone: this.dataTone() },
+      { key: 'experiment', label: this.tr('trace.section.experiment'), tone: this.experimentTone() },
+      { key: 'research', label: this.tr('trace.section.research'), tone: this.researchTone() },
+      { key: 'paper', label: this.tr('trace.section.paper'), tone: this.paperTone() }
+    ];
+  }
+
   @Builder
   ErrorBanner() {
     Column() {
@@ -330,6 +419,10 @@ export struct TracePage {
       Column({ space: 6 }) {
         Row() {
           StatusBadge({ text: this.ruleGateText(), tone: this.ruleGateTone() })
+          Text(this.anchorRatioText())
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .margin({ left: 12 })
           Text(this.snapshot === null
             ? ''
             : this.trf('trace.gapTotal', [`${this.snapshot.rule.gap_count}`,
@@ -877,40 +970,25 @@ export struct TracePage {
         this.ErrorBanner()
       }
 
-      StatTileGrid({
-        items: [
-          {
-            label: this.tr('trace.statAnchors'),
-            value: this.snapshot === null
-              ? '—'
-              : `${this.snapshot.rule.required_field_count - this.snapshot.rule.missing_anchor_count}/${this.snapshot.rule.required_field_count}`,
-            hint: this.tr('trace.statAnchorsHint')
-          },
-          {
-            label: this.tr('trace.statExperiments'),
-            value: this.snapshot === null
-              ? '—'
-              : `${this.snapshot.experiments.in_scope_count}/${this.snapshot.experiments.experiments.length}`,
-            hint: this.tr('trace.statExperimentsHint')
-          },
-          {
-            label: this.tr('trace.statRecords'),
-            value: this.snapshot === null ? '—' : `${this.snapshot.research.record_count}`,
-            hint: this.tr('trace.statRecordsHint')
-          },
-          {
-            label: this.tr('trace.statClaims'),
-            value: this.snapshot === null ? '—' : `${this.snapshot.paper.claims.length}`,
-            hint: this.tr('trace.statClaimsHint')
-          }
-        ]
+      SectionRail({
+        items: this.railItems(),
+        active: this.section,
+        onSelect: (key: string) => {
+          this.section = key;
+        }
       })
 
-      this.RuleCard()
-      this.DataCard()
-      this.ExperimentCard()
-      this.ResearchCard()
-      this.PaperCard()
+      if (this.section === 'data') {
+        this.DataCard()
+      } else if (this.section === 'experiment') {
+        this.ExperimentCard()
+      } else if (this.section === 'research') {
+        this.ResearchCard()
+      } else if (this.section === 'paper') {
+        this.PaperCard()
+      } else {
+        this.RuleCard()
+      }
 
       if (this.loading) {
         Text(this.tr('common.loading'))

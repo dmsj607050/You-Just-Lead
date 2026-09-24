@@ -323,3 +323,72 @@ export struct EmptyHint {
       .padding({ top: 12, bottom: 12 })
   }
 }
+
+/** 分段导航的一项：段落标识 + 短标签 + 这一段的健康度。 */
+export interface RailItemSpec {
+  key: string;
+  /** 已翻译的短标签。文案表里的键由调用方取，这里只收结果。 */
+  label: string;
+  /** ok / warn / danger / muted，决定左侧色点的颜色。 */
+  tone: string;
+}
+
+/** 健康度 -> 色点颜色。 */
+function railToneColor(tone: string): string {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_TEXT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER;
+  }
+  return AppTheme.TEXT_TERTIARY;
+}
+
+/**
+ * 分段导航条：把一个长页面切成几段，一次只渲染一段。
+ *
+ * 每一项左边带一个色点，回答的是「这条链通不通」；具体数字留在段里，不在这里堆——
+ * 那正是这类页面变成十几屏长滚动的原因。
+ *
+ * 用 Flex 自动折行而不是固定宽度，窄窗口（手机）下会排成两行，不会把标签挤断。
+ */
+@Component
+export struct SectionRail {
+  @Prop items: RailItemSpec[] = [];
+  /** 当前选中的段落标识。 */
+  @Prop active: string = '';
+  /** 点某一项时回调它的 key。 */
+  onSelect: (key: string) => void = () => {
+  };
+
+  build() {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(this.items, (item: RailItemSpec) => {
+        Row() {
+          Row()
+            .width(6)
+            .height(6)
+            .borderRadius(3)
+            .backgroundColor(railToneColor(item.tone))
+          Text(item.label)
+            .fontSize(13)
+            .fontWeight(item.key === this.active ? FontWeight.Medium : FontWeight.Normal)
+            .fontColor(item.key === this.active ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
+            .margin({ left: 8 })
+        }
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+        .backgroundColor(item.key === this.active ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
+        .borderRadius(AppTheme.RADIUS)
+        .margin({ right: 10, bottom: 10 })
+        .onClick(() => {
+          this.onSelect(item.key);
+        })
+      }, (item: RailItemSpec) => `${item.key}-${item.key === this.active}-${item.tone}-${item.label}`)
+    }
+    .width('100%')
+  }
+}

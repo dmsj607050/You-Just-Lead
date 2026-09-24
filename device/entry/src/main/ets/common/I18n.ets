@@ -575,13 +575,14 @@ const ENTRIES: Entry[] = [
   // ---- 溯源 ----
   { key: 'trace.subtitle', zh: '每条结论都要能回到原始证据：规则锚点、数据指纹、实验产物、文献来源', en: 'Every conclusion must trace back to its source: rule anchors, data fingerprint, artifacts, references' },
   { key: 'trace.statAnchors', zh: '已带锚点', en: 'With anchor' },
-  { key: 'trace.statAnchorsHint', zh: '能指回官方原文的字段', en: 'Fields pointing back at the official source' },
-  { key: 'trace.statExperiments', zh: '在册实验', en: 'In-scope experiments' },
-  { key: 'trace.statExperimentsHint', zh: '计入当前赛题的实验', en: 'Experiments counted for this competition' },
   { key: 'trace.statRecords', zh: '文献记录', en: 'Research records' },
-  { key: 'trace.statRecordsHint', zh: '已检索并落盘的条目', en: 'Records searched and written to disk' },
-  { key: 'trace.statClaims', zh: '证据声明', en: 'Evidence claims' },
-  { key: 'trace.statClaimsHint', zh: '论文里引用结果的声明', en: 'Paper claims that cite a result' },
+
+  // 分段导航：四条证据链 + 论文终点，一次只看一段，短到不用长滚动。
+  { key: 'trace.section.rule', zh: '规则', en: 'Rules' },
+  { key: 'trace.section.data', zh: '数据', en: 'Data' },
+  { key: 'trace.section.experiment', zh: '实验', en: 'Experiments' },
+  { key: 'trace.section.research', zh: '文献', en: 'Research' },
+  { key: 'trace.section.paper', zh: '论文', en: 'Paper' },
 
   { key: 'trace.ruleTitle', zh: '规则证据链', en: 'Rule evidence chain' },
   { key: 'trace.ruleSubtitle', zh: '字段值 → 官方锚点 → 来源定位 → 人工复核', en: 'Field value → official anchor → source locator → human review' },
