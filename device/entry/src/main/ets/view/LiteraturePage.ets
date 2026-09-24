@@ -9,6 +9,7 @@ import {
   assessResearchCandidates,
   decideResearchCandidate,
   fetchResearch,
+  planReproduction,
   searchResearch
 } from '../common/BackendClient';
 import AppTheme from '../common/AppTheme';
@@ -186,6 +187,13 @@ export struct LiteraturePage {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  /**
+   * 生成复现计划成功后切到复现页。
+   *
+   * 计划是接下来几步的输入，留在这一页只给个 id 会让人再去找一遍。
+   */
+  onOpenReproduction: () => void = () => {
+  };
   @State loading: boolean = false;
   @State errorText: string = '';
   @State query: string = '';
@@ -208,6 +216,9 @@ export struct LiteraturePage {
   @State actionError: string = '';
   /** 人工检索词；留空表示按规则自动拼。 */
   @State queryDraft: string = '';
+  /** 正在生成复现计划的那条候选；空串表示没有。 */
+  @State planningId: string = '';
+  @State planError: string = '';
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
@@ -302,6 +313,28 @@ export struct LiteraturePage {
       this.actionError = (err as Error).message;
     } finally {
       this.busy = false;
+    }
+  }
+
+  /**
+   * 给一条候选生成复现计划，成功后切到复现页。
+   *
+   * 这一步会 clone 仓库（仍只做静态检查）—— 点这个按钮就是批准 clone；
+   * 代码要被**执行**还得在复现页再写一句批准说明。
+   */
+  async buildPlan(paperId: string): Promise<void> {
+    if (this.planningId.length > 0) {
+      return;
+    }
+    this.planningId = paperId;
+    this.planError = '';
+    try {
+      await planReproduction(paperId);
+      this.onOpenReproduction();
+    } catch (err) {
+      this.planError = (err as Error).message;
+    } finally {
+      this.planningId = '';
     }
   }
 
@@ -455,6 +488,28 @@ export struct LiteraturePage {
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }, (repo: CodeCandidate) => repo.repository)
+      }
+
+      // 有代码才谈得上复现：这一步 clone 仓库做静态检查，执行要另走复现页的批准。
+      if (assessment.has_public_code) {
+        Text(this.planningId === assessment.paper_id ? this.tr('lit.buildingPlan') : this.tr('lit.buildPlan'))
+          .fontSize(13)
+          .fontColor(Color.White)
+          .backgroundColor(this.planningId.length > 0 ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
+          .borderRadius(AppTheme.RADIUS_SM)
+          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          .margin({ top: 14 })
+          .onClick(() => {
+            this.buildPlan(assessment.paper_id);
+          })
+      }
+
+      if (this.planError.length > 0) {
+        Text(this.trf('lit.planError', [this.planError]))
+          .fontSize(12)
+          .fontColor(AppTheme.DANGER)
+          .width('100%')
+          .margin({ top: 10 })
       }
 
       this.Muted(this.trf('lit.assessedAt', [formatTimestamp(assessment.assessed_at)]), 12)

@@ -33,5 +33,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'literature', icon: IconPaths.BOOK },
   { key: 'data', icon: IconPaths.CHART },
   { key: 'writing', icon: IconPaths.PEN },
-  { key: 'trace', icon: IconPaths.TRACE }
+  { key: 'trace', icon: IconPaths.TRACE },
+  { key: 'reproduction', icon: IconPaths.BOX }
 ];

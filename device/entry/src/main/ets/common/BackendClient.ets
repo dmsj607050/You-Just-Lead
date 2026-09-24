@@ -349,6 +349,138 @@ export interface ResearchReport {
   counts: CandidateCounts;
 }
 
+/** docker 客户端与守护进程是否可用。装不上时 reason 里是具体原因。 */
+export interface DockerStatus {
+  available: boolean;
+  version: string | null;
+  reason: string;
+}
+
+/**
+ * 一条候选复现命令。
+ *
+ * `source` 是出处（`README.md:99` 或入口文件名）：显示它是为了让人能自己去核对，
+ * 而不是把系统猜的命令当仓库的用法。
+ */
+export interface ReproductionCommand {
+  id: string;
+  command: string;
+  source: string;
+  /** documented（文档里抄的）/ fallback（退化的探测命令）。 */
+  origin: string;
+  /** documented / probe / unverified。 */
+  confidence: string;
+}
+
+export interface ReproductionEntrypoint {
+  path: string;
+  /** train / evaluate / infer / export。 */
+  kind: string;
+}
+
+/** 已审计的本地数据集；没有审计过时整个字段为 null。 */
+export interface ReproductionDataset {
+  host_path: string;
+  target: string;
+  inventory_sha256: string | null;
+  file_count: number | null;
+}
+
+export interface ReproductionResources {
+  cpus: string;
+  memory: string;
+  timeout_seconds: number;
+}
+
+/** 一份复现计划：仓库、镜像、依赖、入口、候选命令、数据挂载。 */
+export interface ReproductionPlan {
+  plan_id: string;
+  created_at: string;
+  paper_id: string;
+  title: string | null;
+  repository: string;
+  commit: string | null;
+  local_path: string;
+  slug: string;
+  image: string;
+  /** 仓库文本里出现 cuda/torch.cuda 之类关键词时的提示，用来决定要不要加 --gpus。 */
+  requires_gpu: boolean;
+  dependency_manifest: string | null;
+  readme: string | null;
+  entrypoints: ReproductionEntrypoint[];
+  commands: ReproductionCommand[];
+  dataset: ReproductionDataset | null;
+  resources: ReproductionResources;
+  execution_policy: string;
+}
+
+/** 一次运行里的一个阶段。 */
+export interface ReproductionPhase {
+  /** download_wheels / install_and_run。 */
+  phase: string;
+  command: string;
+  /** none / bridge。 */
+  network: string;
+  exit_code: number;
+  timed_out: boolean;
+  duration_seconds: number;
+  log_path: string;
+}
+
+export interface ReproductionOutputFile {
+  /** output / work。 */
+  root: string;
+  path: string;
+  bytes: number;
+}
+
+/** 产物摘要：JSON 的顶层键或 CSV 的表头 —— 指标就是在这里被人看见的。 */
+export interface ReproductionOutputSummary {
+  file: string;
+  kind: string;
+  keys?: string[];
+  columns?: string[];
+}
+
+export interface ReproductionOutputs {
+  files: ReproductionOutputFile[];
+  summaries: ReproductionOutputSummary[];
+  truncated: boolean;
+}
+
+/** 一次复现运行：命令、阶段、退出码、日志尾部、产物清单。 */
+export interface ReproductionRun {
+  run_id: string;
+  plan_id: string;
+  title: string | null;
+  repository: string;
+  commit: string | null;
+  command: string;
+  /** 这条命令抄自哪里；为空表示是人工改写的。 */
+  command_documented_at: string | null;
+  command_overridden: boolean;
+  image: string;
+  /** queued / running / succeeded / failed。 */
+  status: string;
+  phases: ReproductionPhase[];
+  exit_code: number | null;
+  error: string | null;
+  outputs: ReproductionOutputs | null;
+  log_tail: string;
+  dataset: ReproductionDataset | null;
+  isolation: Record<string, string>;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+/** GET /api/reproductions。 */
+export interface ReproductionState {
+  docker: DockerStatus;
+  plans: ReproductionPlan[];
+  runs: ReproductionRun[];
+}
+
 /** 论文里的一条证据声明。 */
 export interface PaperClaim {
   claim: string;
@@ -729,6 +861,19 @@ interface ResearchDecisionRequest {
   note: string;
 }
 
+/** 生成复现计划的请求体。 */
+interface ReproductionPlanRequest {
+  paper_id: string;
+}
+
+/** 批准运行的请求体：command 留空表示用计划里选中的那条原文。 */
+interface ReproductionRunRequest {
+  plan_id: string;
+  command_id: string;
+  note: string;
+  command: string;
+}
+
 interface ProjectSelectRequest {
   id: string;
 }
@@ -893,6 +1038,41 @@ export function decideResearchCandidate(paperId: string, decision: string, note:
  */
 export function assessResearchCandidates(): Promise<ResearchReport> {
   return requestJson<ResearchReport>('/api/research/assess', http.RequestMethod.POST, JSON.stringify({}));
+}
+
+/** 读取复现计划与运行记录，外加 docker 可用性。 */
+export function fetchReproductions(): Promise<ReproductionState> {
+  return requestJson<ReproductionState>('/api/reproductions', http.RequestMethod.GET);
+}
+
+/**
+ * 给一条候选生成复现计划。
+ *
+ * 这一步会 clone 仓库 —— 点这个按钮就是批准 clone。克隆仍然只做静态检查；
+ * 代码要被**执行**还得再走 runReproduction 那道批准。
+ */
+export function planReproduction(paperId: string): Promise<ReproductionPlan> {
+  const payload: ReproductionPlanRequest = { paper_id: paperId };
+  return requestJson<ReproductionPlan>('/api/reproductions/plan', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/**
+ * 批准并运行一次复现。
+ *
+ * `note` 是必填的批准说明；`command` 为人改写后的命令（留空则用计划里选中的那条），
+ * 后端会把它原样记进批准文件 —— 批准的就是实际要跑的那一行。
+ */
+export function runReproduction(planId: string, commandId: string, note: string,
+  command: string): Promise<ReproductionRun> {
+  const payload: ReproductionRunRequest = {
+    plan_id: planId,
+    command_id: commandId,
+    note: note,
+    command: command
+  };
+  return requestJson<ReproductionRun>('/api/reproductions/run', http.RequestMethod.POST,
+    JSON.stringify(payload));
 }
 
 /** 读取论文证据包与投稿契约。 */

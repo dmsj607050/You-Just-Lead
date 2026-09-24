@@ -95,6 +95,10 @@ export default class IconPaths {
   static readonly LOGOUT: string =
     'M13 4 L5 4 L5 20 L13 20 M10.5 12 L20 12 M17 9 L20 12 L17 15';
 
+  /** 立方体：复现（把外部仓库放进隔离容器里跑）。 */
+  static readonly BOX: string =
+    'M4 7 L12 3 L20 7 L20 17 L12 21 L4 17 Z M4 7 L12 11 L20 7 M12 11 L12 21';
+
   /** 远山：横幅装饰，按 280×110 坐标系绘制。 */
   static readonly RIDGE_BACK: string =
     'M0 110 L52 44 L88 78 L136 24 L200 110 Z';

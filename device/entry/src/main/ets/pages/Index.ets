@@ -24,6 +24,7 @@ import { LiteraturePage } from '../view/LiteraturePage';
 import { DataPage } from '../view/DataPage';
 import { WritingPage } from '../view/WritingPage';
 import { TracePage } from '../view/TracePage';
+import { ReproductionPage } from '../view/ReproductionPage';
 import { SettingsPage } from '../view/SettingsPage';
 import { LocalRulePage } from '../view/LocalRulePage';
 import { LocalStatusPage } from '../view/LocalStatusPage';
@@ -261,13 +262,19 @@ struct Index {
     } else if (this.activeNav === 'experiment') {
       ExperimentPage()
     } else if (this.activeNav === 'literature') {
-      LiteraturePage()
+      LiteraturePage({
+        onOpenReproduction: () => {
+          this.activeNav = 'reproduction';
+        }
+      })
     } else if (this.activeNav === 'data') {
       DataPage()
     } else if (this.activeNav === 'writing') {
       WritingPage()
     } else if (this.activeNav === 'trace') {
       TracePage()
+    } else if (this.activeNav === 'reproduction') {
+      ReproductionPage()
     } else if (this.activeNav === 'settings') {
       SettingsPage()
     } else {
