@@ -1,0 +1,5 @@
+severity,path,issue
+error,labels/shuming_102_00000228.txt,Empty file
+warning,depth/00000394.jpg; depth/00000399.jpg; depth/00000410.jpg; depth/00000414.jpg; depth/00000415.jpg,Exact duplicate content
+warning,depth/000032_029_00000001.png; depth/shuming_486_00000001.png,Exact duplicate content
+warning,visible/000032_029_00000001.png; visible/shuming_486_00000001.png,Exact duplicate content

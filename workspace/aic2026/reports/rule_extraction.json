@@ -1,0 +1,14 @@
+{
+  "evidence_count": 2,
+  "requires_human_confirmation": true,
+  "rules_report": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\docs\\competition_rules.md",
+  "source_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\input\\rules\\official_rules.pdf",
+  "spec_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\competition_spec.yaml",
+  "submission_checklist": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\docs\\submission_checklist.md",
+  "unresolved_questions": [
+    "Confirm competition.task_type from the official rules.",
+    "Confirm evaluation.primary_metric from the official rules.",
+    "Confirm submission.format from the official rules.",
+    "Confirm constraints.external_data_allowed from the official rules."
+  ]
+}

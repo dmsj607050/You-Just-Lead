@@ -138,7 +138,10 @@ class WorkflowExtensionTests(unittest.TestCase):
         self.assertEqual(recommend_runner("semantic segmentation")["runner"], "image_segmentation")
         self.assertEqual(recommend_runner("image classification")["runner"], "image_classification")
         self.assertEqual(recommend_runner("regression")["runner"], "tabular_regression")
-        self.assertIsNone(recommend_runner("object detection"))
+        # 目标检测现在有适配器了：它桥接的是用户自己的外部检测工程，不是内置训练器。
+        self.assertEqual(recommend_runner("object detection")["runner"], "external_detection")
+        # 没实现的任务类型仍然要老实返回 None，不许猜一个 runner 出来。
+        self.assertIsNone(recommend_runner("text generation"))
 
     def test_submission_validation_requires_approved_rules_and_checks_csv(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

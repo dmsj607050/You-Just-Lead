@@ -1,0 +1,63 @@
+# AIC2026「面向城市场景的视觉多模态目标检测」的第一条真实实验（G4）。
+#
+# 这份配置描述的是**外部检测工程的第一次管线级真实运行**，不是冲榜配方：
+# 它用小骨干（yolo26n）、单轮、10% 训练子集，在真实的三模态数据上把
+# 「数据读取 -> 训练 -> Ultralytics 验证 -> mAP 落盘」整条链跑通并留下可复跑的记录。
+#
+# 为什么先跑管线级而不是直接上 YOLO26X 全量：B:\AIC\README.md 第 4 节自己就是这么要求的
+# （"先在配置中把 width 改为 0.25、image_size 改为 640 做管线过拟合；确认无误后再恢复正式配置"），
+# 而且本机是 RTX 4060 Laptop 8GB，YOLO26X（51M 参数）在这个显存上跑不动。
+#
+# 三道闸门都还在：规则必须已人工批准（competition_spec.yaml）、数据必须已审计且指纹未变
+# （reports/data_statistics.json）、这份配置必须已 approve-run 批准过 GPU 预算。
+
+experiment:
+  hypothesis: 三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。
+  change_type: baseline
+  expected_improvement: 建立可复现的 Held-out 参考指标；本配置的目标是链路正确，不是榜单分数。
+  estimated_gpu_hours: 0.2
+  rollback_plan: 管线级基线不进入冲榜结论；后续正式配置以 B:\AIC\README.md 的 YOLO26X 路线为准。
+
+data:
+  # 审计内容指纹：reports/data_statistics.json 里那份（8001 文件 / 13.08 GB）。
+  version: 3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6
+  # 唯一的数据输入：既是审计范围，也是传给 train.py --source-root 的那份路径。
+  train_images_dir: B:\AIC\datasets\train\AIC2026_Train_2000
+
+model:
+  # 政策审的就是这个键（PretrainedModelPolicy）；适配器也只从它取 --weights。
+  # 规则 PDF 十一（二）明确允许公开预训练权重。
+  pretrained_model: yolo26n.pt
+
+external:
+  # 用户自己的检测工程：适配器不重写它，只冻结源码、按固定入口跑一次。
+  project_dir: B:\AIC
+  entry_script: train.py
+  source_inventory_sha256: f13e5de0d2d7b5ce64979c298db484e55d90798cbaa37d5c503d11f901d4a9c1
+  python_executable: A:\anaconda3\anaconda3_exe\envs\AIC\python.exe
+  stage: rgb
+  train_list: splits/train.txt
+  val_list: splits/val.txt
+  dataset_root: datasets/ultralytics_aic
+  # 传给 train.py 的是 Ultralytics 的卡号；训练预算看的是 training.device。
+  device: '0'
+  epochs: 1
+  batch_size: 4
+  image_size: 640
+  workers: 0
+  seed: 20260713
+  fraction: 0.1
+  require_cuda: true
+  timeout_seconds: 3600
+
+training:
+  runner: external_detection
+  seed: 20260713
+  epochs: 1
+  batch_size: 4
+  # 是 cuda 才算 GPU 预算，才会要求 approve-run。
+  device: cuda
+
+validation:
+  metric: map50_95
+  direction: maximize

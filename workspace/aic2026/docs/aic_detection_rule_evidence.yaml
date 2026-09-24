@@ -1,0 +1,122 @@
+# AIC2026「面向城市场景的视觉多模态目标检测」官方规则证据记录
+#
+# 用法：
+#   python main.py record-rule-evidence --file docs/aic_detection_rule_evidence.yaml --workspace workspace/aic2026
+#
+# 纪律（与讯飞那份同一条）：
+# - 每个字段的 value 都取自下面 source 指向的那份规则 PDF，不改写、不推断。
+# - anchor 必须能定位到原文（章节号 + 原文表述），不能写「规则里有」这种说法。
+# - PDF 没写的规则事实，value 就明确写「规则文档未记载…」，anchor 指向本该记载它的章节。
+#   记下「官方没说」本身是结论，不许空着，也不许拿常识补。
+profile: aic_multimodal_detection
+
+source:
+  source_type: official_pdf
+  source_locator: input/rules/official_rules.pdf（全球校园人工智能算法精英大赛·算法挑战赛「面向城市场景的视觉多模态目标检测」赛题规则，PDF 8 页，sha256 37d204800ccbde5a9f748647b08326d99f5d0301367f574a695f16528217a832）
+  reviewed_at: '2026-09-24'
+
+fields:
+  competition.name:
+    value: 面向城市场景的视觉多模态目标检测
+    anchor: 第 1 页页眉与标题「全球校园人工智能算法精英大赛·算法挑战赛·面向城市场景的视觉多模态目标检测」
+
+  competition.platform:
+    value: www.aicomp.cn（报名官网）
+    anchor: 十五、联系方式「报名官网：www.aicomp.cn」；规则文档未单独指明在线提交平台
+
+  competition.task_type:
+    value: object_detection
+    anchor: 三、赛题任务「要求参赛者设计并实现一种基于可见光、热红外与深度三模态数据融合的目标检测算法」
+
+  competition.deadline:
+    value: 规则文档未记载具体日期
+    anchor: 十三、提交要求只按初赛/复赛/半决赛/总决赛列出提交物，全文未出现任何起止日期
+
+  evaluation.primary_metric:
+    value: mAP@50-95
+    anchor: 六、性能指标要求「本赛题使用经典目标检测性能指标 mAP@50-95 来评估提交方法的有效性」
+
+  evaluation.direction:
+    value: maximize
+    anchor: 九（三）成绩计算「依据性能评估指标 mAP@50-95 进行打分」；注「低于赛事方公布的基线成绩…有权认定为无效成绩」
+
+  submission.format:
+    value: zip archive of per-image TXT prediction files
+    anchor: 九（二）输出数据格式要求「最终将所有 TXT 文件打包为压缩包进行提交」
+
+  submission.filename_rule:
+    value: <image_stem>.txt
+    anchor: 九（二）「每张测试图必须提交一个同名的预测 TXT 文件」
+
+  submission.daily_limit:
+    value: 规则文档未记载提交次数
+    anchor: 十三、提交要求与九、成绩评价均未记载每日提交次数或提交次数上限
+
+  constraints.model_size_limit_mb:
+    value: 规则文档未记载上限
+    anchor: 十三（二）「训练好的模型文件（由于模型可能较大，请提供模型下载链接）」；未记载模型体积上限
+
+  data.modalities:
+    value:
+      - visible_rgb
+      - infrared
+      - depth
+    anchor: 九（一）输入数据格式要求「参赛者算法应能正确读取赛题数据，包括 RGB 图像、Infrared 图像与 Depth 图像」
+
+  data.class_count:
+    value: 12
+    anchor: 三（一）「数据集中总共包含从"0"开始编号的 12 个类别…分别编号为：0 person … 11 tricycle」
+
+  data.label_format:
+    value: '[class_id, norm_center_x, norm_center_y, norm_w, norm_h]'
+    anchor: 三（二）数据集标签说明「目标在图像中的标签为对应目标的矩形边界框，格式为 [class_id, norm_center_x, norm_center_y, norm_w, norm_h]」
+
+  submission.contract.line_columns:
+    value:
+      - class_id
+      - norm_center_x
+      - norm_center_y
+      - norm_w
+      - norm_h
+      - confidence
+    anchor: 九（二）「文件中每一行表示一个目标在图像中的位置、置信度和类别信息：[class_id，norm_center_x, norm_center_y，norm_w，norm_h，confidence]」
+
+  submission.contract.per_image_file:
+    value: one TXT per test image, named with the image stem
+    anchor: 九（二）「每张测试图必须提交一个同名的预测 TXT 文件」
+
+  submission.contract.empty_file_required:
+    value: true
+    anchor: 九（二）「若某张图未检测到目标，也须提交一个空 TXT 预测文件，不允许缺失」
+
+  submission.contract.max_boxes_per_image:
+    value: 100
+    anchor: 九（二）「每张图最大预测框数量为 100，超过数量会按置信度截断」
+
+  submission.contract.package_layout:
+    value: all per-image TXT files in one archive
+    anchor: 九（二）「最终将所有 TXT 文件打包为压缩包进行提交」
+
+  submission.contract.coordinate_space:
+    value: normalized to the original image size, range 0~1
+    anchor: 三（二）「norm_center_x 表示目标框中心点在图像宽度方向的位置，经过归一化处理后的值（取值范围为 0~1）」等四句
+
+  constraints.offline_only:
+    value: true
+    anchor: 十一（一）算法约束「禁止调用任何在线服务或 API，所有训练与推理须可在本地离线完成」
+
+  constraints.external_data_allowed:
+    value: false
+    anchor: 十一（二）数据使用约束「参赛者仅可使用赛事官方提供的训练数据集，严禁私自扩充外部数据」
+
+  constraints.pretrained_models_allowed:
+    value: true
+    anchor: 十一（二）「允许使用 ImageNet、COCO、Objects365 等公开预训练权重」
+
+  constraints.ensemble_allowed:
+    value: false
+    anchor: 十一（一）「禁止将多个不同结构或训练阶段的模型进行简单集成，直接采用投票法、平均法等方式决策」
+
+  constraints.test_data_reuse_allowed:
+    value: false
+    anchor: 十一（二）「严禁私自对测试集进行标注、篡改，严禁将测试集数据用于模型训练环节」

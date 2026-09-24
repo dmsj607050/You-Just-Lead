@@ -1,18 +1,23 @@
 # Competition artefacts and credentials
-workspace/current_competition/input/*
-!workspace/current_competition/input/.gitkeep
-workspace/current_competition/data/raw/*
-!workspace/current_competition/data/raw/.gitkeep
-workspace/current_competition/data/interim/*
-!workspace/current_competition/data/interim/.gitkeep
-workspace/current_competition/data/processed/*
-!workspace/current_competition/data/processed/.gitkeep
-workspace/current_competition/models/*
-!workspace/current_competition/models/.gitkeep
-workspace/current_competition/experiments/artifacts/*
-!workspace/current_competition/experiments/artifacts/.gitkeep
-workspace/current_competition/experiments/tracking/*
-!workspace/current_competition/experiments/tracking/.gitkeep
+#
+# 这里以前把路径写死成 workspace/current_competition/。多项目之后那是**静默缺陷**：
+# 新建项目（workspace/<新 id>/）的官方规则原件、raw 数据、模型权重都不再被忽略，
+# 会被 git 收进版本库 —— 竞赛规则明确禁止传播赛事数据，这不能靠"记得别 git add"挡住。
+# 所以改成 workspace/*/ 覆盖每个项目。
+workspace/*/input/*
+!workspace/*/input/.gitkeep
+workspace/*/data/raw/*
+!workspace/*/data/raw/.gitkeep
+workspace/*/data/interim/*
+!workspace/*/data/interim/.gitkeep
+workspace/*/data/processed/*
+!workspace/*/data/processed/.gitkeep
+workspace/*/models/*
+!workspace/*/models/.gitkeep
+workspace/*/experiments/artifacts/*
+!workspace/*/experiments/artifacts/.gitkeep
+workspace/*/experiments/tracking/*
+!workspace/*/experiments/tracking/.gitkeep
 database/*.db
 database/*.sqlite
 .env

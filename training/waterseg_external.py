@@ -9,7 +9,6 @@ GPU-configuration gates enforced by :class:`ExperimentService`.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,41 +16,22 @@ import subprocess
 import sys
 from typing import Any
 
+from training.source_inventory import fingerprint_source
+
 
 SOURCE_SUFFIXES = {".py", ".yaml", ".yml", ".toml", ".txt", ".sh"}
 EXCLUDED_SOURCE_PARTS = {".git", "__pycache__", "runs", "submission"}
+SOURCE_LABEL = "waterseg"
 
 
 def source_inventory(project_dir: Path) -> tuple[str, list[dict[str, Any]]]:
     """Fingerprint relevant source/configuration files without hashing data or checkpoints."""
-    root = project_dir.resolve()
-    if not root.is_dir():
-        raise NotADirectoryError(f"waterseg project directory does not exist: {root}")
-
-    records: list[dict[str, Any]] = []
-    digest = hashlib.sha256()
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
-        relative = path.relative_to(root)
-        if any(part.lower() in EXCLUDED_SOURCE_PARTS for part in relative.parts):
-            continue
-        if path.suffix.lower() not in SOURCE_SUFFIXES:
-            continue
-        file_digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        record = {
-            "path": relative.as_posix(),
-            "bytes": path.stat().st_size,
-            "sha256": file_digest,
-        }
-        records.append(record)
-        digest.update(record["path"].encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(str(record["bytes"]).encode("ascii"))
-        digest.update(b"\0")
-        digest.update(file_digest.encode("ascii"))
-        digest.update(b"\n")
-    if not records:
-        raise ValueError(f"No waterseg source files found in {root}")
-    return digest.hexdigest(), records
+    return fingerprint_source(
+        project_dir,
+        suffixes=SOURCE_SUFFIXES,
+        excluded_parts=EXCLUDED_SOURCE_PARTS,
+        label=SOURCE_LABEL,
+    )
 
 
 def _mapping(config: dict[str, Any], key: str) -> dict[str, Any]:

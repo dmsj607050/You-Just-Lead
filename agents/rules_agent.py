@@ -110,6 +110,50 @@ XUNFEI_CONFIRMATION_FIELDS = (
     "constraints.inference_limit_evidence",
 )
 
+# AIC2026 面向城市场景的视觉多模态目标检测档案的追加字段。
+# 这份规则的"输出合约"（每图一个同名 TXT、6 列、100 框上限、打包提交）与数据和
+# 权重约束都和水体分割完全不同，锚点必须各记各的，不能共用一张表。
+AIC_DETECTION_CONFIRMATION_FIELDS = (
+    "data.modalities",
+    "data.class_count",
+    "data.label_format",
+    "submission.contract.line_columns",
+    "submission.contract.per_image_file",
+    "submission.contract.empty_file_required",
+    "submission.contract.max_boxes_per_image",
+    "submission.contract.package_layout",
+    "submission.contract.coordinate_space",
+    "constraints.offline_only",
+    "constraints.external_data_allowed",
+    "constraints.pretrained_models_allowed",
+    "constraints.ensemble_allowed",
+    "constraints.test_data_reuse_allowed",
+)
+
+# 档案名 -> 该档案在人工复核时必须逐条给出「值 + 锚点」的字段清单。
+# 通用档案没有清单：不同竞赛的规则结构本来就不同，硬套一张表只会逼人填假值。
+RULE_PROFILES: dict[str, tuple[str, ...]] = {
+    "xunfei_waterseg": BASE_CONFIRMATION_FIELDS + XUNFEI_CONFIRMATION_FIELDS,
+    "aic_multimodal_detection": BASE_CONFIRMATION_FIELDS + AIC_DETECTION_CONFIRMATION_FIELDS,
+}
+
+# 值必须是 YAML 布尔量的字段：写成 "false" 字符串会让下游的判断直接失真。
+BOOLEAN_EVIDENCE_FIELDS = frozenset(
+    {
+        "constraints.offline_only",
+        "constraints.external_data_allowed",
+        "constraints.pretrained_models_allowed",
+        "constraints.ensemble_allowed",
+        "constraints.test_data_reuse_allowed",
+        "submission.contract.empty_file_required",
+    }
+)
+
+# 讯飞水体分割用来声明档案的历史取值：它们不是档案名本身，要映射过去。
+XUNFEI_WATERSEG_VALIDATION_PROFILES = frozenset(
+    {"xunfei_waterseg_inference_package", "xunfei_waterseg_runtime_output"}
+)
+
 
 def _deep_get(payload: dict[str, Any], dotted_name: str) -> Any:
     return get_nested(payload, dotted_name)
@@ -139,16 +183,25 @@ def is_meaningful(value: Any) -> bool:
     return True
 
 
-def _is_xunfei_waterseg_spec(spec: dict[str, Any]) -> bool:
-    submission = spec.get("submission", {})
-    competition = spec.get("competition", {})
-    return (
-        isinstance(submission, dict)
-        and submission.get("validation_profile") in {
-            "xunfei_waterseg_inference_package",
-            "xunfei_waterseg_runtime_output",
-        }
-    ) or str(competition.get("preferred_runner", "")) == "waterseg_external"
+def rule_profile_name(spec: dict[str, Any]) -> str:
+    """工作区认哪一份规则档案。
+
+    先看显式声明的 `competition.rule_profile`；再兼容讯飞水体分割当年用来声明档案的
+    `submission.validation_profile`（那里放的是提交校验档案名，不能直接当规则档案名用，
+    所以只在认得出来时映射过去）。认不出来就是通用档案——它没有必备字段清单，
+    由 `unresolved_questions` 单独把关。
+    """
+    declared = str(_deep_get(spec, "competition.rule_profile") or "").strip()
+    if declared in RULE_PROFILES:
+        return declared
+    legacy = str(_deep_get(spec, "submission.validation_profile") or "").strip()
+    if legacy in RULE_PROFILES:
+        return legacy
+    if legacy in XUNFEI_WATERSEG_VALIDATION_PROFILES:
+        return "xunfei_waterseg"
+    if str(_deep_get(spec, "competition.preferred_runner") or "") == "waterseg_external":
+        return "xunfei_waterseg"
+    return "generic"
 
 
 def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
@@ -159,15 +212,12 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
     unlocking a costly training run.
     """
     approval = spec.get("approval", {}) if isinstance(spec.get("approval"), dict) else {}
-    strict_xunfei_profile = _is_xunfei_waterseg_spec(spec)
-    # Generic competitions have different rule schemas, so their existing
-    # extractor remains the source of required fields.  The fixed contract
-    # below applies only to the fully integrated Xunfei adapter, where a wrong
-    # output bundle or pretrained-weight assumption would directly invalidate
-    # a run.
-    required_fields = list(BASE_CONFIRMATION_FIELDS) if strict_xunfei_profile else []
-    if strict_xunfei_profile:
-        required_fields.extend(XUNFEI_CONFIRMATION_FIELDS)
+    profile = rule_profile_name(spec)
+    # A competition whose rule schema is not implemented keeps only the
+    # extraction-based questions.  Once a profile exists, its field list is the
+    # contract: every field needs a value and an anchor from the official source.
+    profiled = profile != "generic"
+    required_fields = list(RULE_PROFILES.get(profile, ()))
 
     gaps: list[dict[str, str]] = []
     for field in required_fields:
@@ -175,7 +225,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
         if not is_meaningful(value):
             gaps.append({"field": field, "reason": "The confirmed value is missing or unresolved."})
 
-    if strict_xunfei_profile:
+    if profile == "xunfei_waterseg":
         output_mode = str(_deep_get(spec, "submission.contract.runtime_output") or "").lower()
         if output_mode not in {"loose_png", "submit_zip"}:
             gaps.append(
@@ -185,7 +235,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
                 }
             )
 
-    if strict_xunfei_profile:
+    if profiled:
         evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
         for field in ("source_type", "source_locator", "reviewed_at"):
             if not is_meaningful(evidence.get(field)):
@@ -213,7 +263,7 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "ready": not gaps,
-        "profile": "xunfei_waterseg" if _is_xunfei_waterseg_spec(spec) else "generic",
+        "profile": profile,
         "required_fields": required_fields,
         "gaps": gaps,
     }
@@ -235,11 +285,12 @@ def rule_confirmation_readiness_for_workspace(workspace: Path) -> dict[str, Any]
 
 
 def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[str, Any]:
-    """Apply a complete, human-reviewed Xunfei rule evidence record.
+    """Apply a complete, human-reviewed rule evidence record for one rule profile.
 
     The caller supplies a compact YAML record whose values and source anchors
-    are copied from an official rule page or official PDF.  This action records
-    evidence and deliberately *does not* approve the rules or a GPU run.
+    are copied from an official rule page or official PDF.  Which fields the
+    record must carry is decided by the rule profile it names.  This action
+    records evidence and deliberately *does not* approve the rules or a GPU run.
     """
     spec_path = workspace / "competition_spec.yaml"
     if not spec_path.exists():
@@ -248,8 +299,6 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
     if not evidence_path.is_file():
         raise FileNotFoundError(f"Rule evidence record does not exist: {evidence_path}")
     spec = load_yaml(spec_path)
-    if not _is_xunfei_waterseg_spec(spec):
-        raise ValueError("This evidence-record workflow is currently scoped to the Xunfei water-segmentation adapter")
     record = load_yaml(evidence_path)
     source = record.get("source")
     fields = record.get("fields")
@@ -257,7 +306,15 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
         raise ValueError("Rule evidence must contain a source mapping")
     if not isinstance(fields, dict):
         raise ValueError("Rule evidence must contain a fields mapping")
-    required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+    # 档案由证据记录声明；没声明就沿用工作区已有的档案。两者都定不下来就不能写入：
+    # 没有档案就没有字段清单，"完整"这件事无法判定。
+    declared_profile = str(record.get("profile") or "").strip()
+    profile = declared_profile or rule_profile_name(spec)
+    if profile not in RULE_PROFILES:
+        raise ValueError(
+            f"Unknown rule profile: {profile!r}. Known profiles: " + ", ".join(sorted(RULE_PROFILES))
+        )
+    required = list(RULE_PROFILES[profile])
     unknown = sorted(set(fields) - set(required))
     if unknown:
         raise ValueError("Rule evidence contains unsupported fields: " + ", ".join(unknown))
@@ -283,19 +340,17 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
         details = [f"field {name}" for name in missing] + [f"source.{name}" for name in source_missing]
         raise ValueError("Incomplete official rule evidence: " + ", ".join(details))
 
-    output_mode = str(values["submission.contract.runtime_output"]).lower()
-    if output_mode not in {"loose_png", "submit_zip"}:
-        raise ValueError("submission.contract.runtime_output must be loose_png or submit_zip")
-    for boolean_field in (
-        "constraints.external_data_allowed",
-        "constraints.pretrained_models_allowed",
-        "constraints.ensemble_allowed",
-    ):
+    if profile == "xunfei_waterseg":
+        output_mode = str(values["submission.contract.runtime_output"]).lower()
+        if output_mode not in {"loose_png", "submit_zip"}:
+            raise ValueError("submission.contract.runtime_output must be loose_png or submit_zip")
+    for boolean_field in sorted(BOOLEAN_EVIDENCE_FIELDS.intersection(required)):
         if not isinstance(values[boolean_field], bool):
             raise ValueError(f"{boolean_field} must be a YAML boolean: true or false")
 
     for name, value in values.items():
         _deep_set(spec, name, value)
+    _deep_set(spec, "competition.rule_profile", profile)
     approval = spec.setdefault("approval", {})
     approval["official_evidence"] = {
         "source_type": str(source["source_type"]).strip(),
@@ -315,6 +370,7 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
     outcome = {
         "spec_path": str(spec_path),
         "evidence_path": str(evidence_path),
+        "profile": profile,
         "applied_fields": required,
         "requires_human_confirmation": True,
         "readiness": readiness,
@@ -331,10 +387,17 @@ EVIDENCE_FIELD_KINDS = {
     "constraints.external_data_allowed": "boolean",
     "constraints.pretrained_models_allowed": "boolean",
     "constraints.ensemble_allowed": "boolean",
+    "constraints.offline_only": "boolean",
+    "constraints.test_data_reuse_allowed": "boolean",
+    "submission.contract.empty_file_required": "boolean",
     "submission.contract.required_files": "list",
     "submission.contract.mask_size": "list",
+    "data.modalities": "list",
+    "submission.contract.line_columns": "list",
     "submission.daily_limit": "number",
     "constraints.model_size_limit_mb": "number",
+    "data.class_count": "number",
+    "submission.contract.max_boxes_per_image": "number",
     "evaluation.direction": "direction",
 }
 
@@ -342,8 +405,8 @@ EVIDENCE_FIELD_KINDS = {
 def rule_evidence_form_for_workspace(workspace: Path) -> dict[str, Any]:
     """界面「录入官方证据」需要的表单状态：逐字段现值/锚点 + 值控件类型。
 
-    只读，不改任何文件。`supported` 为假时界面禁用录入：证据记录与应用目前只对
-    完成集成的讯飞水体分割档案开放，通用竞赛的规则来源不同，不能套同一张表。
+    只读，不改任何文件。`supported` 为假时界面禁用录入：工作区还没有认领任何规则档案
+    （`competition.rule_profile`），没有档案就没有字段清单，录入一张不明字段的表没有意义。
     """
     spec_path = workspace / "competition_spec.yaml"
     spec = load_yaml(spec_path) if spec_path.exists() else {}
@@ -368,8 +431,9 @@ def rule_evidence_form_for_workspace(workspace: Path) -> dict[str, Any]:
         )
 
     return {
-        "supported": bool(spec) and _is_xunfei_waterseg_spec(spec),
+        "supported": bool(spec) and rule_profile_name(spec) != "generic",
         "profile": readiness.get("profile"),
+        "profiles": sorted(RULE_PROFILES),
         "spec_path": str(spec_path) if spec_path.exists() else None,
         "source": {
             "source_type": display_value(evidence.get("source_type")),
@@ -389,14 +453,21 @@ def build_rule_evidence_record(
     spec: dict[str, Any],
     source: dict[str, Any],
     overrides: dict[str, Any],
+    profile: str = "",
 ) -> dict[str, Any]:
     """把界面提交的改动合并到规格现值与已有锚点上，得到一份完整的证据记录。
 
     界面只提交「人实际填的东西」，其余字段沿用规格里的值，所以数值/布尔/列表
     不需要在客户端往返一遍、也不会被字符串化。缺值或缺锚点在这里就被拦下，
-    免得写出一份自以为完整的证据。
+    免得写出一份自以为完整的证据。字段清单由档案决定；工作区还没认领档案时，
+    可以显式传 `profile` 来认领。
     """
-    required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+    resolved = str(profile).strip() or rule_profile_name(spec)
+    if resolved not in RULE_PROFILES:
+        raise ValueError(
+            f"Unknown rule profile: {resolved!r}. Known profiles: " + ", ".join(sorted(RULE_PROFILES))
+        )
+    required = list(RULE_PROFILES[resolved])
     approval = spec.get("approval") if isinstance(spec.get("approval"), dict) else {}
     evidence = approval.get("official_evidence") if isinstance(approval.get("official_evidence"), dict) else {}
     anchors = evidence.get("fields") if isinstance(evidence.get("fields"), dict) else {}
@@ -422,7 +493,7 @@ def build_rule_evidence_record(
 
     if missing:
         raise ValueError("Incomplete official rule evidence: " + ", ".join(f"field {name}" for name in missing))
-    return {"source": dict(source), "fields": record_fields}
+    return {"profile": resolved, "source": dict(source), "fields": record_fields}
 
 
 def _read_text(path: Path) -> str:

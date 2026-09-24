@@ -1,0 +1,58 @@
+{
+  "audit_schema_version": 1,
+  "data_dir": "B:\\AIC\\datasets\\train\\AIC2026_Train_2000",
+  "exact_duplicate_groups": [
+    [
+      "depth/00000394.jpg",
+      "depth/00000399.jpg",
+      "depth/00000410.jpg",
+      "depth/00000414.jpg",
+      "depth/00000415.jpg"
+    ],
+    [
+      "depth/000032_029_00000001.png",
+      "depth/shuming_486_00000001.png"
+    ],
+    [
+      "visible/000032_029_00000001.png",
+      "visible/shuming_486_00000001.png"
+    ]
+  ],
+  "file_count": 8001,
+  "file_kinds": {
+    "file": 2001,
+    "image": 6000
+  },
+  "generated_at": "2026-09-24T08:26:45+00:00",
+  "images": {
+    "channels": {
+      "1": 1851,
+      "3": 4149
+    },
+    "count": 6000,
+    "height": {
+      "max": 1080,
+      "mean": 1026.36,
+      "min": 360
+    },
+    "width": {
+      "max": 1920,
+      "mean": 1824.64,
+      "min": 640
+    }
+  },
+  "inventory_sha256": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+  "issue_count": 4,
+  "metadata_format": "jsonl",
+  "segmentation_masks": {
+    "count": 0,
+    "empty_count": 0,
+    "foreground_ratio": null
+  },
+  "splits": {
+    "train": 2000,
+    "unassigned": 6001
+  },
+  "tables": [],
+  "total_bytes": 13077484950
+}

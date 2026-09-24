@@ -72,6 +72,7 @@ class Contract:
 
 
 _RULE_EVIDENCE_FIELDS: dict[str, str] = {
+    "profile": "str",
     "source": "dict",
     "source.source_type": "str",
     "source.source_locator": "str",
@@ -85,17 +86,19 @@ _RULE_EVIDENCE_FIELDS: dict[str, str] = {
 CONTRACTS: dict[str, Contract] = {
     "rule_profile": Contract(
         name="rule_profile",
-        purpose="规则档案的必备字段清单与类型敏感字段的控件类型（讯飞水体分割档案共 19 个字段）",
-        python_producer="agents/rules_agent.py::BASE_CONFIRMATION_FIELDS + XUNFEI_CONFIRMATION_FIELDS",
+        purpose="规则档案的必备字段清单与类型敏感字段的控件类型（讯飞水体分割 19 个字段 / AIC 三模态检测 24 个字段）",
+        python_producer="agents/rules_agent.py::RULE_PROFILES",
         python_consumer="agents/rules_agent.py::rule_confirmation_readiness_for_workspace",
-        fields={"required_fields": "list", "field_kinds": "dict"},
+        fields={"required_fields": "list", "field_kinds": "dict", "profile": "str"},
         arkts_sites=(
             ArktsSite(
-                locator="entry/src/main/ets/common/LocalRules.ets::XUNFEI_CONFIRMATION_FIELDS",
+                locator="entry/src/main/ets/common/LocalRules.ets::RULE_PROFILES",
                 role="consumer",
                 markers=(
                     "BASE_CONFIRMATION_FIELDS",
                     "XUNFEI_CONFIRMATION_FIELDS",
+                    "AIC_DETECTION_CONFIRMATION_FIELDS",
+                    "ruleProfileName",
                     "evidenceFieldKind",
                 ),
             ),
@@ -103,6 +106,7 @@ CONTRACTS: dict[str, Contract] = {
         invariants=(
             "required_fields 里没有重复项",
             "field_kinds 的键必须是 required_fields 的子集（给不存在的字段声明控件类型是隐藏 bug）",
+            "profile 必须是 RULE_PROFILES 里的一个档案名；generic 表示还没认领档案",
         ),
     ),
     "rule_evidence": Contract(
@@ -116,6 +120,7 @@ CONTRACTS: dict[str, Contract] = {
                 locator="entry/src/main/ets/common/LocalRuleGate.ets::buildRecord",
                 role="producer",
                 markers=(
+                    "profile",
                     "source_type",
                     "source_locator",
                     "reviewed_at",
@@ -127,7 +132,7 @@ CONTRACTS: dict[str, Contract] = {
             ),
         ),
         invariants=(
-            "fields 的键恰好是 rule_profile.required_fields 的 19 个名字，不多不少",
+            "fields 的键恰好是该档案 required_fields 的全部名字，不多不少",
             "source.source_locator 里不能有 '...' 占位（端侧与后端都拦这一条）",
         ),
     ),

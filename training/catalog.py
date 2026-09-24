@@ -48,6 +48,13 @@ RUNNER_CAPABILITIES: tuple[dict[str, Any], ...] = (
         "template": "configs/xunfei_waterseg_v16_stage1.yaml",
         "data_contract": "Audited image/mask folders plus a frozen, user-owned waterseg source tree and explicitly approved CUDA configuration.",
     },
+    {
+        "runner": "external_detection",
+        "kind": "approved_external_training_project",
+        "task_types": ["external_detection", "object_detection", "multimodal_object_detection"],
+        "template": "configs/aic_detection_external.yaml",
+        "data_contract": "An audited object-detection image tree plus a frozen, user-owned detection source tree; the metric is read from that project's own Ultralytics results.csv.",
+    },
 )
 
 

@@ -252,6 +252,13 @@ def _data_config_for_runner(runner: str, data_root: Path, inventory_sha: str) ->
             "train_images_dir": str(images or data_root / "image"),
             "train_masks_dir": str(masks or data_root / "mask"),
         })
+    elif runner == "external_detection":
+        # 检测项目自己声明数据根（--source-root）；这里把审计目录原样写进去，
+        # 于是 AuditedInputScopePolicy 验的就是训练真正会读的那份路径。
+        base.update({
+            "version": inventory_sha,
+            "train_images_dir": str(data_root),
+        })
     else:
         blockers.append(f"Runner '{runner}' does not have an automatic data mapper.")
     return base, blockers
@@ -266,12 +273,17 @@ def _config_for_runner(
     metric: str,
     direction: str,
 ) -> tuple[dict[str, Any], str | None]:
-    if runner == "waterseg_external":
-        source_path = workspace / "configs" / "xunfei_waterseg_v16_stage1.yaml"
+    if runner in {"waterseg_external", "external_detection"}:
+        reviewed = (
+            "xunfei_waterseg_v16_stage1.yaml"
+            if runner == "waterseg_external"
+            else "aic_detection_external.yaml"
+        )
+        source_path = workspace / "configs" / reviewed
         if not source_path.exists():
             raise TrainingScaffoldError(
-                "The waterseg_external adapter requires an already reviewed external-project configuration; "
-                "no xunfei_waterseg_v16_stage1.yaml was found."
+                f"The {runner} adapter requires an already reviewed external-project configuration; "
+                f"no {reviewed} was found."
             )
         config = deepcopy(load_yaml(source_path))
         config["data"] = {**(config.get("data") if isinstance(config.get("data"), dict) else {}), **data_config}
@@ -314,6 +326,8 @@ def _config_for_runner(
 def _default_metric(runner: str) -> str:
     if runner in {"image_segmentation", "waterseg_external"}:
         return "global_iou"
+    if runner == "external_detection":
+        return "map50_95"
     if runner == "tabular_regression":
         return "rmse"
     return "accuracy"

@@ -18,8 +18,10 @@ from typing import Any
 from agents.rules_agent import (
     BASE_CONFIRMATION_FIELDS,
     EVIDENCE_FIELD_KINDS,
+    RULE_PROFILES,
     XUNFEI_CONFIRMATION_FIELDS,
     apply_official_rule_evidence,
+    approve_rule_specification,
     build_rule_evidence_record,
 )
 from app.project_registry import create_project
@@ -70,7 +72,7 @@ def _xunfei_spec(workspace: Path) -> dict[str, Any]:
         "constraints.ensemble_allowed": False,
         "constraints.inference_limit_evidence": "rule page section 4",
     }
-    required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+    required = list(RULE_PROFILES["xunfei_waterseg"])
     spec: dict[str, Any] = {"submission": {"validation_profile": "xunfei_waterseg_inference_package"}}
     for name in required:
         node = spec
@@ -82,6 +84,66 @@ def _xunfei_spec(workspace: Path) -> dict[str, Any]:
         "requires_human_confirmation": True,
         "official_evidence": {
             "fields": {name: f"official section: {name}" for name in required},
+        },
+        "unresolved_questions": [],
+    }
+    write_yaml(workspace / "competition_spec.yaml", spec)
+    return spec
+
+
+#: AIC2026 三模态检测档案的真实规则值（逐条来自那份 8 页规则 PDF）。
+AIC_DETECTION_VALUES: dict[str, Any] = {
+    "competition.name": "面向城市场景的视觉多模态目标检测",
+    "competition.platform": "www.aicomp.cn",
+    "competition.task_type": "object_detection",
+    "competition.deadline": "规则文档未记载具体日期",
+    "evaluation.primary_metric": "mAP@50-95",
+    "evaluation.direction": "maximize",
+    "submission.format": "zip archive of per-image TXT prediction files",
+    "submission.filename_rule": "<image_stem>.txt",
+    "submission.daily_limit": "规则文档未记载提交次数",
+    "constraints.model_size_limit_mb": "规则文档未记载上限",
+    "data.modalities": ["visible_rgb", "infrared", "depth"],
+    "data.class_count": 12,
+    "data.label_format": "[class_id, norm_center_x, norm_center_y, norm_w, norm_h]",
+    "submission.contract.line_columns": [
+        "class_id",
+        "norm_center_x",
+        "norm_center_y",
+        "norm_w",
+        "norm_h",
+        "confidence",
+    ],
+    "submission.contract.per_image_file": "one TXT per test image, named with the image stem",
+    "submission.contract.empty_file_required": True,
+    "submission.contract.max_boxes_per_image": 100,
+    "submission.contract.package_layout": "all per-image TXT files in one archive",
+    "submission.contract.coordinate_space": "normalized to the original image size, 0~1",
+    "constraints.offline_only": True,
+    "constraints.external_data_allowed": False,
+    "constraints.pretrained_models_allowed": True,
+    "constraints.ensemble_allowed": False,
+    "constraints.test_data_reuse_allowed": False,
+}
+
+
+def _aic_detection_spec(workspace: Path) -> dict[str, Any]:
+    """一份认领了 AIC 检测档案、且字段值与锚点齐全的规格。"""
+    required = list(RULE_PROFILES["aic_multimodal_detection"])
+    spec: dict[str, Any] = {"competition": {"rule_profile": "aic_multimodal_detection"}}
+    for name in required:
+        node = spec
+        parts = name.split(".")
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = AIC_DETECTION_VALUES[name]
+    spec["approval"] = {
+        "requires_human_confirmation": True,
+        "official_evidence": {
+            "source_type": "official_pdf",
+            "source_locator": "input/rules/official_rules.pdf",
+            "reviewed_at": "2026-09-24",
+            "fields": {name: f"AIC2026 规则 PDF 的对应条款" for name in required},
         },
         "unresolved_questions": [],
     }
@@ -158,14 +220,36 @@ class ContractPayloadTests(unittest.TestCase):
 
     def test_rule_profile_matches_the_declared_shape(self) -> None:
         contract = CONTRACTS["rule_profile"]
-        required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
-        payload = {"required_fields": required, "field_kinds": dict(EVIDENCE_FIELD_KINDS)}
+        required = list(RULE_PROFILES["xunfei_waterseg"])
+        payload = {
+            "required_fields": required,
+            "field_kinds": dict(EVIDENCE_FIELD_KINDS),
+            "profile": "xunfei_waterseg",
+        }
 
         self.assertSatisfies(contract, payload)
         self.assertNoUndeclaredTopLevelFields(contract, payload)
+        self.assertEqual(
+            set(required),
+            set(BASE_CONFIRMATION_FIELDS) | set(XUNFEI_CONFIRMATION_FIELDS),
+            "讯飞档案就是「通用必备字段 + 水体分割追加字段」",
+        )
         self.assertEqual(len(required), 19, "讯飞档案的必备字段应当是 19 个")
         self.assertEqual(len(set(required)), len(required), "必备字段里有重复项")
-        self.assertLessEqual(set(EVIDENCE_FIELD_KINDS), set(required), "给不存在的字段声明了控件类型")
+        declared = {name for fields in RULE_PROFILES.values() for name in fields}
+        self.assertLessEqual(set(EVIDENCE_FIELD_KINDS), declared, "给不存在的字段声明了控件类型")
+
+    def test_aic_detection_profile_is_a_distinct_field_set(self) -> None:
+        aic = list(RULE_PROFILES["aic_multimodal_detection"])
+        waterseg = list(RULE_PROFILES["xunfei_waterseg"])
+
+        self.assertEqual(len(aic), 24, "AIC 档案的必备字段应当是 24 个")
+        self.assertEqual(len(set(aic)), len(aic), "必备字段里有重复项")
+        # 两份档案不能是同一张表，而且各自的追加字段都得真的存在。
+        # 允许交集（约束类字段两份规则都管），但不能一边被另一边完全覆盖。
+        self.assertNotEqual(set(aic), set(waterseg), "两份档案不能是同一张表")
+        self.assertTrue(set(aic) - set(waterseg), "AIC 档案必须有自己的追加字段")
+        self.assertTrue(set(waterseg) - set(aic), "讯飞档案必须有自己的追加字段")
 
     def test_rule_evidence_matches_the_declared_shape_and_round_trips(self) -> None:
         contract = CONTRACTS["rule_evidence"]
@@ -181,7 +265,8 @@ class ContractPayloadTests(unittest.TestCase):
 
             self.assertSatisfies(contract, record)
             self.assertNoUndeclaredTopLevelFields(contract, record)
-            required = list(BASE_CONFIRMATION_FIELDS) + list(XUNFEI_CONFIRMATION_FIELDS)
+            self.assertEqual(record["profile"], "xunfei_waterseg")
+            required = list(RULE_PROFILES["xunfei_waterseg"])
             self.assertEqual(sorted(record["fields"]), sorted(required))
 
             # 生产端与消费端必须对得上：写出来就得能被读回去。
@@ -189,6 +274,98 @@ class ContractPayloadTests(unittest.TestCase):
             write_yaml(evidence_path, record)
             outcome = apply_official_rule_evidence(workspace, evidence_path)
             self.assertEqual(sorted(outcome["applied_fields"]), sorted(required))
+
+    def test_aic_detection_evidence_unlocks_a_real_rule_approval(self) -> None:
+        """AIC 档案走完整条链：证据落盘 -> 就绪 -> 人工批准。
+
+        证据文件是**手写的**（值 + 锚点逐条来自规则 PDF），因为真实流程就是这么录的；
+        这条测试同时钉住「24 个字段一个都不能少」和「批准这道门真的会被打开」。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            _aic_detection_spec(workspace)
+            required = list(RULE_PROFILES["aic_multimodal_detection"])
+            record = {
+                "profile": "aic_multimodal_detection",
+                "source": {
+                    "source_type": "official_pdf",
+                    "source_locator": "input/rules/official_rules.pdf",
+                    "reviewed_at": "2026-09-24",
+                },
+                "fields": {
+                    name: {"value": AIC_DETECTION_VALUES[name], "anchor": f"AIC2026 规则 PDF · {name}"}
+                    for name in required
+                },
+            }
+            evidence_path = workspace / "docs" / "rule_evidence_aic.yaml"
+            write_yaml(evidence_path, record)
+
+            outcome = apply_official_rule_evidence(workspace, evidence_path)
+
+            self.assertEqual(outcome["profile"], "aic_multimodal_detection")
+            self.assertEqual(sorted(outcome["applied_fields"]), sorted(required))
+            self.assertTrue(outcome["readiness"]["ready"], outcome["readiness"]["gaps"])
+            applied = load_yaml(workspace / "competition_spec.yaml")
+            self.assertEqual(applied["competition"]["rule_profile"], "aic_multimodal_detection")
+            self.assertEqual(applied["data"]["class_count"], 12)
+            self.assertIs(applied["submission"]["contract"]["empty_file_required"], True)
+            self.assertIs(applied["constraints"]["external_data_allowed"], False)
+            # 录证据 ≠ 批准：这一步必须仍然要求人来点。
+            self.assertTrue(applied["approval"]["requires_human_confirmation"])
+            approval = approve_rule_specification(workspace, "逐条对照 AIC2026 规则 PDF 复核完毕。")
+            self.assertTrue(approval["approved"])
+
+    def test_aic_detection_evidence_rejects_a_missing_real_field(self) -> None:
+        """少一个字段就必须被拦下：这正是「人工编辑的 YAML 不能解锁训练」那条设计。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            _aic_detection_spec(workspace)
+            required = list(RULE_PROFILES["aic_multimodal_detection"])
+            dropped = "submission.contract.max_boxes_per_image"
+            record = {
+                "profile": "aic_multimodal_detection",
+                "source": {
+                    "source_type": "official_pdf",
+                    "source_locator": "input/rules/official_rules.pdf",
+                    "reviewed_at": "2026-09-24",
+                },
+                "fields": {
+                    name: {"value": AIC_DETECTION_VALUES[name], "anchor": f"AIC2026 规则 PDF · {name}"}
+                    for name in required
+                    if name != dropped
+                },
+            }
+            evidence_path = workspace / "docs" / "rule_evidence_aic_incomplete.yaml"
+            write_yaml(evidence_path, record)
+
+            with self.assertRaises(ValueError) as caught:
+                apply_official_rule_evidence(workspace, evidence_path)
+
+            self.assertIn(dropped, str(caught.exception))
+
+    def test_evidence_for_an_unknown_profile_is_refused(self) -> None:
+        """档案名认不出来就不能录：不知道字段清单，"完整"无从判定。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            _aic_detection_spec(workspace)
+            evidence_path = workspace / "docs" / "rule_evidence_wrong_profile.yaml"
+            write_yaml(
+                evidence_path,
+                {
+                    "profile": "some_competition_we_never_integrated",
+                    "source": {
+                        "source_type": "official_pdf",
+                        "source_locator": "input/rules/official_rules.pdf",
+                        "reviewed_at": "2026-09-24",
+                    },
+                    "fields": {},
+                },
+            )
+
+            with self.assertRaises(ValueError) as caught:
+                apply_official_rule_evidence(workspace, evidence_path)
+
+            self.assertIn("Unknown rule profile", str(caught.exception))
 
     def test_workflow_event_matches_the_declared_shape(self) -> None:
         contract = CONTRACTS["workflow_event"]

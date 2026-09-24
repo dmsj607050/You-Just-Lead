@@ -190,6 +190,8 @@ def _apply_rule_evidence(workspace: Path, body: dict[str, Any]) -> dict[str, Any
             "reviewed_at": str(body.get("reviewed_at") or "").strip(),
         },
         overrides=overrides,
+        # 工作区还没认领档案时，界面可以用 profile 声明这一次录的是哪份档案。
+        profile=str(body.get("profile") or "").strip(),
     )
 
     stamp = utc_now().replace("-", "").replace(":", "").replace("+00:00", "Z")
