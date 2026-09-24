@@ -41,5 +41,5 @@ paper/generated_xunfei/*.synctex.gz
 paper/generated_xunfei/*.xdv
 paper/generated_xunfei/preview*.png
 
-# The deployable dashboard is maintained as its own repository in frontend/.
-/frontend/
+# 桌面 dashboard 已迁到客户端仓库（YouJustLead-Harmony 的 desktop/），本仓库不再保留它。
+# 见 docs/architecture.md D7。

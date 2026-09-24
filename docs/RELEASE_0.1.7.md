@@ -2,7 +2,7 @@
 
 > 状态（2026-09-24 核对）：下面点名的安装包**不在本仓库** —— 发布产物放在 `release/` 输出目录
 > （不进版本库），而全盘也找不到任何 `0.1.x` 安装包。这是一条**历史发布记录**，不是可下载的产物。
-> 桌面端已按 `docs/architecture.md` D7 降级为 Legacy（源码在独立仓库 `frontend/`）。
+> 桌面端已按 `docs/architecture.md` D7 降级为 Legacy（源码在客户端仓库 `YouJustLead-Harmony` 的 `desktop/`）。
 
 ## 安装包
 

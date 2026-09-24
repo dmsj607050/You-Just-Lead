@@ -27,4 +27,4 @@
 
 后端基础闭环：`python main.py init`、`python main.py run --experiment-id EXP-0001`、`python main.py status`。
 
-桌面端重新打包：进入 `frontend/` 后运行 `npm run desktop:package`。
+桌面端重新打包：进入客户端仓库的 `desktop/`（本机 `B:\YouJustLead\desktop`）后运行 `npm run desktop:package`。

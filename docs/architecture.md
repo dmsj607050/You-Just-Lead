@@ -90,27 +90,31 @@
 
 - 依据：`tools/files.py`、`tests/test_files_atomic.py`（确定性回归，在旧实现上必然失败）。
 
-### D7 桌面 dashboard 是**独立仓库**，属 Legacy，不在 v1 架构内
+### D7 桌面 dashboard 是**独立交付物**，属 Legacy，不在 v1 架构内
 
-<!-- 这一条更正一个错误前提：先前文档写的是"源码已经不在了"，那不是事实。 -->
+<!-- 这一条先后更正过两个错误前提：最早文档写"源码已经不在了"（不是事实）；
+     后来写"源码只在第三方仓库里、归属待用户拍板"（已被用户拍板结束）。 -->
 
-事实（2026-09-24 核对）：
+**2026-09-24 用户拍板**：所有内容都发布在用户自己的 GitHub 上，不用第三方托管；桌面 dashboard
+也收进**客户端仓库**。据此已完成搬迁：
 
-| 项 | 实况 |
+| 项 | 现在的实况 |
 |---|---|
-| 源码 | **在**：`competition-agent/frontend/`，Next.js + Tauri，自带 `.git` |
-| 版本控制 | 它**自己的仓库**（`.gitignore` 第 39 行有说明："The deployable dashboard is maintained as its own repository in frontend/."） |
-| 规模 | 96 个受控文件；主干 `main`，领先 `origin/main` 1 个提交 |
-| 远程 | `https://git.chatgpt-team.site/...`（**第三方托管，不是用户的 GitHub**） |
-| 未提交改动 | 10 个文件（`app/page.tsx`、`globals.css`、`package.json`、`tauri.conf.json`、`Cargo.*` 等） |
-| 产物 | `B:\You Just Lead\you-just-lead-desktop.exe`（13 MB）、`competition-agent/dist/competition-agent-api.exe`（9.7 MB）、`frontend/src-tauri/binaries/competition-agent-api-x86_64-pc-windows-msvc.exe`（9.7 MB） |
+| 源码 | `YouJustLead-Harmony` 这个**客户端仓库**的 `desktop/`（与鸿蒙端 `entry/` 同仓） |
+| 本地路径 | `B:\YouJustLead\desktop` |
+| 版本控制 | 客户端仓库本体，**不再是嵌套仓库** |
+| 打包脚本 | 已随桌面端迁到 `desktop/tools/`（sidecar / Tauri release / NSIS） |
+| 后端仓库位置 | 由 `-BackendRoot` 参数、`YJL_BACKEND_ROOT` 或"两仓库同级"的布局解析 |
+| 第三方托管 | **已废弃**，`git.chatgpt-team.site` 不再是它的远程；旧历史另存 `output/frontend-history-backup.git`（11 个提交） |
+| 未提交改动 | 0（搬迁时一并提交） |
+| 产物 | `B:\You Just Lead\you-just-lead-desktop.exe`（13 MB）、`competition-agent/dist/competition-agent-api.exe`（9.7 MB） |
+
+搬迁前实况（供追溯）：源码在 `competition-agent/frontend/`，Next.js + Tauri，自带 `.git`，
+96 个受控文件，主干 `main` 领先 `origin/main` 1 个提交，远程为第三方托管，另有 11 个文件未提交。
 
 **决定**：桌面端**降级为 Legacy，不进入 v1 架构**（第 1 节那张图里没有它）。
 v1 的交付形态是鸿蒙端 + 本地 Python 执行器；桌面 dashboard 不再投入功能开发。
-
-**但"Legacy"不等于"可以丢"**：它的源码与历史只在那个第三方仓库里，
-而且本地还有 10 个文件没提交。要不要迁到用户的 GitHub、要不要继续维护，是**用户要拍板的事**
-（本文件不替用户决定仓库归属）。在那之前，**不要把它当作 v1 的组成部分来描述**。
+**搬仓库只回答"发布在哪"，不改变 Legacy 这个定位。**
 
 ### D8 版本只有一处来源，发布与否是可判定的
 

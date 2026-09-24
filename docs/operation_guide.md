@@ -102,7 +102,7 @@ conda run -n AIC python main.py serve --port 8765
 在另一个终端连接前端：
 
 ```powershell
-cd frontend
+cd ..\..\YouJustLead\desktop   # 桌面端在客户端仓库，与后端仓库同级
 $env:NEXT_PUBLIC_COMPETITION_API_URL = "http://127.0.0.1:8765"
 npm run dev
 ```
