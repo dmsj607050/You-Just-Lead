@@ -37,7 +37,7 @@ constraints:
   offline_only: true
   test_data_reuse_allowed: false
 approval:
-  requires_human_confirmation: true
+  requires_human_confirmation: false
   unresolved_questions: []
   official_evidence:
     source_type: official_pdf
@@ -74,6 +74,8 @@ approval:
       constraints.pretrained_models_allowed: 十一（二）「允许使用 ImageNet、COCO、Objects365 等公开预训练权重」
       constraints.ensemble_allowed: 十一（一）「禁止将多个不同结构或训练阶段的模型进行简单集成，直接采用投票法、平均法等方式决策」
       constraints.test_data_reuse_allowed: 十一（二）「严禁私自对测试集进行标注、篡改，严禁将测试集数据用于模型训练环节」
+  approved_at: '2026-09-24T08:55:21+00:00'
+  approved_note: 逐条对照 AIC2026 规则 PDF（8 页）复核完毕：三模态必读、12 类、6 列同名 TXT、空文件必交、100 框上限、mAP@50-95、离线、禁外部数据、允许预训练、禁集成；文档未记载的项已如实标出（截止日期、提交次数、模型体积），无未决问题。
 risks: []
 rule_source:
   path: B:\You Just Lead\competition-agent\workspace\aic2026\input\rules\official_rules.pdf

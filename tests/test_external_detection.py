@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+from agents.analysis_agent import analyze_history
 from training.external_detection import (
     PRIMARY_METRIC_COLUMN,
     read_results_csv,
@@ -54,9 +55,13 @@ out = Path(args.output_dir)
 out.mkdir(parents=True, exist_ok=True)
 with (out / "results.csv").open("w", encoding="utf-8", newline="") as handle:
     writer = csv.writer(handle)
-    writer.writerow(["epoch", "train/box_loss", "metrics/mAP50(B)", "metrics/mAP50-95(B)"])
-    writer.writerow([1, 1.5, 0.3010, 0.1200])
-    writer.writerow([2, 1.1, 0.4210, 0.1875])
+    writer.writerow([
+        "epoch", "train/box_loss", "train/cls_loss", "train/dfl_loss",
+        "val/box_loss", "val/cls_loss", "val/dfl_loss",
+        "metrics/mAP50(B)", "metrics/mAP50-95(B)",
+    ])
+    writer.writerow([1, 1.5, 2.0, 1.0, 1.4, 1.9, 0.9, 0.3010, 0.1200])
+    writer.writerow([2, 1.1, 1.5, 0.8, 1.2, 1.6, 0.7, 0.4210, 0.1875])
 (out / "console.log").write_text("fake run\\n", encoding="utf-8")
 '''
 
@@ -90,6 +95,7 @@ def _config(project: Path, data_root: Path, digest: str) -> dict[str, Any]:
         "data": {"version": "0" * 64, "train_images_dir": str(data_root)},
         "model": {"pretrained_model": "yolo26n.pt"},
         "training": {"runner": "external_detection", "seed": 42, "epochs": 2, "batch_size": 2, "device": "cpu"},
+        "validation": {"metric": "map50_95", "direction": "maximize"},
         "external": {
             "project_dir": str(project),
             "source_inventory_sha256": digest,
@@ -155,7 +161,8 @@ class ResultsCsvTests(unittest.TestCase):
             self.assertEqual(len(history), 2)
             self.assertEqual(len(rows), 2)
             self.assertEqual(history[0]["epoch"], 1.0)
-            self.assertAlmostEqual(history[1]["map50_95"], 0.1875)
+            # 键带 val_ 前缀：下游诊断按 val_<metric> 取数，裸名会让它 KeyError。
+            self.assertAlmostEqual(history[1]["val_map50_95"], 0.1875)
             self.assertAlmostEqual(history[1]["train_box_loss"], 1.1)
 
     def test_a_csv_without_the_official_metric_is_refused(self) -> None:
@@ -198,9 +205,12 @@ class ExternalDetectionRunTests(unittest.TestCase):
 
             self.assertEqual(outcome["best_epoch"], 2)
             self.assertAlmostEqual(outcome["validation_metric"], 0.1875)
-            self.assertAlmostEqual(outcome["metrics"]["map50"], 0.4210)
+            self.assertAlmostEqual(outcome["metrics"]["val_map50"], 0.4210)
             self.assertEqual(outcome["metrics"]["epochs_scored"], 2.0)
             self.assertEqual(len(outcome["history"]), 2)
+            # 诊断代理要按 val_<validation.metric> 取数，且必须有 val_loss 兜底。
+            self.assertIn("val_map50_95", outcome["history"][0])
+            self.assertIn("val_loss", outcome["history"][0])
             # 产物必须落在这次实验自己的 artifact 目录里，并且真的存在。
             for path in outcome["artifact_paths"]:
                 self.assertTrue(Path(path).is_file(), path)
@@ -229,6 +239,44 @@ class ExternalDetectionRunTests(unittest.TestCase):
             self.assertIn("detection_train.log", message)
             log = (workspace / "artifacts" / "detection_train.log").read_text(encoding="utf-8")
             self.assertIn("no CUDA memory", log)
+
+    def test_the_recorded_history_feeds_the_diagnosis_without_a_key_error(self) -> None:
+        """真实踩过的坑：历史键名不合产品约定，诊断代理会 KeyError。
+
+        这条测试钉的是**跨模块约定**，不是字段长相：适配器产出的 history 必须能直接喂给
+        `analyze_history`，否则一条跑成功的实验会在记录结果时崩掉。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            project = _project(workspace)
+            data_root = workspace / "audited"
+            data_root.mkdir()
+            digest, _ = source_inventory(project)
+            config = _config(project, data_root, digest)
+
+            outcome = run_external_detection(config, workspace / "artifacts")
+
+            diagnosis = analyze_history(outcome["history"], "maximize", "map50_95")
+            self.assertEqual(diagnosis["best_epoch"], 2)
+            self.assertEqual(diagnosis["metric_name"], "val_map50_95")
+            self.assertTrue(diagnosis["recommendations"])
+
+    def test_a_metric_the_run_does_not_measure_is_refused_before_the_gpu(self) -> None:
+        """配置声明的指标与适配器读的指标对不上时，先卡住，不要先烧 GPU。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            project = _project(workspace)
+            data_root = workspace / "audited"
+            data_root.mkdir()
+            digest, _ = source_inventory(project)
+            config = _config(project, data_root, digest)
+            config["validation"]["metric"] = "accuracy"
+
+            with self.assertRaises(ValueError) as caught:
+                run_external_detection(config, workspace / "artifacts")
+
+            self.assertIn("validation.metric", str(caught.exception))
+            self.assertFalse((workspace / "artifacts").exists(), "被拦下时不该留下任何产物目录")
 
     def test_a_data_root_outside_the_audited_scope_is_absent_not_guessed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,0 +1,13 @@
+{
+  "claims": [
+    {
+      "claim": "EXP-0006 completed with mAP@50-95=0.00234",
+      "experiment_id": "EXP-0006",
+      "result_path": "experiments/results/EXP-0006.json"
+    }
+  ],
+  "data_statistics": "reports/data_statistics.json",
+  "generated_at": "2026-09-24T09:17:30+00:00",
+  "research_records": 0,
+  "rule_specification": "competition_spec.yaml"
+}

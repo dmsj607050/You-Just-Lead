@@ -1,0 +1,20 @@
+{
+  "artifact_paths": [],
+  "best_epoch": null,
+  "conclusion": "Experiment failed before producing validated results.",
+  "decision": "reject",
+  "diagnosis": {},
+  "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0003\\detection_train.log before retrying.",
+  "experiment_id": "EXP-0003",
+  "finished_at": "2026-09-24T09:01:54+00:00",
+  "metrics": {},
+  "next_candidates": [
+    "Inspect the captured error before retrying."
+  ],
+  "peak_gpu_memory_gb": null,
+  "runtime_seconds": 17.544,
+  "started_at": "2026-09-24T09:01:36+00:00",
+  "status": "failed",
+  "tracker_backend": null,
+  "validation_metric": null
+}

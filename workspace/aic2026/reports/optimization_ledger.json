@@ -1,0 +1,266 @@
+{
+  "current_competition_entries": [
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0001\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0001",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0002\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0002",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0003\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0003",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0004\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0004",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "KeyError: 'val_loss'",
+      "experiment_id": "EXP-0005",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": 1,
+      "change_type": "baseline",
+      "conclusion": "Baseline completed with validation metric 0.0023.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "keep_as_candidate",
+      "error": null,
+      "experiment_id": "EXP-0006",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {
+        "epochs_scored": 1.0,
+        "learning_rate": 0.000203488,
+        "train_box_loss": 1.99506,
+        "train_cls_loss": 6.5347,
+        "train_dfl_loss": 0.00661,
+        "train_loss": 8.53637,
+        "val_box_loss": 1.94829,
+        "val_cls_loss": 5.33426,
+        "val_dfl_loss": 0.00819,
+        "val_loss": 7.29074,
+        "val_map50": 0.00367,
+        "val_map50_95": 0.00234,
+        "val_precision": 0.00698,
+        "val_recall": 0.06718
+      },
+      "next_candidates": [
+        "在保持当前基线的前提下，只验证一个低成本改动。"
+      ],
+      "parent_id": null,
+      "status": "completed",
+      "validation_metric": 0.00234
+    }
+  ],
+  "entries": [
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0001\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0001",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0002\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0002",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0003\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0003",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "RuntimeError: Detection training command failed with exit code 1; inspect B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0004\\detection_train.log before retrying.",
+      "experiment_id": "EXP-0004",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": null,
+      "change_type": "baseline",
+      "conclusion": "Experiment failed before producing validated results.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "reject",
+      "error": "KeyError: 'val_loss'",
+      "experiment_id": "EXP-0005",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {},
+      "next_candidates": [
+        "Inspect the captured error before retrying."
+      ],
+      "parent_id": null,
+      "status": "failed",
+      "validation_metric": null
+    },
+    {
+      "best_epoch": 1,
+      "change_type": "baseline",
+      "conclusion": "Baseline completed with validation metric 0.0023.",
+      "config_path": "configs\\aic_detection_external.yaml",
+      "current_competition": true,
+      "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+      "decision": "keep_as_candidate",
+      "error": null,
+      "experiment_id": "EXP-0006",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "metrics": {
+        "epochs_scored": 1.0,
+        "learning_rate": 0.000203488,
+        "train_box_loss": 1.99506,
+        "train_cls_loss": 6.5347,
+        "train_dfl_loss": 0.00661,
+        "train_loss": 8.53637,
+        "val_box_loss": 1.94829,
+        "val_cls_loss": 5.33426,
+        "val_dfl_loss": 0.00819,
+        "val_loss": 7.29074,
+        "val_map50": 0.00367,
+        "val_map50_95": 0.00234,
+        "val_precision": 0.00698,
+        "val_recall": 0.06718
+      },
+      "next_candidates": [
+        "在保持当前基线的前提下，只验证一个低成本改动。"
+      ],
+      "parent_id": null,
+      "status": "completed",
+      "validation_metric": 0.00234
+    }
+  ],
+  "generated_at": "2026-09-24T09:17:07+00:00",
+  "source_of_truth": "experiments/manifests/EXP-*.json and experiments/results/EXP-*.json"
+}

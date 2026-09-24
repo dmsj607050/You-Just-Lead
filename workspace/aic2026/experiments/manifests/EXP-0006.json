@@ -1,0 +1,78 @@
+{
+  "change_type": "baseline",
+  "command": "python main.py run --config configs/aic_detection_external.yaml",
+  "config": {
+    "data": {
+      "train_images_dir": "B:\\AIC\\datasets\\train\\AIC2026_Train_2000",
+      "version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6"
+    },
+    "experiment": {
+      "change_type": "baseline",
+      "estimated_gpu_hours": 0.2,
+      "expected_improvement": "建立可复现的 Held-out 参考指标；本配置的目标是链路正确，不是榜单分数。",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "rollback_plan": "管线级基线不进入冲榜结论；后续正式配置以 B:\\AIC\\README.md 的 YOLO26X 路线为准。"
+    },
+    "external": {
+      "batch_size": 4,
+      "dataset_root": "datasets/ultralytics_aic",
+      "device": "0",
+      "entry_script": "train.py",
+      "epochs": 1,
+      "fraction": 0.1,
+      "image_size": 640,
+      "project_dir": "B:\\AIC",
+      "python_executable": "A:\\anaconda3\\anaconda3_exe\\envs\\AIC\\python.exe",
+      "require_cuda": true,
+      "seed": 20260713,
+      "source_inventory_sha256": "f13e5de0d2d7b5ce64979c298db484e55d90798cbaa37d5c503d11f901d4a9c1",
+      "stage": "rgb",
+      "timeout_seconds": 3600,
+      "train_list": "splits/train.txt",
+      "val_list": "splits/val.txt",
+      "workers": 0
+    },
+    "model": {
+      "pretrained_model": "yolo26n.pt"
+    },
+    "training": {
+      "batch_size": 4,
+      "device": "cuda",
+      "epochs": 1,
+      "runner": "external_detection",
+      "seed": 20260713
+    },
+    "validation": {
+      "direction": "maximize",
+      "metric": "map50_95"
+    }
+  },
+  "config_path": "configs\\aic_detection_external.yaml",
+  "config_sha256": "d96d5a826eefd9fde0f39a2dcd3d496e92ab4abe50e36c661021c2b5b2e0783e",
+  "created_at": "2026-09-24T09:15:13+00:00",
+  "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+  "environment": {
+    "captured_at": "2026-09-24T09:15:06+00:00",
+    "cuda_available": true,
+    "cuda_version": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.10.20",
+    "torch": "2.5.1+cu121"
+  },
+  "estimated_gpu_hours": 0.2,
+  "expected_improvement": "建立可复现的 Held-out 参考指标；本配置的目标是链路正确，不是榜单分数。",
+  "experiment_id": "EXP-0006",
+  "git": {
+    "available": true,
+    "branch": "master",
+    "commit": "84be80e0336c118e925d6f05cf31fd4861d91a7a",
+    "dirty": true,
+    "repository_root": "B:/You Just Lead/competition-agent"
+  },
+  "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+  "parent_id": null,
+  "rollback_plan": "管线级基线不进入冲榜结论；后续正式配置以 B:\\AIC\\README.md 的 YOLO26X 路线为准。",
+  "seed": 20260713,
+  "status": "planned"
+}

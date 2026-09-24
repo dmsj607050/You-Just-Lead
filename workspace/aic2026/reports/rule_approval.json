@@ -1,0 +1,37 @@
+{
+  "approved": true,
+  "approved_at": "2026-09-24T08:55:21+00:00",
+  "note": "逐条对照 AIC2026 规则 PDF（8 页）复核完毕：三模态必读、12 类、6 列同名 TXT、空文件必交、100 框上限、mAP@50-95、离线、禁外部数据、允许预训练、禁集成；文档未记载的项已如实标出（截止日期、提交次数、模型体积），无未决问题。",
+  "readiness": {
+    "gaps": [],
+    "profile": "aic_multimodal_detection",
+    "ready": true,
+    "required_fields": [
+      "competition.name",
+      "competition.platform",
+      "competition.task_type",
+      "competition.deadline",
+      "evaluation.primary_metric",
+      "evaluation.direction",
+      "submission.format",
+      "submission.filename_rule",
+      "submission.daily_limit",
+      "constraints.model_size_limit_mb",
+      "data.modalities",
+      "data.class_count",
+      "data.label_format",
+      "submission.contract.line_columns",
+      "submission.contract.per_image_file",
+      "submission.contract.empty_file_required",
+      "submission.contract.max_boxes_per_image",
+      "submission.contract.package_layout",
+      "submission.contract.coordinate_space",
+      "constraints.offline_only",
+      "constraints.external_data_allowed",
+      "constraints.pretrained_models_allowed",
+      "constraints.ensemble_allowed",
+      "constraints.test_data_reuse_allowed"
+    ]
+  },
+  "spec_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\competition_spec.yaml"
+}

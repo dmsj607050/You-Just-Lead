@@ -1,0 +1,9 @@
+{
+  "approved_at": "2026-09-24T08:55:43+00:00",
+  "config_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\configs\\aic_detection_external.yaml",
+  "config_sha256": "d96d5a826eefd9fde0f39a2dcd3d496e92ab4abe50e36c661021c2b5b2e0783e",
+  "estimated_gpu_hours": 0.2,
+  "note": "人工批准 GPU 预算：本机 RTX 4060 Laptop 8GB；yolo26n / 1 epoch / imgsz 640 / 训练子集比例 0.1（约 170 张）/ 单卡 device 0 / seed 20260713，预计数分钟。这是管线级第一次真实运行，不作为冲榜结论。",
+  "requested_device": "cuda",
+  "type": "training_config_approval"
+}

@@ -49,14 +49,17 @@ DEFAULT_ENTRY_SCRIPT = "train.py"
 RESULTS_FILENAME = "results.csv"
 PRIMARY_METRIC_COLUMN = "metrics/mAP50-95(B)"
 PRIMARY_METRIC_NAME = "map50_95"
+#: 历史曲线的键必须带 val_/train_ 前缀：诊断代理与报告层都按 `val_<validation.metric>`
+#: 去取数（见 `agents/analysis_agent.py::analyze_history`）。用裸名会让整条诊断链 KeyError。
+PRIMARY_METRIC_KEY = "val_" + PRIMARY_METRIC_NAME
 
-#: results.csv 的列 -> 实验契约里的指标名。缺失的列只是不记，不当成错误：
+#: results.csv 的列 -> 实验历史里的键。缺失的列只是不记，不当成错误：
 #: 上游改列名时应当在这里显式对齐，而不是让整次运行的证据丢掉。
 METRIC_COLUMNS: tuple[tuple[str, str], ...] = (
-    ("metrics/mAP50-95(B)", PRIMARY_METRIC_NAME),
-    ("metrics/mAP50(B)", "map50"),
-    ("metrics/precision(B)", "precision"),
-    ("metrics/recall(B)", "recall"),
+    ("metrics/mAP50-95(B)", PRIMARY_METRIC_KEY),
+    ("metrics/mAP50(B)", "val_map50"),
+    ("metrics/precision(B)", "val_precision"),
+    ("metrics/recall(B)", "val_recall"),
     ("train/box_loss", "train_box_loss"),
     ("train/cls_loss", "train_cls_loss"),
     ("train/dfl_loss", "train_dfl_loss"),
@@ -65,6 +68,13 @@ METRIC_COLUMNS: tuple[tuple[str, str], ...] = (
     ("val/dfl_loss", "val_dfl_loss"),
     ("lr/pg0", "learning_rate"),
 )
+
+#: 总损失 = 三个分项之和。Ultralytics 不直接给总损失，而下游（诊断、报告）看的是
+#: `train_loss` / `val_loss`，所以这里如实相加并沿用同一个名字，不另造一个字段。
+LOSS_PARTS: dict[str, tuple[str, str, str]] = {
+    "train_loss": ("train_box_loss", "train_cls_loss", "train_dfl_loss"),
+    "val_loss": ("val_box_loss", "val_cls_loss", "val_dfl_loss"),
+}
 
 
 def source_inventory(project_dir: Path) -> tuple[str, list[dict[str, Any]]]:
@@ -142,8 +152,8 @@ def _number(text: Any) -> float | None:
 def read_results_csv(path: Path) -> tuple[list[dict[str, float]], list[dict[str, Any]]]:
     """把 Ultralytics 的 results.csv 读成逐轮指标 + 原始行。
 
-    返回 (history, rows)。history 只保留能解析成数字的列，行序即 epoch 序。
-    主指标列必须存在，否则这次运行证明不了任何与竞赛指标有关的事。
+    返回 (history, rows)。history 的键带 val_/train_ 前缀，并补出 train_loss / val_loss
+    两项总损失。主指标列必须存在，否则这次运行证明不了任何与竞赛指标有关的事。
     """
     if not path.is_file():
         raise FileNotFoundError(f"The detection run wrote no {RESULTS_FILENAME}: {path}")
@@ -168,7 +178,10 @@ def read_results_csv(path: Path) -> tuple[list[dict[str, float]], list[dict[str,
                 parsed = _number(row.get(column))
                 if parsed is not None:
                     point[name] = parsed
-            if PRIMARY_METRIC_NAME in point:
+            for total, parts in LOSS_PARTS.items():
+                if all(part in point for part in parts):
+                    point[total] = round(sum(point[part] for part in parts), 6)
+            if PRIMARY_METRIC_KEY in point:
                 history.append(point)
     if not history:
         raise ValueError(f"{RESULTS_FILENAME} contains no scored epoch for {PRIMARY_METRIC_COLUMN}")
@@ -177,6 +190,14 @@ def read_results_csv(path: Path) -> tuple[list[dict[str, float]], list[dict[str,
 
 def run_external_detection(config: dict[str, Any], artifact_dir: Path) -> dict[str, Any]:
     """Run the audited detection training entry point exactly once."""
+    # 配置声明的指标必须就是这次要读的那个：声明 accuracy 却读 mAP 属于自欺，
+    # 而且下游诊断按 `val_<metric>` 取数，键对不上就会 KeyError。先卡住，别先烧 GPU。
+    declared_metric = str((config.get("validation") or {}).get("metric") or "").strip()
+    if "val_" + declared_metric != PRIMARY_METRIC_KEY:
+        raise ValueError(
+            f"validation.metric is '{declared_metric or 'unset'}' but this adapter measures "
+            f"{PRIMARY_METRIC_NAME}; set validation.metric to {PRIMARY_METRIC_NAME}."
+        )
     external = _mapping(config, "external")
     project_dir = Path(str(external.get("project_dir", ""))).expanduser().resolve()
     expected_inventory = str(external.get("source_inventory_sha256", "")).strip().lower()
@@ -288,17 +309,20 @@ def run_external_detection(config: dict[str, Any], artifact_dir: Path) -> dict[s
 
     results_path = run_root / RESULTS_FILENAME
     history, rows = read_results_csv(results_path)
-    best = max(history, key=lambda point: point[PRIMARY_METRIC_NAME])
+    best = max(history, key=lambda point: point[PRIMARY_METRIC_KEY])
     run_log = run_root / "console.log"
     artifact_paths = [str(log_path), str(source_manifest_path), str(results_path)]
     if run_log.is_file():
         artifact_paths.append(str(run_log))
     metrics = {name: float(best[name]) for _, name in METRIC_COLUMNS if name in best}
+    for total in LOSS_PARTS:
+        if total in best:
+            metrics[total] = float(best[total])
     metrics["epochs_scored"] = float(len(history))
     return {
         "history": history,
         "best_epoch": int(best["epoch"]),
-        "validation_metric": float(best[PRIMARY_METRIC_NAME]),
+        "validation_metric": float(best[PRIMARY_METRIC_KEY]),
         "metrics": metrics,
         "peak_gpu_memory_gb": None,
         "artifact_paths": artifact_paths,

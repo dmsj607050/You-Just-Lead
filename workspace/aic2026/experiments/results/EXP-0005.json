@@ -1,0 +1,20 @@
+{
+  "artifact_paths": [],
+  "best_epoch": null,
+  "conclusion": "Experiment failed before producing validated results.",
+  "decision": "reject",
+  "diagnosis": {},
+  "error": "KeyError: 'val_loss'",
+  "experiment_id": "EXP-0005",
+  "finished_at": "2026-09-24T09:10:22+00:00",
+  "metrics": {},
+  "next_candidates": [
+    "Inspect the captured error before retrying."
+  ],
+  "peak_gpu_memory_gb": null,
+  "runtime_seconds": 113.01,
+  "started_at": "2026-09-24T09:08:29+00:00",
+  "status": "failed",
+  "tracker_backend": null,
+  "validation_metric": null
+}
