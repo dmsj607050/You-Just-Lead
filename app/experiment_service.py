@@ -28,27 +28,33 @@ from tools.tracking import ExperimentTracker
 from training.runner import execute_training
 
 
+#: 工作区骨架的目录清单。这是"工作区 schema"的事实来源：发布清单会把它连同摘要一起记下来，
+#: 端侧 `entry/src/main/ets/common/LocalWorkspace.ets` 也有一份（更粗，端侧只建自己会写的目录），
+#: 两边不一致不会出错——`ensure_workspace_layout` 会把缺的补上。
+WORKSPACE_DIRECTORIES: tuple[str, ...] = (
+    "configs",
+    "reports",
+    "experiments/manifests",
+    "experiments/results",
+    "experiments/artifacts",
+    "experiments/tracking",
+    "experiments/drafts",
+    "experiments/approvals",
+    "submissions/validation",
+    "models",
+    "input",
+    "data/raw",
+    "data/interim",
+    "data/processed",
+    "docs",
+    "research",
+    "reproductions",
+)
+
+
 def ensure_workspace_layout(workspace: Path) -> None:
     """Create only the directories needed by the first-phase runtime."""
-    for relative_path in (
-        "configs",
-        "reports",
-        "experiments/manifests",
-        "experiments/results",
-        "experiments/artifacts",
-        "experiments/tracking",
-        "experiments/drafts",
-        "experiments/approvals",
-        "submissions/validation",
-        "models",
-        "input",
-        "data/raw",
-        "data/interim",
-        "data/processed",
-        "docs",
-        "research",
-        "reproductions",
-    ):
+    for relative_path in WORKSPACE_DIRECTORIES:
         (workspace / relative_path).mkdir(parents=True, exist_ok=True)
 
 

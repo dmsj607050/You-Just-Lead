@@ -22,10 +22,12 @@ from app.approval_service import approve_training_config
 from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.project_registry import current_workspace
+from app.release_service import build_release_manifest, write_release_manifest
 from app.reporting import generate_reports
 from database.ledger import ledger_for_workspace
 from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
+from tools.device_repo import device_repo_root
 from tools.submission import validate_submission
 from training.catalog import supported_runners
 
@@ -183,6 +185,14 @@ def _parser() -> argparse.ArgumentParser:
         "capabilities", help="List built-in task adapters and their data contracts"
     )
     capability_parser.add_argument("--workspace", help="Workspace path")
+
+    release_parser = subparsers.add_parser(
+        "release-manifest", help="Write release/release_manifest.json describing this version"
+    )
+    release_parser.add_argument("--device-repo", help="Path to the HarmonyOS repository (auto-detected by default)")
+    release_parser.add_argument(
+        "--print", dest="print_only", action="store_true", help="Print the manifest without writing it"
+    )
     return parser
 
 
@@ -194,6 +204,15 @@ def main() -> int:
         # App 会停在项目选择页。传了 --workspace 才固定到那一个工作区。
         serve_api(args.host, args.port, Path(args.workspace).resolve() if args.workspace else None)
         return 0
+
+    if args.command == "release-manifest":
+        # 描述的是"这次构建/这个版本"，不是某个项目，所以也不需要先有工作区。
+        device_root = Path(args.device_repo).resolve() if args.device_repo else device_repo_root(PROJECT_ROOT)
+        manifest = build_release_manifest(PROJECT_ROOT, device_root=device_root)
+        if not args.print_only:
+            write_release_manifest(PROJECT_ROOT, manifest)
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        return 0 if manifest["release_ready"] else 1
 
     workspace = _workspace(getattr(args, "workspace", None))
     ensure_workspace_layout(workspace)

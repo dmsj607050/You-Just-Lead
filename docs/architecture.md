@@ -112,6 +112,20 @@ v1 的交付形态是鸿蒙端 + 本地 Python 执行器；桌面 dashboard 不�
 而且本地还有 10 个文件没提交。要不要迁到用户的 GitHub、要不要继续维护，是**用户要拍板的事**
 （本文件不替用户决定仓库归属）。在那之前，**不要把它当作 v1 的组成部分来描述**。
 
+### D8 版本只有一处来源，发布与否是可判定的
+
+版本号只在 `VERSION` 一处；端侧 `AppScope/app.json5` 的 `versionName` 必须等于它的
+`MAJOR.MINOR.PATCH` 部分。`python main.py release-manifest` 产出 `release/release_manifest.json`，
+**退出码即答案**（0 可发布 / 1 不可发布），并在 `release_blockers` 里说明原因。
+
+可以发布要同时满足三条：版本处于 `rc`/`release` 阶段、发布必需的产物都在、两个仓库都没有未提交改动。
+
+- 依据：`app/release_service.py`、`tests/test_release_manifest.py`（22 项）、`docs/versioning.md`。
+- 针对的真问题：`docs/RELEASE_0.1.5.md` 记了安装包 SHA-256，`0.1.6`~`0.1.9` 都没记 ——
+  纪律靠人记就会退化，所以改成工具会拦住的条件。
+- 未被这条决定覆盖的：Release 签名（`.app`）、AGC、备案、隐私政策、AI 声明都要用户侧账号或资质，
+  见 `docs/versioning.md` 第 6 节。
+
 ---
 
 ## 3. 被否决的替代方案

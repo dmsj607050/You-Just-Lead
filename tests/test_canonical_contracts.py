@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,26 +28,15 @@ from paper.generator import generate_paper_package
 from schemas.contracts import CONTRACTS, Contract, resolve, type_matches
 from schemas.experiment import ExperimentManifest, ExperimentResult
 from tools.configuration import load_yaml, write_yaml
+from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
 from tools.files import read_json, write_json_atomic
 
-#: 端侧仓库的根。默认按"与后端仓库同级"推断（本机就是 `B:\YouJustLead`），可用环境变量覆盖。
-ARKTS_ROOT_ENV = "YJL_ARKTS_ROOT"
+#: 端侧仓库的根由 `tools/device_repo.py` 统一解析（环境变量或约定位置）。
 
 
 def _arkts_root() -> Path | None:
-    """端侧仓库的根。它不在后端仓库内部，所以只能按几个约定位置找 + 允许环境变量覆盖。"""
-    configured = os.environ.get(ARKTS_ROOT_ENV)
-    candidates: list[Path] = []
-    if configured:
-        candidates.append(Path(configured))
-    # 本机布局：后端 `B:\You Just Lead\competition-agent`，端侧 `B:\YouJustLead`（**同级目录**，不是子目录）。
-    repo_root = _repo_root()
-    candidates.append(repo_root.parent / "YouJustLead")
-    candidates.append(repo_root.parent.parent / "YouJustLead")
-    for candidate in candidates:
-        if (candidate / "entry" / "src" / "main" / "ets").is_dir():
-            return candidate
-    return None
+    """端侧仓库的根；找不到就跳过端侧那半检查。"""
+    return device_repo_root(_repo_root())
 
 
 def _repo_root() -> Path:
@@ -127,7 +115,7 @@ class ContractDeclarationTests(unittest.TestCase):
     def test_arkts_sites_point_at_files_that_exist(self) -> None:
         root = _arkts_root()
         if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {ARKTS_ROOT_ENV} 指向它即可一并检查")
+            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
         for contract in CONTRACTS.values():
             for site in contract.arkts_sites:
                 target = root / _file_of(site.locator)
@@ -136,7 +124,7 @@ class ContractDeclarationTests(unittest.TestCase):
     def test_declared_field_names_still_appear_in_the_arkts_sources(self) -> None:
         root = _arkts_root()
         if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {ARKTS_ROOT_ENV} 指向它即可一并检查")
+            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
         for contract in CONTRACTS.values():
             for site in contract.arkts_sites:
                 source = (root / _file_of(site.locator)).read_text(encoding="utf-8")

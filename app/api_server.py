@@ -254,8 +254,6 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     access_token: str = ""
     require_token: bool = False
 
-    server_version = "CompetitionAgent/0.4"
-
     @property
     def workspace(self) -> Path:
         return current_workspace(self.project_root)

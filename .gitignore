@@ -23,6 +23,12 @@ __pycache__/
 /dist/
 /*.spec
 
+# 发布产物与发布清单：输出目录，不进版本库。
+# 原本这里**漏了** `/release/`，于是 `release/` 一直是未跟踪而不是被忽略的状态 ——
+# 谁也不该靠"记得别 git add"来挡住十几 MB 的安装包。可审计的记录留在 docs/RELEASE_<版本>.md 里
+# （版本号 + commit + 产物 SHA-256），那才进版本库。
+/release/
+
 # LaTeX build intermediates. Keep the generated source, PDF and evidence map.
 paper/generated_xunfei/*.aux
 paper/generated_xunfei/*.bbl
