@@ -331,6 +331,26 @@ export class LocalWorkspace {
   }
 
   /**
+   * 列出一个目录下的**文件名**（不递归），按名称升序。
+   *
+   * 目录不存在返回空数组而不是抛错：工作区骨架里本来就没有 `paper/generated` 这类
+   * 由后端产物才出现的目录，离线状态下"没有就是没有"，不该当成读取失败。
+   */
+  listFiles(relative: string): string[] {
+    const target: string = this.join(relative);
+    if (!canAccess(target)) {
+      return [];
+    }
+    let names: string[] = [];
+    try {
+      names = fs.listFileSync(target);
+    } catch (error) {
+      throw error as Error;
+    }
+    return names.sort();
+  }
+
+  /**
    * 工作区里某个文件的 SHA256（小写十六进制）。
    *
    * 用 `fileIo` 自带的 hash：直接摘要**文件字节**，与 Python 侧 `file_sha256()` 完全等价

@@ -45,6 +45,17 @@ export function eventTitle(lang: string, eventType: string): string {
   if (eventType === 'official_rule_evidence_recorded') {
     return tFor(lang, 'evt.ruleEvidenceRecorded');
   }
+  // 下面三个是端侧自己记的事件（JSONL 账本）与新建项目事件，命名与后端同一套：
+  // 不映射的话界面上会直接显示成 `local_workspace_initialized` 这种原始事件名。
+  if (eventType === 'rules_evidence_applied') {
+    return tFor(lang, 'evt.ruleEvidenceApplied');
+  }
+  if (eventType === 'local_workspace_initialized') {
+    return tFor(lang, 'evt.workspaceInitialized');
+  }
+  if (eventType === 'project_created') {
+    return tFor(lang, 'evt.projectCreated');
+  }
   if (eventType === 'data_audited') {
     return tFor(lang, 'evt.dataAudited');
   }

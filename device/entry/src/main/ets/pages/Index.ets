@@ -30,6 +30,7 @@ import { WritingPage } from '../view/WritingPage';
 import { TracePage } from '../view/TracePage';
 import { SettingsPage } from '../view/SettingsPage';
 import { LocalRulePage } from '../view/LocalRulePage';
+import { LocalStatusPage } from '../view/LocalStatusPage';
 
 /**
  * 主页面。
@@ -61,6 +62,8 @@ struct Index {
   @StorageLink('pendingQuestion') @Watch('onPendingQuestion') pendingQuestion: string = '';
   /** 端侧规则关口是否打开。由「本地工作区」卡片置位，见 LocalWorkspaceCard。 */
   @StorageLink('localGateOpen') localGateOpen: boolean = false;
+  /** 端侧离线状态是否打开。同样由「本地工作区」卡片置位。 */
+  @StorageLink('localStatusOpen') localStatusOpen: boolean = false;
 
   @State competitionName: string = '';
   @State taskType: string = '';
@@ -292,6 +295,9 @@ struct Index {
       // 端侧规则关口整页覆盖：它不依赖后端项目，所以判断放在最外层，
       // 从启动页和设置页都能打开（少了这一点，没选项目时就走不到端侧关口）。
       this.LocalGateScreen()
+    } else if (this.localStatusOpen) {
+      // 端侧离线状态同理：它的存在意义就是"后端不在时也能看"，更不能依赖后端项目。
+      this.LocalStatusScreen()
     } else if (this.entered) {
       this.Workspace()
     } else {
@@ -302,6 +308,32 @@ struct Index {
         }
       })
     }
+  }
+
+  /** 端侧离线状态的整页容器：与规则关口同样的留白与滚动。 */
+  @Builder
+  LocalStatusScreen() {
+    Column() {
+      Scroll() {
+        Column() {
+          LocalStatusPage({
+            onBack: () => {
+              this.localStatusOpen = false;
+            }
+          })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .constraintSize({ maxWidth: AppTheme.CONTENT_MAX_WIDTH })
+        .padding({ left: 32, right: 32, top: 26, bottom: 40 })
+      }
+      .layoutWeight(1)
+      .align(Alignment.Top)
+      .scrollBar(BarState.Auto)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(AppTheme.PAGE_BG)
   }
 
   /** 端侧规则关口的整页容器：与工作台内容区同样的留白与滚动，视觉上是一屏而不是弹层。 */

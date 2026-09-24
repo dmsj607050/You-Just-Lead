@@ -61,6 +61,11 @@ export struct LocalWorkspaceCard {
    * 启动页和设置页上，走全局标记就不用把回调一层层穿过侧栏传下来。
    */
   @StorageLink('localGateOpen') gateOpen: boolean = false;
+  /**
+   * 是否已打开端侧离线状态（整页）。与规则关口同理：这一页要在后端不在时才最有用，
+   * 所以同样走全局标记，从启动页和设置页都能开。
+   */
+  @StorageLink('localStatusOpen') statusOpen: boolean = false;
   @State workspaceRoot: string = '';
   @State readable: boolean = false;
   @State specExists: boolean = false;
@@ -247,6 +252,13 @@ export struct LocalWorkspaceCard {
             active: !this.busy && this.readable,
             onTap: () => {
               this.gateOpen = true;
+            }
+          })
+          LocalActionButton({
+            label: this.tr('settings.offlineStatus'),
+            active: !this.busy && this.readable,
+            onTap: () => {
+              this.statusOpen = true;
             }
           })
         }

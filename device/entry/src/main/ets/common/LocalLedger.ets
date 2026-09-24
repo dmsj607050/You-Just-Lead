@@ -17,6 +17,14 @@ interface LedgerRecord {
   payload: string;
 }
 
+/** 给界面看的账本事件（字段名转成端侧风格，值原样）。 */
+export interface LedgerEvent {
+  eventType: string;
+  createdAt: string;
+  /** 原始 payload 文本：字段随事件类型不同，交给用它的地方自己解析。 */
+  payloadText: string;
+}
+
 function linesOf(text: string): string[] {
   const lines: string[] = [];
   for (const raw of text.split('\n')) {
@@ -43,6 +51,33 @@ export function eventCount(workspace: LocalWorkspace): number {
     return 0;
   }
   return linesOf(workspace.readText(LEDGER_FILE)).length;
+}
+
+/**
+ * 最近的事件，**最新在前**（与 Python 侧 `recent_events` 的排序口径一致，别反过来）。
+ *
+ * JSONL 的好处是坏一行不至于整表读不出来：解析不出来的行直接跳过，不因此让整页空白。
+ * 账本是追加写的审计流水，所以"最后写进去的"就是最新的。
+ */
+export function readEvents(workspace: LocalWorkspace, limit: number): LedgerEvent[] {
+  if (!workspace.exists(LEDGER_FILE)) {
+    return [];
+  }
+  const lines: string[] = linesOf(workspace.readText(LEDGER_FILE));
+  const events: LedgerEvent[] = [];
+  for (let index = lines.length - 1; index >= 0 && events.length < limit; index--) {
+    try {
+      const record: LedgerRecord = JSON.parse(lines[index]) as LedgerRecord;
+      events.push({
+        eventType: record.event_type,
+        createdAt: record.created_at,
+        payloadText: record.payload
+      });
+    } catch (error) {
+      // 坏行跳过：账本是流水，一行坏不该让整页读不出来。
+    }
+  }
+  return events;
 }
 
 /**
