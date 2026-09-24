@@ -108,7 +108,21 @@ powershell -ExecutionPolicy Bypass -File tools\build_local_agent.ps1
 dist\competition-agent-api.exe serve --port 8765
 ```
 
-然后在鸿蒙端应用里把后端地址指向 `http://127.0.0.1:8765`（模拟器与主机同网时改用局域网地址，见下一节）。
+然后在鸿蒙端应用里把后端地址指向 `http://127.0.0.1:8765`。
+
+**模拟器必须再做一步端口转发**，否则一直是"连接失败"：模拟器里的 `127.0.0.1` 是**模拟器自己**，
+不是主机（它的 `Documents` 也不是主机的 Documents），主机上起没起后端都连不上。
+
+```powershell
+$hdc = "B:\Deveco_studio\setup\DevEco Studio\sdk\default\openharmony\toolchains\hdc.exe"
+& $hdc rport tcp:8765 tcp:8765     # 设备 8765 -> 主机 8765
+& $hdc fport ls                    # 应当看到 tcp:8765 tcp:8765 [Reverse]
+```
+
+**注意是 `rport` 不是 `fport`**：`fport localnode remotenode` 是"**主机**监听并转发到设备"，方向正好相反
+（拿 `fport` 去映射 8765 会报 `TCP Port listen failed at 8765`，因为主机 8765 被后端自己占了）。
+`rport` 只在 hdc 会话内有效，模拟器重启后要重新执行。
+
 API 可达时应用读真实实验、数据审计与决策状态；不可达时应用切到**离线模式**，直接读工作区里已经
 落盘的证据（规则就绪度、数据审计、实验历史、账本、文献检索、论文证据），并把需要重算的能力标成
 "需外部执行器"。API 还提供 `/api/workflow`（当前阶段、阻塞项与推荐动作）和 `/api/capabilities`
