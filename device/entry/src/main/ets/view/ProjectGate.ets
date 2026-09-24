@@ -259,10 +259,6 @@ export struct ProjectGate {
               .fontSize(26)
               .fontWeight(FontWeight.Bold)
               .fontColor(AppTheme.TEXT_PRIMARY)
-            Text(this.tr('gate.subtitle'))
-              .fontSize(13)
-              .fontColor(AppTheme.TEXT_SECONDARY)
-              .margin({ top: 10 })
 
             if (this.errorText.length > 0) {
               Column() {

@@ -174,7 +174,6 @@ export struct WritingPage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.writing'),
-        subtitle: this.tr('writing.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -197,7 +196,6 @@ export struct WritingPage {
         Row({ space: 20 }) {
           CardPanel({
             title: this.tr('writing.sectionStructure'),
-            subtitle: this.tr('writing.sectionStructureSubtitle'),
             weight: 1
           }) {
             if (this.pkg === null || this.pkg.sections.length === 0) {
@@ -209,7 +207,6 @@ export struct WritingPage {
 
           CardPanel({
             title: this.tr('writing.evidenceChain'),
-            subtitle: this.tr('writing.evidenceChainSubtitle'),
             weight: 1
           }) {
             if (this.pkg === null || this.pkg.claims.length === 0) {
@@ -223,8 +220,7 @@ export struct WritingPage {
         .alignItems(VerticalAlign.Top)
       } else if (this.section === 'contract') {
         CardPanel({
-          title: this.tr('writing.submissionContract'),
-          subtitle: this.tr('writing.contractSubtitle')
+          title: this.tr('writing.submissionContract')
         }) {
           Column() {
             KeyValueRow({
@@ -272,8 +268,7 @@ export struct WritingPage {
         }
       } else {
         CardPanel({
-          title: this.tr('writing.paperPackage'),
-          subtitle: this.tr('writing.packageSubtitle')
+          title: this.tr('writing.paperPackage')
         }) {
           if (this.pkg === null || !this.pkg.available) {
             EmptyHint({ text: this.tr('writing.noPackage') })

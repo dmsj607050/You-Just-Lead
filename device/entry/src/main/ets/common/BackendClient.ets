@@ -204,18 +204,27 @@ export interface DraftListResponse {
   drafts: ExperimentDraft[];
 }
 
+/** 一组数值的分布（后端给的是 min/max/mean 三元组，不是单个数字）。 */
+export interface MetricRange {
+  min: number;
+  max: number;
+  mean: number;
+}
+
 /** 图像维度统计。 */
 export interface ImageStats {
   count: number;
-  width: number | null;
-  height: number | null;
+  width: MetricRange | null;
+  height: MetricRange | null;
+  /** 通道数 → 图片张数。后端按 `dict[int, int]` 落盘，JSON 里键是字符串。 */
+  channels: Record<string, number>;
 }
 
 /** 分割掩码统计。 */
 export interface MaskStats {
   count: number;
   empty_count: number;
-  foreground_ratio: number | null;
+  foreground_ratio: MetricRange | null;
 }
 
 /** GET /api/data-audit：一次数据审计的完整结果。 */

@@ -52,11 +52,6 @@ export struct HeroBanner {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(this.tr('hero.subtitle'))
-          .fontSize(15)
-          .fontColor(AppTheme.TEXT_SECONDARY)
-          .margin({ top: 10 })
-
         Row() {
           this.Feature('hero.flow')
           this.Feature('hero.insight')

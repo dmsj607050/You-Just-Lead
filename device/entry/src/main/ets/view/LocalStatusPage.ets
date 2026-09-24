@@ -170,10 +170,6 @@ export struct LocalStatusPage {
         .fontWeight(FontWeight.Bold)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .margin({ top: 10 })
-      Text(this.tr('localStatus.subtitle'))
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 8 })
 
       if (this.workspaceRoot.length > 0) {
         Text(this.workspaceRoot)
@@ -259,8 +255,7 @@ export struct LocalStatusPage {
   @Builder
   TraceCard() {
     CardPanel({
-      title: this.tr('localStatus.trace'),
-      subtitle: this.tr('localStatus.traceHint')
+      title: this.tr('localStatus.trace')
     }) {
       ForEach(this.trace.chains, (chain: TraceChain) => {
         Row() {
@@ -299,8 +294,7 @@ export struct LocalStatusPage {
   @Builder
   ResearchCard() {
     CardPanel({
-      title: this.tr('localStatus.research'),
-      subtitle: this.tr('localStatus.researchHint')
+      title: this.tr('localStatus.research')
     }) {
       if (!this.research.present) {
         EmptyHint({ text: this.tr('localStatus.researchNone') })
@@ -325,8 +319,7 @@ export struct LocalStatusPage {
   @Builder
   DatasetCard() {
     CardPanel({
-      title: this.tr('localStatus.dataset'),
-      subtitle: this.tr('localStatus.datasetHint')
+      title: this.tr('localStatus.dataset')
     }) {
       if (!this.dataset.present) {
         EmptyHint({ text: this.tr('localStatus.datasetMissing') })
@@ -355,8 +348,7 @@ export struct LocalStatusPage {
   @Builder
   ExperimentsCard() {
     CardPanel({
-      title: this.tr('localStatus.experiments'),
-      subtitle: this.tr('localStatus.experimentsHint')
+      title: this.tr('localStatus.experiments')
     }) {
       if (this.experiments.length === 0) {
         EmptyHint({ text: this.tr('localStatus.experimentsNone') })
@@ -371,14 +363,19 @@ export struct LocalStatusPage {
   @Builder
   LedgerCard() {
     CardPanel({
-      title: this.tr('localStatus.ledger'),
-      subtitle: this.eventTotal > this.events.length
-        ? this.trf('localStatus.ledgerLatest', [`${this.events.length}`, `${this.eventTotal}`])
-        : this.tr('localStatus.ledgerHint')
+      title: this.tr('localStatus.ledger')
     }) {
       if (this.events.length === 0) {
         EmptyHint({ text: this.tr('localStatus.ledgerNone') })
       } else {
+        // 「只显示最近 N 条」是事实，放正文第一行；原先是标题下的灰色注脚。
+        if (this.eventTotal > this.events.length) {
+          Text(this.trf('localStatus.ledgerLatest', [`${this.events.length}`, `${this.eventTotal}`]))
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .width('100%')
+            .margin({ bottom: 6 })
+        }
         ForEach(this.events, (item: LedgerEvent) => {
           Row() {
             Text(eventTitle(this.lang, item.eventType))
@@ -402,8 +399,7 @@ export struct LocalStatusPage {
   @Builder
   EvidenceCard() {
     CardPanel({
-      title: this.tr('localStatus.evidence'),
-      subtitle: this.tr('localStatus.evidenceHint')
+      title: this.tr('localStatus.evidence')
     }) {
       if (!this.evidence.present) {
         EmptyHint({ text: this.tr('localStatus.evidenceNone') })
@@ -427,8 +423,7 @@ export struct LocalStatusPage {
   @Builder
   ExecutorCard() {
     CardPanel({
-      title: this.tr('localStatus.executorTitle'),
-      subtitle: this.tr('localStatus.executorHint')
+      title: this.tr('localStatus.executorTitle')
     }) {
       ForEach(EXECUTOR_CAPABILITIES, (item: ExecutorCapability) => {
         Row() {
@@ -459,8 +454,7 @@ export struct LocalStatusPage {
 
       if (this.workspaceRoot.length === 0) {
         CardPanel({
-          title: this.tr('localStatus.title'),
-          subtitle: this.tr('localStatus.noWorkspace')
+          title: this.tr('localStatus.title')
         }) {
           Text(this.tr('localStatus.noWorkspaceHint'))
             .fontSize(13)

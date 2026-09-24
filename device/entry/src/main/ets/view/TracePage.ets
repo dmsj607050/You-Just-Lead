@@ -19,7 +19,7 @@ import {
   formatTimestamp
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, KeyValueRow, PageHeader, ProgressBar, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /**
  * 溯源页：把「这条结论凭什么成立」摊开成四条链。
@@ -257,18 +257,17 @@ export struct TracePage {
     ]);
   }
 
-  /**
-   * 已带锚点的字段比例。
-   *
-   * 原先这是一个大统计块。它只在规则段里有意义，收进来之后页面顶部就不必再压一排数字。
-   */
-  private anchorRatioText(): string {
-    if (this.snapshot === null || this.snapshot.rule.required_field_count === 0) {
-      return '';
+  /** 已带锚点的字段数（比例条的分子）。 */
+  private anchorCurrent(): number {
+    if (this.snapshot === null) {
+      return 0;
     }
-    const total: number = this.snapshot.rule.required_field_count;
-    const withAnchor: number = total - this.snapshot.rule.missing_anchor_count;
-    return `${this.tr('trace.statAnchors')} ${withAnchor}/${total}`;
+    return this.snapshot.rule.required_field_count - this.snapshot.rule.missing_anchor_count;
+  }
+
+  /** 必填字段总数（比例条的分母）。 */
+  private anchorTotal(): number {
+    return this.snapshot === null ? 0 : this.snapshot.rule.required_field_count;
   }
 
   /** 规则链通不通：没批准是待办，批准了又冒出缺口是告警。 */
@@ -433,16 +432,11 @@ export struct TracePage {
   @Builder
   RuleCard() {
     CardPanel({
-      title: this.tr('trace.ruleTitle'),
-      subtitle: this.tr('trace.ruleSubtitle')
+      title: this.tr('trace.ruleTitle')
     }) {
       Column({ space: 6 }) {
         Row() {
           StatusBadge({ text: this.ruleGateText(), tone: this.ruleGateTone() })
-          Text(this.anchorRatioText())
-            .fontSize(12)
-            .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ left: 12 })
           Text(this.snapshot === null
             ? ''
             : this.trf('trace.gapTotal', [`${this.snapshot.rule.gap_count}`,
@@ -454,6 +448,14 @@ export struct TracePage {
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
+
+        // 锚点覆盖度是比例，用条说比用文字说快。
+        ProgressBar({
+          label: this.tr('trace.statAnchors'),
+          current: this.anchorCurrent(),
+          total: this.anchorTotal()
+        })
+          .margin({ top: 14 })
 
         KeyValueRow({
           label: this.tr('trace.specFile'),
@@ -568,8 +570,7 @@ export struct TracePage {
   @Builder
   DataCard() {
     CardPanel({
-      title: this.tr('trace.dataTitle'),
-      subtitle: this.tr('trace.dataSubtitle')
+      title: this.tr('trace.dataTitle')
     }) {
       Column({ space: 6 }) {
         KeyValueRow({
@@ -767,8 +768,7 @@ export struct TracePage {
   @Builder
   ExperimentCard() {
     CardPanel({
-      title: this.tr('trace.expTitle'),
-      subtitle: this.tr('trace.expSubtitle')
+      title: this.tr('trace.expTitle')
     }) {
       Column({ space: 6 }) {
         Row() {
@@ -834,8 +834,7 @@ export struct TracePage {
   @Builder
   ResearchCard() {
     CardPanel({
-      title: this.tr('trace.researchTitle'),
-      subtitle: this.tr('trace.researchSubtitle')
+      title: this.tr('trace.researchTitle')
     }) {
       Column({ space: 6 }) {
         KeyValueRow({
@@ -903,8 +902,7 @@ export struct TracePage {
   @Builder
   PaperCard() {
     CardPanel({
-      title: this.tr('trace.paperTitle'),
-      subtitle: this.tr('trace.paperSubtitle')
+      title: this.tr('trace.paperTitle')
     }) {
       Column({ space: 6 }) {
         if (!this.paperAvailable()) {
@@ -980,7 +978,6 @@ export struct TracePage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.trace'),
-        subtitle: this.tr('trace.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();

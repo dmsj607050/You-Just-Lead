@@ -31,7 +31,7 @@ import {
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { DIRECTION_OPTIONS, RUNTIME_OUTPUT_OPTIONS } from '../common/LocalRuleGate';
-import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, PageHeader, ProgressBar, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /** 一个环节的展示行。labelKey 存文案键，渲染时再取 this.tr()，语言切换才会跟着变。 */
 interface ComponentRow {
@@ -469,12 +469,6 @@ export struct WorkflowPage {
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
-          Text(this.tr('workflow.evidenceSubtitle'))
-            .fontSize(12)
-            .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 6 })
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -503,13 +497,19 @@ export struct WorkflowPage {
           .width('100%')
           .margin({ top: 10 })
       } else if (!this.evidenceOpen) {
-        Text(this.trf('workflow.evidenceSummary', [
-          `${this.evidenceRequiredCount}`, `${this.evidenceMissingValue}`, `${this.evidenceMissingAnchor}`
-        ]))
-          .fontSize(12)
-          .fontColor(AppTheme.TEXT_SECONDARY)
-          .width('100%')
-          .margin({ top: 10 })
+        // 填写进度用两条比例条说：原先是一行灰字「必填 24 项：缺值 0 项、缺锚点 0 项」，
+        // 要逐字读完才知道还差多少；条一眼就看出来。
+        ProgressBar({
+          label: this.tr('workflow.valuesFilled'),
+          current: this.evidenceRequiredCount - this.evidenceMissingValue,
+          total: this.evidenceRequiredCount
+        })
+          .margin({ top: 14, bottom: 10 })
+        ProgressBar({
+          label: this.tr('workflow.anchorsFilled'),
+          current: this.evidenceRequiredCount - this.evidenceMissingAnchor,
+          total: this.evidenceRequiredCount
+        })
       }
 
       if (this.evidenceDone.length > 0) {
@@ -772,10 +772,6 @@ export struct WorkflowPage {
         .fontSize(15)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.TEXT_PRIMARY)
-      Text(this.tr('workflow.gateScope'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 6 })
 
       if (this.rulesApproved) {
         Text(this.tr('workflow.gateDone'))
@@ -1086,7 +1082,6 @@ export struct WorkflowPage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('workflow.title'),
-        subtitle: this.tr('workflow.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -1107,12 +1102,15 @@ export struct WorkflowPage {
 
       if (this.section === 'rules') {
         CardPanel({
-          title: this.tr('workflow.ruleGapsTitle'),
-          subtitle: this.trf('workflow.rulesSummary', [
-            this.ruleReady ? this.tr('workflow.ruleReady') : this.tr('workflow.ruleNotReady'),
-            `${this.requiredFieldCount}`, `${this.gapCount()}`, `${this.uniqueFieldCount()}`, this.ruleProfile
-          ])
+          title: this.tr('workflow.ruleGapsTitle')
         }) {
+          // 必填字段的完成度用条表示：文字「24 个必填字段、0 项待办」要读两遍才明白。
+          ProgressBar({
+            label: this.tr('workflow.requiredFields'),
+            current: this.requiredFieldCount - this.uniqueFieldCount(),
+            total: this.requiredFieldCount
+          })
+
           if (this.ruleGroups.length === 0) {
             EmptyHint({ text: this.tr('workflow.noRuleGaps') })
           } else {
@@ -1129,19 +1127,22 @@ export struct WorkflowPage {
         }
       } else if (this.section === 'blockers') {
         CardPanel({
-          title: this.tr('workflow.blockers'),
-          subtitle: this.trf('workflow.blockersSubtitle', [`${this.openQuestions().length}`])
+          title: this.tr('workflow.blockers')
         }) {
           if (this.openQuestions().length === 0) {
             EmptyHint({ text: this.tr('workflow.noOpenQuestions') })
           } else {
+            Text(this.trf('workflow.blockersSubtitle', [`${this.openQuestions().length}`]))
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .width('100%')
+              .margin({ bottom: 6 })
             this.BlockerList()
           }
         }
       } else if (this.section === 'actions') {
         CardPanel({
-          title: this.tr('workflow.actions'),
-          subtitle: this.tr('workflow.actionsHint')
+          title: this.tr('workflow.actions')
         }) {
           if (this.actions.length === 0) {
             EmptyHint({ text: this.tr('workflow.noActions') })
@@ -1151,15 +1152,13 @@ export struct WorkflowPage {
         }
       } else if (this.section === 'ask') {
         CardPanel({
-          title: this.tr('workflow.askTitle'),
-          subtitle: this.tr('workflow.askSubtitle')
+          title: this.tr('workflow.askTitle')
         }) {
           this.AskPanel()
         }
       } else {
         CardPanel({
-          title: this.tr('workflow.componentStatus'),
-          subtitle: this.tr('workflow.componentStatusHint')
+          title: this.tr('workflow.componentStatus')
         }) {
           this.ComponentList()
         }

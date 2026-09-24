@@ -149,7 +149,6 @@ export struct SettingsPage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.settings'),
-        subtitle: this.tr('settings.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -170,8 +169,7 @@ export struct SettingsPage {
 
       if (this.section === 'backend') {
         CardPanel({
-          title: this.tr('menu.backend'),
-          subtitle: this.tr('settings.backendSubtitle')
+          title: this.tr('menu.backend')
         }) {
           Column() {
             KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
@@ -193,8 +191,7 @@ export struct SettingsPage {
         }
       } else if (this.section === 'model') {
         CardPanel({
-          title: this.tr('settings.modelSettings'),
-          subtitle: this.tr('settings.modelSubtitle')
+          title: this.tr('settings.modelSettings')
         }) {
           Column() {
             KeyValueRow({
@@ -239,8 +236,7 @@ export struct SettingsPage {
         }
       } else if (this.section === 'runtime') {
         CardPanel({
-          title: this.tr('settings.runtime'),
-          subtitle: this.tr('settings.runtimeSubtitle')
+          title: this.tr('settings.runtime')
         }) {
           Column() {
             KeyValueRow({

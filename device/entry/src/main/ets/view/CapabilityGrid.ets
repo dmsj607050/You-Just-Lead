@@ -89,10 +89,6 @@ export struct CapabilityGrid {
             .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_PRIMARY)
-          Text(this.tr('cap.subtitle'))
-            .fontSize(12)
-            .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 6 })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)

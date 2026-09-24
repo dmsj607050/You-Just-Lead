@@ -473,7 +473,6 @@ export struct ExperimentPage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.experiment'),
-        subtitle: this.tr('exp.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -494,8 +493,7 @@ export struct ExperimentPage {
 
       if (this.section === 'jobs') {
         CardPanel({
-          title: this.tr('exp.trainingJobs'),
-          subtitle: this.tr('exp.jobsSubtitle')
+          title: this.tr('exp.trainingJobs')
         }) {
           if (this.jobs.length === 0) {
             EmptyHint({ text: this.tr('exp.jobsEmpty') })
@@ -510,8 +508,7 @@ export struct ExperimentPage {
         }
       } else if (this.section === 'drafts') {
         CardPanel({
-          title: this.tr('exp.draftsTitle'),
-          subtitle: this.tr('exp.draftsSubtitle')
+          title: this.tr('exp.draftsTitle')
         }) {
           if (this.drafts.length === 0) {
             EmptyHint({ text: this.tr('exp.draftsEmpty') })
@@ -526,15 +523,13 @@ export struct ExperimentPage {
         }
       } else if (this.section === 'register') {
         CardPanel({
-          title: this.tr('exp.registerTitle'),
-          subtitle: this.tr('exp.registerSubtitle')
+          title: this.tr('exp.registerTitle')
         }) {
           this.DraftPanel()
         }
       } else {
         CardPanel({
-          title: this.tr('exp.ledgerTitle'),
-          subtitle: this.tr('exp.ledgerSubtitle')
+          title: this.tr('exp.ledgerTitle')
         }) {
           if (this.approvalError.length > 0) {
             Text(this.approvalError)

@@ -23,7 +23,7 @@ import {
 import { RuleReadiness, ruleReadiness } from '../common/LocalRules';
 import { LocalWorkspace, readPickedText } from '../common/LocalWorkspace';
 import { YamlMap } from '../common/YamlLite';
-import { CardPanel, KeyValueRow, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, KeyValueRow, ProgressBar, StatusBadge } from './Widgets';
 
 /**
  * 端侧规则关口（整页）。
@@ -535,10 +535,6 @@ export struct LocalRulePage {
         .fontWeight(FontWeight.Bold)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .margin({ top: 10 })
-      Text(this.tr('localRule.subtitle'))
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 8 })
 
       if (this.workspaceRoot.length > 0) {
         Text(this.workspaceRoot)
@@ -582,26 +578,36 @@ export struct LocalRulePage {
       }
 
       if (this.workspaceRoot.length === 0) {
-        CardPanel({ title: this.tr('localRule.title'), subtitle: this.tr('localRule.noWorkspace') }) {
+        CardPanel({ title: this.tr('localRule.title') }) {
           Text(this.tr('localRule.noWorkspaceHint'))
             .fontSize(13)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }
       } else if (!this.specPresent) {
-        CardPanel({ title: this.tr('localRule.title'), subtitle: this.tr('localRule.noSpec') }) {
+        CardPanel({ title: this.tr('localRule.title') }) {
           Text(this.tr('localRule.noSpecHint'))
             .fontSize(13)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }
       } else if (!this.supported) {
-        CardPanel({ title: this.tr('localRule.title'), subtitle: this.tr('workflow.evidenceUnsupported') }) {
+        CardPanel({ title: this.tr('localRule.title') }) {
+          Text(this.tr('workflow.evidenceUnsupported'))
+            .fontSize(13)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+            .margin({ bottom: 10 })
           KeyValueRow({ label: this.tr('localRule.profile'), value: this.profile })
           KeyValueRow({ label: this.tr('localRule.specFingerprint'), value: this.specHash, mono: true })
         }
       } else {
-        CardPanel({ title: this.tr('localRule.sourceTitle'), subtitle: this.tr('workflow.evidenceGateHint') }) {
+        CardPanel({ title: this.tr('localRule.sourceTitle') }) {
+          Text(this.tr('workflow.evidenceGateHint'))
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .width('100%')
+            .margin({ bottom: 10 })
           Text(this.tr('workflow.evidenceSourceType'))
             .fontSize(12)
             .fontColor(AppTheme.TEXT_SECONDARY)
@@ -645,11 +651,23 @@ export struct LocalRulePage {
         }
 
         CardPanel({
-          title: this.tr('workflow.evidenceFieldColumn'),
-          subtitle: this.trf('workflow.evidenceSummary', [
-            `${this.requiredCount}`, `${this.missingValue}`, `${this.missingAnchor}`
-          ])
+          title: this.tr('workflow.evidenceFieldColumn')
         }) {
+          // 填写进度用两条比例条表示：原先这是标题下一行灰字「必填 24 项；缺值 0 项、缺锚点 0 项」，
+          // 读两遍才明白；条一眼就知道还差多少。
+          ProgressBar({
+            label: this.tr('workflow.valuesFilled'),
+            current: this.requiredCount - this.missingValue,
+            total: this.requiredCount
+          })
+            .margin({ bottom: 10 })
+          ProgressBar({
+            label: this.tr('workflow.anchorsFilled'),
+            current: this.requiredCount - this.missingAnchor,
+            total: this.requiredCount
+          })
+            .margin({ bottom: 16 })
+
           ForEach(this.rows, (row: GateRow, index: number) => {
             this.FieldLine(row, index)
           }, (row: GateRow) => `${row.field}-${row.flag}-${row.choice}-${row.hasAnchor}`)
@@ -680,8 +698,7 @@ export struct LocalRulePage {
         }
 
         CardPanel({
-          title: this.tr('localRule.approvalTitle'),
-          subtitle: this.tr('localRule.approvalSubtitle')
+          title: this.tr('localRule.approvalTitle')
         }) {
           if (this.approvalRequired) {
             if (this.gapCount > 0) {

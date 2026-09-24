@@ -207,8 +207,7 @@ export struct LocalWorkspaceCard {
 
   build() {
     CardPanel({
-      title: this.tr('settings.localWorkspace'),
-      subtitle: this.tr('settings.localWorkspaceSubtitle')
+      title: this.tr('settings.localWorkspace')
     }) {
       Column() {
         KeyValueRow({

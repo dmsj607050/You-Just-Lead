@@ -1,8 +1,8 @@
-import { DataAuditReport, fetchDataAudit } from '../common/BackendClient';
+import { DataAuditReport, MetricRange, fetchDataAudit } from '../common/BackendClient';
 import AppTheme from '../common/AppTheme';
 import { formatBytes, formatNumber, formatTimestamp } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail } from './Widgets';
+import { BarItemSpec, BarList, CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail } from './Widgets';
 
 /** Record 形式统计项转成可渲染的行。 */
 interface NameCount {
@@ -154,27 +154,63 @@ export struct DataPage {
     .margin({ bottom: 20 })
   }
 
-  @Builder
-  CountRow(item: NameCount, label: string) {
-    Row() {
-      Text(label)
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .layoutWeight(1)
-      Text(`${item.count}`)
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_PRIMARY)
+  /** 文件类型分布，给分布条用。 */
+  private kindBars(): BarItemSpec[] {
+    const bars: BarItemSpec[] = [];
+    for (const item of this.kindRows) {
+      bars.push({ label: kindLabel(this.lang, item.name), value: item.count, valueText: `${item.count}` });
     }
-    .width('100%')
-    .padding({ top: 10, bottom: 10 })
-    .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
+    return bars;
+  }
+
+  /** 划分（训练/验证/测试）分布，给分布条用。 */
+  private splitBars(): BarItemSpec[] {
+    const bars: BarItemSpec[] = [];
+    for (const item of this.splitRows) {
+      bars.push({ label: splitLabel(this.lang, item.name), value: item.count, valueText: `${item.count}` });
+    }
+    return bars;
+  }
+
+  /**
+   * 通道分布。
+   *
+   * 这张表以前完全没显示过，但它是多模态数据最重要的一条事实：单通道是 16 位深度图，
+   * 三通道是彩色图。数字摆在那儿，条形一眼就能看出比例。
+   */
+  private channelBars(): BarItemSpec[] {
+    const bars: BarItemSpec[] = [];
+    if (this.audit === null) {
+      return bars;
+    }
+    const channels: Record<string, number> = this.audit.images.channels;
+    for (const key of Object.keys(channels)) {
+      bars.push({
+        label: this.trf('data.channelLabel', [key]),
+        value: channels[key],
+        valueText: `${channels[key]}`
+      });
+    }
+    return bars;
+  }
+
+  /**
+   * 把范围统计压成一行。
+   *
+   * 后端给的 `width` / `height` 是 `{min, max, mean}` 三元组，不是一个数：
+   * 直接把它塞进模板字符串会渲染成 `[object Object]`。
+   */
+  private rangeText(range: MetricRange | null): string {
+    if (range === null) {
+      return '—';
+    }
+    return `${range.min}–${range.max}`;
   }
 
   build() {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.data'),
-        subtitle: this.tr('data.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -195,8 +231,7 @@ export struct DataPage {
 
       if (this.section === 'source') {
         CardPanel({
-          title: this.tr('data.auditSource'),
-          subtitle: this.tr('data.auditSourceHint')
+          title: this.tr('data.auditSource')
         }) {
           Column() {
             KeyValueRow({
@@ -226,8 +261,7 @@ export struct DataPage {
         }
       } else if (this.section === 'images') {
         CardPanel({
-          title: this.tr('data.imagesAndMasks'),
-          subtitle: this.tr('data.imagesAndMasksHint')
+          title: this.tr('data.imagesAndMasks')
         }) {
           Column() {
             KeyValueRow({
@@ -236,9 +270,9 @@ export struct DataPage {
             })
             KeyValueRow({
               label: this.tr('data.imageSize'),
-              value: this.audit === null || this.audit.images.width === null
+              value: this.audit === null
                 ? '—'
-                : `${this.audit.images.width} × ${this.audit.images.height}`
+                : `${this.rangeText(this.audit.images.width)} × ${this.rangeText(this.audit.images.height)}`
             })
             KeyValueRow({
               label: this.tr('data.maskCount'),
@@ -250,10 +284,19 @@ export struct DataPage {
             })
             KeyValueRow({
               label: this.tr('data.foregroundRatio'),
-              value: this.audit === null
+              value: this.audit === null || this.audit.segmentation_masks.foreground_ratio === null
                 ? '—'
-                : formatNumber(this.audit.segmentation_masks.foreground_ratio, 4)
+                : formatNumber(this.audit.segmentation_masks.foreground_ratio.mean, 4)
             })
+
+            if (this.channelBars().length > 0) {
+              Text(this.tr('data.channelDistribution'))
+                .fontSize(13)
+                .fontColor(AppTheme.TEXT_SECONDARY)
+                .width('100%')
+                .margin({ top: 16, bottom: 12 })
+              BarList({ items: this.channelBars() })
+            }
           }
           .width('100%')
         }
@@ -262,35 +305,23 @@ export struct DataPage {
         Row({ space: 20 }) {
           CardPanel({
             title: this.tr('data.fileKinds'),
-            subtitle: this.tr('data.fileKindsHint'),
             weight: 1
           }) {
             if (this.kindRows.length === 0) {
               EmptyHint({ text: this.tr('data.noFileKinds') })
             } else {
-              Column() {
-                ForEach(this.kindRows, (item: NameCount) => {
-                  this.CountRow(item, kindLabel(this.lang, item.name))
-                }, (item: NameCount) => item.name)
-              }
-              .width('100%')
+              BarList({ items: this.kindBars() })
             }
           }
 
           CardPanel({
             title: this.tr('data.splits'),
-            subtitle: this.tr('data.splitsHint'),
             weight: 1
           }) {
             if (this.splitRows.length === 0) {
               EmptyHint({ text: this.tr('data.noSplits') })
             } else {
-              Column() {
-                ForEach(this.splitRows, (item: NameCount) => {
-                  this.CountRow(item, splitLabel(this.lang, item.name))
-                }, (item: NameCount) => item.name)
-              }
-              .width('100%')
+              BarList({ items: this.splitBars() })
             }
           }
         }
@@ -298,8 +329,7 @@ export struct DataPage {
         .alignItems(VerticalAlign.Top)
       } else {
         CardPanel({
-          title: this.tr('data.duplicatesAndTables'),
-          subtitle: this.tr('data.duplicatesAndTablesHint')
+          title: this.tr('data.duplicatesAndTables')
         }) {
           Column() {
             if (this.audit === null || this.audit.exact_duplicate_groups.length === 0) {

@@ -217,7 +217,6 @@ export struct LiteraturePage {
     Column({ space: 20 }) {
       PageHeader({
         title: this.tr('nav.literature'),
-        subtitle: this.tr('lit.subtitle'),
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -238,8 +237,7 @@ export struct LiteraturePage {
 
       if (this.section === 'records') {
         CardPanel({
-          title: this.tr('lit.records'),
-          subtitle: this.tr('lit.recordsNote')
+          title: this.tr('lit.records')
         }) {
           if (this.records.length === 0) {
             EmptyHint({ text: this.tr('lit.noRecords') })
@@ -250,12 +248,18 @@ export struct LiteraturePage {
               }, (item: ResearchRecord) => item.paper_id)
             }
             .width('100%')
+
+            // 「收录不等于复现或背书」是记录清单的免责说明，属于内容而不是标题注脚。
+            Text(this.tr('lit.recordsNote'))
+              .fontSize(12)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .margin({ top: 16 })
           }
         }
       } else {
         CardPanel({
-          title: this.tr('lit.queryInfo'),
-          subtitle: this.tr('lit.queryInfoHint')
+          title: this.tr('lit.queryInfo')
         }) {
           Column() {
             Text(this.trf('lit.query', [this.query.length > 0 ? this.query : '—']))

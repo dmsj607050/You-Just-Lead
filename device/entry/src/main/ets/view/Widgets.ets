@@ -23,12 +23,11 @@ export struct PageHeader {
   }
 
   @Prop title: string = '';
-  @Prop subtitle: string = '';
   /**
    * 一行现状：把「现在是什么状态」压成一句带数字的话。
    *
-   * 它替代了原先每页顶部那排四个等重的大统计块 —— 那种排法不回答任何问题，只是把页面
-   * 做成了仪表盘。这一行才是页面的结论，所以比说明行重、比标题轻。
+   * 标题下面只留这一行。原先还有一行灰色的说明文字（「数据先过审计再进训练…」那类），
+   * 它既不是数据也不是结论，只是把标题复述了一遍，已删除。
    */
   @Prop status: string = '';
   /** 点击「刷新」重新取一次数据。 */
@@ -42,12 +41,6 @@ export struct PageHeader {
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
-        if (this.subtitle.length > 0) {
-          Text(this.subtitle)
-            .fontSize(13)
-            .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ top: 8 })
-        }
         if (this.status.length > 0) {
           Text(this.status)
             .fontSize(14)
@@ -72,11 +65,10 @@ export struct PageHeader {
   }
 }
 
-/** 白色卡片容器，可带标题与说明。 */
+/** 白色卡片容器，可带标题。 */
 @Component
 export struct CardPanel {
   @Prop title: string = '';
-  @Prop subtitle: string = '';
   /** 放在 Row 中并排时用它分配宽度，0 表示按自身尺寸。 */
   @Prop weight: number = 0;
   @BuilderParam content: () => void = this.emptyContent;
@@ -93,12 +85,6 @@ export struct CardPanel {
             .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_PRIMARY)
-          if (this.subtitle.length > 0) {
-            Text(this.subtitle)
-              .fontSize(12)
-              .fontColor(AppTheme.TEXT_TERTIARY)
-              .margin({ top: 6 })
-          }
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
@@ -402,6 +388,165 @@ export struct SectionRail {
           this.onSelect(item.key);
         })
       }, (item: RailItemSpec) => `${item.key}-${item.key === this.active}-${item.tone}-${item.label}`)
+    }
+    .width('100%')
+  }
+}
+
+/** 分布条的一项。 */
+export interface BarItemSpec {
+  label: string;
+  value: number;
+  /** 右侧显示的文本；留空就用数值本身。 */
+  valueText: string;
+}
+
+/**
+ * 分布条：一行一个标签 + 一根横条 + 数值。
+ *
+ * 原来这类分布是「标签 …… 数字」的纯文本行，看不出谁多谁少。条长按这一组里的最大值
+ * 归一，差异一眼可见 —— 用图形说一件本来就是图形的事。
+ *
+ * 条形是布局元素拼的（轨道 + 填充），不用图片也不用 Canvas。
+ */
+@Component
+export struct BarList {
+  @Prop items: BarItemSpec[] = [];
+  /** 条的颜色：primary / warn / muted。 */
+  @Prop tone: string = 'primary';
+
+  private maxValue(): number {
+    let max: number = 0;
+    for (const item of this.items) {
+      if (item.value > max) {
+        max = item.value;
+      }
+    }
+    return max;
+  }
+
+  private percent(value: number): number {
+    const max: number = this.maxValue();
+    if (max <= 0 || value <= 0) {
+      return 0;
+    }
+    // 有值的条至少给一点长度，否则「1」和「0」看起来一样。
+    return Math.max(3, Math.round((value / max) * 100));
+  }
+
+  private barColor(): string {
+    if (this.tone === 'warn') {
+      return AppTheme.WARN_TEXT;
+    }
+    if (this.tone === 'muted') {
+      return AppTheme.TEXT_TERTIARY;
+    }
+    return AppTheme.PRIMARY;
+  }
+
+  build() {
+    Column({ space: 12 }) {
+      ForEach(this.items, (item: BarItemSpec) => {
+        Column() {
+          Row() {
+            Text(item.label)
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_PRIMARY)
+              .layoutWeight(1)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(item.valueText.length > 0 ? item.valueText : `${item.value}`)
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .margin({ left: 12 })
+          }
+          .width('100%')
+
+          Row() {
+            Row()
+              .width(`${this.percent(item.value)}%`)
+              .height(6)
+              .borderRadius(3)
+              .backgroundColor(this.barColor())
+          }
+          .width('100%')
+          .height(6)
+          .borderRadius(3)
+          .backgroundColor(AppTheme.PAGE_BG)
+          .margin({ top: 6 })
+        }
+        .width('100%')
+      }, (item: BarItemSpec) => `${item.label}-${item.value}-${item.valueText}-${this.tone}`)
+    }
+    .width('100%')
+  }
+}
+
+/**
+ * 比例条：左边说的是「哪件事」，右边是「几分之几」，中间用长度表示比例。
+ *
+ * 「必填 24 项、缺口 0 项」这类结论本来就是比例关系，写成文字要读两遍才明白，
+ * 画成条一眼就知道走到哪了。
+ */
+@Component
+export struct ProgressBar {
+  @Prop label: string = '';
+  @Prop current: number = 0;
+  @Prop total: number = 0;
+  /** 达成时用主色，未达成用告警色；留空按是否达成自动选。 */
+  @Prop tone: string = '';
+
+  private done(): boolean {
+    return this.total > 0 && this.current >= this.total;
+  }
+
+  private percent(): number {
+    if (this.total <= 0) {
+      return 0;
+    }
+    const ratio: number = this.current / this.total;
+    return Math.max(this.current > 0 ? 3 : 0, Math.min(100, Math.round(ratio * 100)));
+  }
+
+  private barColor(): string {
+    if (this.tone === 'warn') {
+      return AppTheme.WARN_TEXT;
+    }
+    if (this.tone === 'ok') {
+      return AppTheme.PRIMARY;
+    }
+    return this.done() ? AppTheme.PRIMARY : AppTheme.WARN_TEXT;
+  }
+
+  build() {
+    Column() {
+      Row() {
+        Text(this.label)
+          .fontSize(13)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${this.current}/${this.total}`)
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.barColor())
+          .margin({ left: 12 })
+      }
+      .width('100%')
+
+      Row() {
+        Row()
+          .width(`${this.percent()}%`)
+          .height(6)
+          .borderRadius(3)
+          .backgroundColor(this.barColor())
+      }
+      .width('100%')
+      .height(6)
+      .borderRadius(3)
+      .backgroundColor(AppTheme.PAGE_BG)
+      .margin({ top: 6 })
     }
     .width('100%')
   }

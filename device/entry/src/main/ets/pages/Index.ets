@@ -242,7 +242,6 @@ struct Index {
 
       PageHeader({
         title: this.tr('overview.title'),
-        subtitle: this.tr('overview.subtitle'),
         onRefresh: () => {
           this.load();
         }
