@@ -1,16 +1,19 @@
 /**
- * 端侧规则关口：录入官方证据并写回工作区规格。
+ * 端侧规则关口：录入官方证据、人工批准规则，并把结果写回工作区规格。
  *
  * 这是 Python 侧 `agents/rules_agent.py` 里 `rule_evidence_form_for_workspace` /
- * `build_rule_evidence_record` / `apply_official_rule_evidence` 的端侧对照实现，语义逐条对齐。
- * 最关键的一条：**录入证据不等于批准规则** —— 写回后 `requires_human_confirmation` 仍是 true、
- * `unresolved_questions` 清空、已有的 `approved_at` / `approved_note` 被移除，批准仍要走另一道关口。
+ * `build_rule_evidence_record` / `apply_official_rule_evidence` / `approve_rule_specification`
+ * 的端侧对照实现，语义逐条对齐。最关键的一条：**录入证据不等于批准规则** ——
+ * 录入后 `requires_human_confirmation` 仍是 true、`unresolved_questions` 清空、已有的
+ * `approved_at` / `approved_note` 被移除；批准是另一道关口，要人写一句复核说明，
+ * 而且缺口不归零时不允许批准。
  *
- * 与 Python 侧有意的差异：不写 `reports/official_rule_evidence_applied.json`。
- * 那份摘要是后端产物、给界面看的；端侧把就绪度当场算出来显示，不必再造一份中间文件。
+ * 与 Python 侧有意的差异：不写 `reports/official_rule_evidence_applied.json` 和
+ * `reports/rule_approval.json`。那两份摘要是后端产物、给界面看的；端侧把就绪度与批准状态
+ * 当场算出来显示，凭证落在规格字段、`docs/` 备份与账本事件里，不必再造中间文件。
  */
 
-import { appendEvent, utcStamp } from './LocalLedger';
+import { appendEvent, utcNow, utcStamp } from './LocalLedger';
 import { LocalWorkspace } from './LocalWorkspace';
 import {
   BASE_CONFIRMATION_FIELDS,
@@ -94,6 +97,35 @@ interface EvidenceLedgerPayload {
   field_count: number;
 }
 
+/** 规格里当前的批准状态。 */
+export interface GateApproval {
+  /** 还需要人工确认（true = 还没批准）。 */
+  required: boolean;
+  approvedAt: string;
+  note: string;
+}
+
+/** 批准结果。 */
+export interface GateApprovalOutcome {
+  approvedAt: string;
+  note: string;
+  readiness: RuleReadiness;
+}
+
+/**
+ * 账本事件的载荷。
+ *
+ * Python 侧把整棵 readiness 一起塞进 `rules_approved`；端侧只记审计真正要看的几项 ——
+ * 一份就绪度树塞进每一行 JSONL 会让账本没法人眼扫读，而缺口数已经说明了结论。
+ */
+interface ApprovalLedgerPayload {
+  spec_path: string;
+  approved: boolean;
+  approved_at: string;
+  note: string;
+  gap_count: number;
+}
+
 /** 讯飞档案的必备字段全表（通用 10 项 + 追加 9 项）。 */
 function requiredFields(): string[] {
   return BASE_CONFIRMATION_FIELDS.concat(XUNFEI_CONFIRMATION_FIELDS);
@@ -168,6 +200,21 @@ export function currentSource(spec: YamlMap): GateSource {
     sourceType: displayValue(yamlGet(spec, 'approval.official_evidence.source_type')),
     sourceLocator: displayValue(yamlGet(spec, 'approval.official_evidence.source_locator')),
     reviewedAt: displayValue(yamlGet(spec, 'approval.official_evidence.reviewed_at'))
+  };
+}
+
+/**
+ * 规格里当前的批准状态。
+ *
+ * 判定口径与 Python 一致：以 `requires_human_confirmation` 为准（默认 true = 未批准），
+ * 批准时间与复核说明只作展示，不参与判定。
+ */
+export function currentApproval(spec: YamlMap): GateApproval {
+  const required: YamlNode | undefined = yamlGet(spec, 'approval.requires_human_confirmation');
+  return {
+    required: required === false ? false : true,
+    approvedAt: displayValue(yamlGet(spec, 'approval.approved_at')),
+    note: displayValue(yamlGet(spec, 'approval.approved_note'))
   };
 }
 
@@ -341,4 +388,61 @@ export async function applyOfficialEvidence(workspace: LocalWorkspace, source: G
     appliedFieldCount: merged.values.size(),
     readiness: ruleReadiness(spec)
   };
+}
+
+/**
+ * 规则关口最后一步：人工复核后批准。
+ *
+ * 与 Python 的 `approve_rule_specification` 逐条对齐：
+ * - 缺口没归零**不允许**批准（这是关口的意义所在，不是形式）
+ * - 复核说明必填，且会原文留在规格里
+ * - 写回 `requires_human_confirmation: false` + `approved_at` + `approved_note`
+ * - 落一笔账（`rules_approved`）
+ *
+ * 端侧多做的两件事：写盘前先把**即将写入的字节**读回来确认缺口仍是 0（和录入证据同一道自检），
+ * 以及覆盖前把原文备份到 `docs/`。
+ */
+export async function approveRulesSpec(workspace: LocalWorkspace, note: string): Promise<GateApprovalOutcome> {
+  const spec: YamlMap = readSpec(workspace);
+  const readiness: RuleReadiness = ruleReadiness(spec);
+  if (!readiness.ready) {
+    throw new Error(`规则还有 ${readiness.gapCount} 项缺口没归零，不能批准`);
+  }
+  const clean: string = note.trim();
+  if (clean.length === 0) {
+    throw new Error('批准要写一句人工复核说明，这句说明会留在规格里');
+  }
+
+  const approvedAt: string = utcNow();
+  const originalText: string = workspace.readText(SPEC_FILE);
+  const backupRelative: string = `${EVIDENCE_DIR}/spec_backup_${utcStamp()}_approve.yaml`;
+  workspace.writeText(backupRelative, originalText);
+
+  try {
+    yamlSet(spec, 'approval.requires_human_confirmation', false);
+    yamlSet(spec, 'approval.approved_at', approvedAt);
+    yamlSet(spec, 'approval.approved_note', clean);
+
+    // 与录入证据同一道自检：写出去的字节读回来必须还是"已就绪"，
+    // 否则宁可让这次批准失败，也不让规格停在一个读回来就不成立的状态。
+    const nextText: string = dumpYaml(spec);
+    if (!ruleReadiness(parseYaml(nextText)).ready) {
+      throw new Error('写回前的自检没通过：写出去的规格读回来不再是"已就绪"，已放弃写入');
+    }
+    workspace.writeText(SPEC_FILE, nextText);
+  } catch (error) {
+    workspace.remove(backupRelative);
+    throw error as Error;
+  }
+
+  const payload: ApprovalLedgerPayload = {
+    spec_path: workspace.join(SPEC_FILE),
+    approved: true,
+    approved_at: approvedAt,
+    note: clean,
+    gap_count: readiness.gapCount
+  };
+  appendEvent(workspace, 'rules_approved', JSON.stringify(payload));
+
+  return { approvedAt: approvedAt, note: clean, readiness: readiness };
 }

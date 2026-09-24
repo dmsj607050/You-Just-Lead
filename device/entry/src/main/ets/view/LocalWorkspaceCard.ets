@@ -3,6 +3,7 @@ import AppTheme from '../common/AppTheme';
 import { describeError, shortHash } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { appendEvent, eventCount } from '../common/LocalLedger';
+import { GateApproval, currentApproval } from '../common/LocalRuleGate';
 import { RuleReadiness, ruleReadiness } from '../common/LocalRules';
 import { LocalWorkspace, WORKSPACE_PERMISSION_DENIED, WORKSPACE_UNSUPPORTED } from '../common/LocalWorkspace';
 import { YamlMap, parseYaml } from '../common/YamlLite';
@@ -69,6 +70,8 @@ export struct LocalWorkspaceCard {
   @State missingAnchor: number = 0;
   @State gapCount: number = 0;
   @State specHash: string = '';
+  /** 规则是否已人工批准（读规格里的 requires_human_confirmation）。 */
+  @State ruleApproved: boolean = false;
   @State ledgerCount: number = 0;
   @State localError: string = '';
   @State busy: boolean = false;
@@ -180,6 +183,7 @@ export struct LocalWorkspaceCard {
       this.missingAnchor = 0;
       this.gapCount = 0;
       this.specHash = '';
+      this.ruleApproved = false;
       return;
     }
     const text: string = workspace.readText('competition_spec.yaml');
@@ -191,6 +195,9 @@ export struct LocalWorkspaceCard {
     this.missingAnchor = readiness.missingAnchorCount;
     this.gapCount = readiness.gapCount;
     this.specHash = shortHash(await LocalWorkspace.sha256Of(workspace.join('competition_spec.yaml')));
+    // 批准状态只认规格里的 requires_human_confirmation，判定口径与后端一致（这里不另立标准）。
+    const approval: GateApproval = currentApproval(spec);
+    this.ruleApproved = !approval.required;
   }
 
   build() {
@@ -268,6 +275,10 @@ export struct LocalWorkspaceCard {
             value: this.trf('settings.ruleGapsValue', [
               `${this.gapCount}`, `${this.missingValue}`, `${this.missingAnchor}`
             ])
+          })
+          KeyValueRow({
+            label: this.tr('settings.ruleApproval'),
+            value: this.ruleApproved ? this.tr('localRule.approved') : this.tr('localRule.notApproved')
           })
           KeyValueRow({ label: this.tr('settings.specFingerprint'), value: this.specHash, mono: true })
           KeyValueRow({ label: this.tr('settings.ledgerEvents'), value: `${this.ledgerCount}` })

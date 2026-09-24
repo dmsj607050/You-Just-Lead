@@ -5,12 +5,16 @@ import { describeError, shortHash, todayLocal } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import {
   DIRECTION_OPTIONS,
+  GateApproval,
+  GateApprovalOutcome,
   GateFieldInput,
   GateOutcome,
   GateSource,
   RUNTIME_OUTPUT_OPTIONS,
   SPEC_FILE,
   applyOfficialEvidence,
+  approveRulesSpec,
+  currentApproval,
   currentSource,
   gateSupported,
   importSpecText,
@@ -70,7 +74,26 @@ export struct LocalRulePage {
   @State requiredCount: number = 0;
   @State missingValue: number = 0;
   @State missingAnchor: number = 0;
+  /** 缺口总数与"是否已就绪"，用来决定批准关口能不能按。 */
+  @State gapCount: number = 0;
+  /** 规格里的批准状态：还需要人工确认时为 true。 */
+  @State approvalRequired: boolean = true;
+  @State approvedAt: string = '';
+  @State approvedNote: string = '';
+  /** 本次要提交的复核说明。 */
+  @State noteDraft: string = '';
+  @State approving: boolean = false;
+  @State approvalDone: string = '';
+  /** 页级错误（读规格、导入规格）——在页面顶部。 */
   @State errorText: string = '';
+  /**
+   * 表单级错误：必须显示在**按钮旁边**。
+   *
+   * 这一页很长（19 行字段），按钮在底部而页级提示在顶部，实测点了按钮看不到任何提示，
+   * 只看到内容整体挪了一下。和在线版一样把错误贴在各自的表单里才说得通。
+   */
+  @State evidenceError: string = '';
+  @State approvalError: string = '';
   @State doneText: string = '';
   @State busy: boolean = false;
 
@@ -99,6 +122,8 @@ export struct LocalRulePage {
    */
   async reload(): Promise<void> {
     this.errorText = '';
+    this.evidenceError = '';
+    this.approvalError = '';
     try {
       const workspace: LocalWorkspace = await LocalWorkspace.restore(this.abilityContext());
       this.workspaceRoot = workspace.root;
@@ -120,6 +145,11 @@ export struct LocalRulePage {
       this.requiredCount = readiness.requiredFieldCount;
       this.missingValue = readiness.missingValueCount;
       this.missingAnchor = readiness.missingAnchorCount;
+      this.gapCount = readiness.gapCount;
+      const approval: GateApproval = currentApproval(spec);
+      this.approvalRequired = approval.required;
+      this.approvedAt = approval.approvedAt;
+      this.approvedNote = approval.note;
       if (!this.supported) {
         this.rows = [];
         return;
@@ -165,6 +195,10 @@ export struct LocalRulePage {
     this.requiredCount = 0;
     this.missingValue = 0;
     this.missingAnchor = 0;
+    this.gapCount = 0;
+    this.approvalRequired = true;
+    this.approvedAt = '';
+    this.approvedNote = '';
   }
 
   /**
@@ -247,17 +281,17 @@ export struct LocalRulePage {
 
   /** 提交证据：本地先数缺项（比落盘后的报错更快更清楚），再交给端侧关口写回。 */
   async submit(): Promise<void> {
-    this.errorText = '';
+    this.evidenceError = '';
     this.doneText = '';
     if (this.sourceType.trim().length === 0
       || this.sourceLocator.trim().length === 0
       || this.reviewedAt.trim().length === 0) {
-      this.errorText = this.tr('workflow.evidenceNeedSource');
+      this.evidenceError = this.tr('workflow.evidenceNeedSource');
       return;
     }
     const counts: number[] = this.incomplete();
     if (counts[0] > 0 || counts[1] > 0) {
-      this.errorText = this.trf('workflow.evidenceIncomplete',
+      this.evidenceError = this.trf('workflow.evidenceIncomplete',
         [`${counts[0] + counts[1]}`, `${counts[0]}`, `${counts[1]}`]);
       return;
     }
@@ -275,9 +309,40 @@ export struct LocalRulePage {
       this.rows = [];
       await this.reload();
     } catch (err) {
-      this.errorText = describeError(err as Object);
+      this.evidenceError = describeError(err as Object);
     } finally {
       this.busy = false;
+    }
+  }
+
+  /**
+   * 批准规则：关口最后一步。
+   *
+   * 缺口没归零时按钮是禁用的，本地也再拦一次 —— 这是"人主导"里真正的那道决定，
+   * 不能让它在缺口没齐的时候被按下去。批准和录入证据是两回事，这里只批准。
+   */
+  async approve(): Promise<void> {
+    this.approvalError = '';
+    this.approvalDone = '';
+    if (this.gapCount > 0) {
+      this.approvalError = this.trf('localRule.approvalBlocked', [`${this.gapCount}`]);
+      return;
+    }
+    if (this.noteDraft.trim().length === 0) {
+      this.approvalError = this.tr('localRule.approvalNeedNote');
+      return;
+    }
+    this.approving = true;
+    try {
+      const workspace: LocalWorkspace = new LocalWorkspace(this.workspaceRoot);
+      const outcome: GateApprovalOutcome = await approveRulesSpec(workspace, this.noteDraft);
+      this.approvalDone = this.trf('localRule.approvalDone', [outcome.approvedAt]);
+      this.noteDraft = '';
+      await this.reload();
+    } catch (err) {
+      this.approvalError = describeError(err as Object);
+    } finally {
+      this.approving = false;
     }
   }
 
@@ -589,6 +654,14 @@ export struct LocalRulePage {
             this.FieldLine(row, index)
           }, (row: GateRow) => `${row.field}-${row.flag}-${row.choice}-${row.hasAnchor}`)
 
+          if (this.evidenceError.length > 0) {
+            Text(this.evidenceError)
+              .fontSize(12)
+              .fontColor(AppTheme.DANGER)
+              .width('100%')
+              .margin({ top: 12 })
+          }
+
           Row({ space: 12 }) {
             Text(this.busy ? this.tr('workflow.evidenceSubmitting') : this.tr('workflow.evidenceSubmit'))
               .fontSize(13)
@@ -604,6 +677,84 @@ export struct LocalRulePage {
           }
           .width('100%')
           .margin({ top: 16 })
+        }
+
+        CardPanel({
+          title: this.tr('localRule.approvalTitle'),
+          subtitle: this.tr('localRule.approvalSubtitle')
+        }) {
+          if (this.approvalRequired) {
+            if (this.gapCount > 0) {
+              Text(this.trf('localRule.approvalBlocked', [`${this.gapCount}`]))
+                .fontSize(12)
+                .fontColor(AppTheme.WARN_TEXT)
+                .width('100%')
+            }
+            if (this.approvalError.length > 0) {
+              Text(this.approvalError)
+                .fontSize(12)
+                .fontColor(AppTheme.DANGER)
+                .width('100%')
+                .margin({ top: 8 })
+            }
+            Text(this.tr('localRule.approvalNoteLabel'))
+              .fontSize(12)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .width('100%')
+              .margin({ top: 8 })
+            TextInput({ text: this.noteDraft, placeholder: this.tr('localRule.approvalNoteHint') })
+              .fontSize(13)
+              .width('100%')
+              .height(38)
+              .onChange((value: string) => {
+                this.noteDraft = value;
+              })
+            Row({ space: 12 }) {
+              Text(this.approving ? this.tr('localRule.approving') : this.tr('localRule.approve'))
+                .fontSize(13)
+                .fontColor(Color.White)
+                .backgroundColor(this.gapCount === 0 ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY)
+                .borderRadius(AppTheme.RADIUS_SM)
+                .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+                .enabled(this.gapCount === 0 && !this.approving)
+                .opacity(this.approving ? 0.6 : 1)
+                .onClick(() => {
+                  this.approve();
+                })
+              if (this.approvalDone.length > 0) {
+                Text(this.approvalDone)
+                  .fontSize(12)
+                  .fontColor(AppTheme.PRIMARY_DARK)
+                  .layoutWeight(1)
+              }
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            .margin({ top: 14 })
+          } else {
+            Row() {
+              StatusBadge({ text: this.tr('localRule.approved'), tone: 'ok' })
+              Text(this.approvedAt)
+                .fontSize(12)
+                .fontColor(AppTheme.TEXT_TERTIARY)
+                .margin({ left: 10 })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            if (this.approvedNote.length > 0) {
+              Text(this.approvedNote)
+                .fontSize(12)
+                .fontColor(AppTheme.TEXT_SECONDARY)
+                .width('100%')
+                .margin({ top: 8 })
+            }
+            // 证据一变，原来的复核结论就不成立了 —— 录入证据会把批准撤回（与后端同一套语义）。
+            Text(this.tr('localRule.approvalRevokeHint'))
+              .fontSize(12)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .margin({ top: 10 })
+          }
         }
       }
     }
