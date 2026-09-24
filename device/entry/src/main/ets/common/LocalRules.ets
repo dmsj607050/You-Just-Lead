@@ -39,6 +39,33 @@ export const XUNFEI_CONFIRMATION_FIELDS: string[] = [
 
 const PLACEHOLDERS: string[] = ['unresolved', 'unknown', 'tbd', 'todo', '待填', '待确认'];
 
+/**
+ * 值控件的类型，与 Python 侧 `EVIDENCE_FIELD_KINDS` **逐条对齐**。
+ *
+ * 只有类型敏感的字段需要特判，其余按文本处理；`list` 与 `number` 在界面上**不允许改写**——
+ * 让人在输入框里敲 1024,1024 会把列表写成字符串，而规格是要被程序读的。
+ */
+export function evidenceFieldKind(field: string): string {
+  if (field === 'submission.contract.runtime_output') {
+    return 'runtime_output';
+  }
+  if (field === 'constraints.external_data_allowed'
+    || field === 'constraints.pretrained_models_allowed'
+    || field === 'constraints.ensemble_allowed') {
+    return 'boolean';
+  }
+  if (field === 'submission.contract.required_files' || field === 'submission.contract.mask_size') {
+    return 'list';
+  }
+  if (field === 'submission.daily_limit' || field === 'constraints.model_size_limit_mb') {
+    return 'number';
+  }
+  if (field === 'evaluation.direction') {
+    return 'direction';
+  }
+  return 'text';
+}
+
 /** 一个值是否"真的填好了"：空值、占位词、空列表都算没填。 */
 export function isMeaningful(value: YamlNode | undefined): boolean {
   if (value === undefined || value === null) {
@@ -81,6 +108,8 @@ export interface RuleFieldState {
   hasValue: boolean;
   anchor: string;
   hasAnchor: boolean;
+  /** 值控件类型，见 `evidenceFieldKind`。 */
+  kind: string;
 }
 
 /** 规则就绪度：与 Python 侧同名结构保持同样的语义。 */
@@ -133,7 +162,8 @@ export function ruleReadiness(spec: YamlMap): RuleReadiness {
       value: displayValue(value),
       hasValue: hasValue,
       anchor: displayValue(anchor),
-      hasAnchor: hasAnchor
+      hasAnchor: hasAnchor,
+      kind: evidenceFieldKind(name)
     });
   }
 

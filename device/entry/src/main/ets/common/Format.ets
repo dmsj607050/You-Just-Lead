@@ -1,3 +1,4 @@
+import { BusinessError } from '@kit.BasicServicesKit';
 import { tFor, tfFor } from './I18n';
 
 /**
@@ -267,6 +268,43 @@ export function formatNumber(value: number | null, digits: number): string {
     return '—';
   }
   return value.toFixed(digits);
+}
+
+/**
+ * 指纹只显示前若干位：完整 64 位十六进制在界面上读不出来，截断后只用于"人对一眼"。
+ */
+export function shortHash(value: string): string {
+  if (value.length === 0) {
+    return '';
+  }
+  return value.length > 12 ? value.substring(0, 12) : value;
+}
+
+/**
+ * 把异常变成一句能定位问题的提示。
+ *
+ * 系统 API 的 message 常常只有一句 "Permission denied"，光看这句分不清是授权没拿到
+ * 还是这个目录根本不可写；带上 code（如 201 / 13900001）才能查。
+ */
+export function describeError(error: Object): string {
+  const failure: BusinessError = error as BusinessError;
+  const message: string = failure.message !== undefined ? failure.message : `${error}`;
+  if (failure.code === undefined || failure.code === 0) {
+    return message;
+  }
+  return `${message}（code ${failure.code}）`;
+}
+
+/**
+ * 今天的本地日期（YYYY-MM-DD）。
+ *
+ * 给「复核时间」这类输入一个可编辑的起点：默认值只是省一次手输，
+ * 复核这件事还是得人对着官方原文做。
+ */
+export function todayLocal(): string {
+  const now: Date = new Date();
+  const pad = (value: number): string => value < 10 ? `0${value}` : `${value}`;
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /** 把 ISO 时间截成「年-月-日 时:分」。 */

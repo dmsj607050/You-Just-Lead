@@ -28,8 +28,13 @@ function linesOf(text: string): string[] {
 }
 
 /** 与 Python 侧 `tools/provenance.py::utc_now()` 同一格式：秒级 UTC，偏移写 `+00:00`。 */
-function utcNow(): string {
+export function utcNow(): string {
   return `${new Date().toISOString().substring(0, 19)}+00:00`;
+}
+
+/** 去掉分隔符的 UTC 时间戳，用于文件名（对齐 Python 侧 `utc_now().replace(...)`）。 */
+export function utcStamp(): string {
+  return utcNow().replace(/-/g, '').replace(/:/g, '').replace('+00:00', 'Z');
 }
 
 /** 事件条数；账本不存在时返回 0。 */

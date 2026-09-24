@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import AppTheme from '../common/AppTheme';
+import { describeError, shortHash } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { appendEvent, eventCount } from '../common/LocalLedger';
 import { RuleReadiness, ruleReadiness } from '../common/LocalRules';
@@ -14,29 +14,6 @@ import { CardPanel, EmptyHint, KeyValueRow } from './Widgets';
  * 这是「端侧自足」的入口，**必须能在没有后端时使用**——所以它自己取上下文、自己读文件，
  * 不依赖任何 HTTP 调用，并且同时挂在启动页与设置页上：后端挂了也走得到。
  */
-
-/** 指纹只显示前 12 位。 */
-function shortHash(value: string): string {
-  if (value.length === 0) {
-    return '';
-  }
-  return value.length > 12 ? value.substring(0, 12) : value;
-}
-
-/**
- * 把异常变成一句能定位问题的提示。
- *
- * 系统 API 的 message 常常只有一句 "Permission denied"，光看这句分不清是授权没拿到
- * 还是这个目录根本不可写；带上 code（如 201 / 13900001）才能查。
- */
-function describeError(error: Object): string {
-  const failure: BusinessError = error as BusinessError;
-  const message: string = failure.message !== undefined ? failure.message : `${error}`;
-  if (failure.code === undefined || failure.code === 0) {
-    return message;
-  }
-  return `${message}（code ${failure.code}）`;
-}
 
 /** 建骨架时写进账本的载荷（键名与端侧工作区字段一致）。 */
 interface WorkspaceInitPayload {
@@ -78,6 +55,11 @@ export struct LocalWorkspaceCard {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  /**
+   * 是否已打开端侧规则关口（整页）。用 AppStorage 而不是回调：这张卡片同时挂在
+   * 启动页和设置页上，走全局标记就不用把回调一层层穿过侧栏传下来。
+   */
+  @StorageLink('localGateOpen') gateOpen: boolean = false;
   @State workspaceRoot: string = '';
   @State readable: boolean = false;
   @State specExists: boolean = false;
@@ -251,6 +233,13 @@ export struct LocalWorkspaceCard {
             active: !this.busy && this.readable,
             onTap: () => {
               this.recheck();
+            }
+          })
+          LocalActionButton({
+            label: this.tr('settings.ruleGate'),
+            active: !this.busy && this.readable,
+            onTap: () => {
+              this.gateOpen = true;
             }
           })
         }

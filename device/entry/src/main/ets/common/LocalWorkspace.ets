@@ -17,6 +17,7 @@
 
 import { abilityAccessCtrl, common, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
+import { util } from '@kit.ArkTS';
 import { Environment, fileIo as fs, hash } from '@kit.CoreFileKit';
 
 /** 工作区目录名：建在用户的「文档」下面，文件管理器里能直接看到。 */
@@ -114,6 +115,35 @@ function userDocumentDir(): string {
     }
   }
   throw new Error(WORKSPACE_UNSUPPORTED);
+}
+
+/**
+ * 读一个由文件选择器选中的文件。
+ *
+ * **不能直接 `fs.readTextSync(uri)`**：picker 给的是 `file://docs/...`，readTextSync 只认沙箱路径，
+ * 实测直接报 13900002 No such file or directory（和目录 URI 是同一类限制）。必须先 `openSync`
+ * 拿到句柄，再按 fd 读字节，最后自己解码成 UTF-8——这条路径是实测能走通的。
+ */
+export function readPickedText(uri: string): string {
+  let opened: fs.File | null = null;
+  try {
+    opened = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    const size: number = fs.statSync(opened.fd).size;
+    const buffer: ArrayBuffer = new ArrayBuffer(size);
+    const read: number = fs.readSync(opened.fd, buffer);
+    const decoder: util.TextDecoder = util.TextDecoder.create('utf-8');
+    return decoder.decodeToString(new Uint8Array(buffer.slice(0, read)));
+  } catch (error) {
+    throw error as Error;
+  } finally {
+    if (opened !== null) {
+      try {
+        fs.closeSync(opened);
+      } catch (closeError) {
+        // 句柄随进程结束回收；这里的失败不改变上面读到的内容。
+      }
+    }
+  }
 }
 
 /**
@@ -289,6 +319,15 @@ export class LocalWorkspace {
   /** 追加一行（账本用）。 */
   appendLine(relative: string, line: string): void {
     writeTextAt(this.join(relative), `${line}\n`, true);
+  }
+
+  /** 删掉一个文件：写坏了的中间产物要能清掉（对齐 Python 侧落盘失败时的 unlink）。 */
+  remove(relative: string): void {
+    try {
+      fs.unlinkSync(this.join(relative));
+    } catch (error) {
+      throw error as Error;
+    }
   }
 
   /**

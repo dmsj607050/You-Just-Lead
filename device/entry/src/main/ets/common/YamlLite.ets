@@ -31,6 +31,11 @@ export class YamlMap {
     return this.entries.has(key);
   }
 
+  /** 删掉一个键（写回规格时用来移除"批准"痕迹，对齐 Python 的 `pop`）。 */
+  remove(key: string): void {
+    this.entries.delete(key);
+  }
+
   keys(): string[] {
     const out: string[] = [];
     for (const key of this.entries.keys()) {

@@ -29,6 +29,7 @@ import { DataPage } from '../view/DataPage';
 import { WritingPage } from '../view/WritingPage';
 import { TracePage } from '../view/TracePage';
 import { SettingsPage } from '../view/SettingsPage';
+import { LocalRulePage } from '../view/LocalRulePage';
 
 /**
  * 主页面。
@@ -58,6 +59,8 @@ struct Index {
   @State backendOnline: boolean = true;
   /** 外部唤起带进来的问题（键名与 EntryAbility 里的 PENDING_QUESTION_KEY 一致）。 */
   @StorageLink('pendingQuestion') @Watch('onPendingQuestion') pendingQuestion: string = '';
+  /** 端侧规则关口是否打开。由「本地工作区」卡片置位，见 LocalWorkspaceCard。 */
+  @StorageLink('localGateOpen') localGateOpen: boolean = false;
 
   @State competitionName: string = '';
   @State taskType: string = '';
@@ -285,7 +288,11 @@ struct Index {
   }
 
   build() {
-    if (this.entered) {
+    if (this.localGateOpen) {
+      // 端侧规则关口整页覆盖：它不依赖后端项目，所以判断放在最外层，
+      // 从启动页和设置页都能打开（少了这一点，没选项目时就走不到端侧关口）。
+      this.LocalGateScreen()
+    } else if (this.entered) {
       this.Workspace()
     } else {
       // 启动先进项目选择页：项目是侧栏那些模块的上一层容器，先选定再进工作台。
@@ -295,6 +302,32 @@ struct Index {
         }
       })
     }
+  }
+
+  /** 端侧规则关口的整页容器：与工作台内容区同样的留白与滚动，视觉上是一屏而不是弹层。 */
+  @Builder
+  LocalGateScreen() {
+    Column() {
+      Scroll() {
+        Column() {
+          LocalRulePage({
+            onBack: () => {
+              this.localGateOpen = false;
+            }
+          })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .constraintSize({ maxWidth: AppTheme.CONTENT_MAX_WIDTH })
+        .padding({ left: 32, right: 32, top: 26, bottom: 40 })
+      }
+      .layoutWeight(1)
+      .align(Alignment.Top)
+      .scrollBar(BarState.Auto)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(AppTheme.PAGE_BG)
   }
 
   /** 工作台：顶栏（含当前项目）+ 侧栏 + 当前页面。 */

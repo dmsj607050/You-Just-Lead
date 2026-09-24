@@ -26,9 +26,11 @@ import {
   priorityLabel,
   priorityTone,
   ruleGapActionLabel,
-  stageLabel
+  stageLabel,
+  todayLocal
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
+import { DIRECTION_OPTIONS, RUNTIME_OUTPUT_OPTIONS } from '../common/LocalRuleGate';
 import { CardPanel, EmptyHint, PageHeader, StatTileGrid, StatusBadge } from './Widgets';
 
 /** 一个环节的展示行。labelKey 存文案键，渲染时再取 this.tr()，语言切换才会跟着变。 */
@@ -60,19 +62,6 @@ interface EvidenceRow {
   flag: boolean | null;
   choice: string;
   valueDraft: string;
-}
-
-/** 官方契约里取值必须二选一的字段：运行时产物形态。 */
-const RUNTIME_OUTPUT_OPTIONS: string[] = ['loose_png', 'submit_zip'];
-
-/** 主指标方向。 */
-const DIRECTION_OPTIONS: string[] = ['maximize', 'minimize'];
-
-/** 今天的本地日期，用于给「复核时间」一个可编辑的起点。 */
-function todayLocal(): string {
-  const now: Date = new Date();
-  const pad = (value: number): string => value < 10 ? `0${value}` : `${value}`;
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /**
