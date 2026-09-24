@@ -102,7 +102,7 @@
 | 客户端仓库 | `YouJustLead-Harmony` **只有端侧应用**（`entry/` 等 DevEco 工程），没有 `desktop/` |
 | 仪表盘源码 | **已从两个仓库移除**；历史留在客户端仓库的提交里（引入 `43aeaf1`、移除 `a26ca7f`），需要时可取回 |
 | 第三方托管 | 已废弃，`git.chatgpt-team.site` 不再被任何东西引用 |
-| 本机残留 | `B:\You Just Lead\you-just-lead-desktop.exe`（13 MB 安装包）、`output\frontend-history-backup.git`（历史镜像） |
+| 本机残留 | **无**：安装包与历史镜像已按用户要求删除。仪表盘历史的唯一留存处是客户端仓库的提交（`43aeaf1` 引入 / `a26ca7f` 移除） |
 | 判定 | 仪表盘**不在 v1 架构内，也不再作为交付物存在** |
 
 **两件名字里带 dashboard / desktop、但不是那个仪表盘的东西，不要连坐删掉**：
