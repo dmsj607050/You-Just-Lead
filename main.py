@@ -23,7 +23,7 @@ from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.project_registry import current_workspace
 from app.reporting import generate_reports
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
 from tools.submission import validate_submission
@@ -225,7 +225,7 @@ def main() -> int:
     if args.command == "approve-run":
         config_path = _config_path(workspace, args.config)
         outcome = approve_training_config(workspace, config_path, args.note)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "training_config_approved", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -244,7 +244,7 @@ def main() -> int:
     if args.command == "rules":
         source_path = _config_path(workspace, args.source)
         outcome = analyze_rules(source_path, workspace)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "rules_analyzed", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -253,7 +253,7 @@ def main() -> int:
     if args.command == "audit-data":
         data_dir = _config_path(workspace, args.data_dir)
         outcome = audit_dataset(workspace, data_dir)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "data_audited", {"data_dir": str(data_dir), "file_count": outcome["file_count"], "issue_count": outcome["issue_count"]}
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -261,7 +261,7 @@ def main() -> int:
 
     if args.command == "approve-rules":
         outcome = approve_rule_specification(workspace, args.note)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "rules_approved", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -275,7 +275,7 @@ def main() -> int:
     if args.command == "record-rule-evidence":
         evidence_path = _config_path(workspace, args.file)
         outcome = apply_official_rule_evidence(workspace, evidence_path)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "official_rule_evidence_recorded", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -284,7 +284,7 @@ def main() -> int:
     if args.command == "research":
         sources = [item.strip() for item in args.sources.split(",") if item.strip()]
         outcome = search_research(workspace, args.query, limit=args.limit, sources=sources)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "research_searched", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -309,7 +309,7 @@ def main() -> int:
                 commit=args.commit,
             )
         )
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "repository_intake", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -317,7 +317,7 @@ def main() -> int:
 
     if args.command == "plan":
         outcome = recommend_next_actions(workspace)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "decision_plan_generated", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -326,7 +326,7 @@ def main() -> int:
     if args.command == "paper":
         output_dir = Path(args.output_dir).resolve() if args.output_dir else None
         outcome = generate_paper_package(workspace, output_dir)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "paper_package_generated", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -339,7 +339,7 @@ def main() -> int:
     if args.command == "validate-submission":
         candidate = _config_path(workspace, args.path)
         outcome = validate_submission(workspace, candidate)
-        ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite").record_event(
+        ledger_for_workspace(PROJECT_ROOT, workspace).record_event(
             "submission_validated", outcome
         )
         print(json.dumps(outcome, ensure_ascii=False, indent=2))
@@ -349,7 +349,7 @@ def main() -> int:
         print(json.dumps({"runners": supported_runners()}, ensure_ascii=False, indent=2))
         return 0
 
-    ledger = ExperimentLedger(PROJECT_ROOT / "database" / "competition_agent.sqlite")
+    ledger = ledger_for_workspace(PROJECT_ROOT, workspace)
     print(json.dumps(ledger.summaries(), ensure_ascii=False, indent=2))
     return 0
 

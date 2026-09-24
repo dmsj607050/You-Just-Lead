@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from app.experiment_service import ExperimentService
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
 
@@ -35,7 +35,7 @@ class TrainingScheduler:
         self.workspace = workspace.resolve()
         self.jobs_dir = self.workspace / "experiments" / "jobs"
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
-        self.ledger = ExperimentLedger(self.project_root / "database" / "competition_agent.sqlite")
+        self.ledger = ledger_for_workspace(self.project_root, self.workspace)
         self._lock = threading.Lock()
         self._active_job_id: str | None = self._recover_active_job_id()
 

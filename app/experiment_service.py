@@ -13,7 +13,7 @@ from agents.analysis_agent import analyze_history
 from agents.error_analysis_agent import analyze_prediction_errors
 from agents.optimization_ledger import render_optimization_ledger
 from app.authorization import authorise, training_run_request
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from schemas.experiment import ExperimentManifest, ExperimentResult
 from tools.configuration import (
     DATA_PATH_KEYS,
@@ -77,7 +77,7 @@ class ExperimentService:
         self.project_root = project_root.resolve()
         self.workspace = workspace.resolve()
         ensure_workspace_layout(self.workspace)
-        self.ledger = ExperimentLedger(self.project_root / "database" / "competition_agent.sqlite")
+        self.ledger = ledger_for_workspace(self.project_root, self.workspace)
         self.tracker = ExperimentTracker(self.workspace / "experiments" / "tracking")
 
     def _require_real_training_preflight(self, config: dict[str, Any], config_path: Path) -> None:

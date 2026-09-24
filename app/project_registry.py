@@ -21,13 +21,13 @@ from pathlib import Path
 from typing import Any
 
 from app.experiment_service import ensure_workspace_layout
+from database.ledger import LEGACY_PROJECT_ID
 from tools.configuration import load_yaml, write_yaml
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
 
 REGISTRY_FILENAME = "projects.json"
 REGISTRY_VERSION = 1
-LEGACY_PROJECT_ID = "current_competition"
 SPEC_FILENAME = "competition_spec.yaml"
 TEMPLATE_FILENAME = "competition_spec.template.yaml"
 MAX_NAME_LENGTH = 60

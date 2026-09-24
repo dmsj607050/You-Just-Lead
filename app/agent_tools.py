@@ -13,7 +13,7 @@ from typing import Any, Callable
 from agents.rules_agent import rule_confirmation_readiness_for_workspace
 from agents.strategy_agent import recommend_next_actions
 from app.orchestrator.workflow import workflow_state
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from tools.configuration import load_yaml
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
@@ -143,7 +143,7 @@ def _get_recent_events(project_root: Path, workspace: Path, *, limit: int = 10, 
         limit = max(1, min(int(limit), 50))
     except (TypeError, ValueError):
         limit = 10
-    ledger = ExperimentLedger(project_root / "database" / "competition_agent.sqlite")
+    ledger = ledger_for_workspace(project_root, workspace)
     events = ledger.recent_events()
     return {"events": events[:limit], "total": len(events)}
 
@@ -176,7 +176,7 @@ def _create_experiment_draft(
         "safety_note": "Draft creation does not schedule training. Execute `python main.py approve-run` and `python main.py run` manually to start.",
     }
     write_json_atomic(drafts_dir / f"{draft_id}.json", draft)
-    ledger = ExperimentLedger(project_root / "database" / "competition_agent.sqlite")
+    ledger = ledger_for_workspace(project_root, workspace)
     ledger.record_event("experiment_draft_created", draft)
     return draft
 

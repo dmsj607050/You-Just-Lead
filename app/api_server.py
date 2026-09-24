@@ -55,7 +55,7 @@ from app.project_registry import (
     workspace_path,
 )
 from app.training_scheduler import SchedulerError, TrainingScheduler
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from tools.files import read_json, write_json_atomic
 from tools.configuration import load_yaml, write_yaml
 from tools.provenance import utc_now
@@ -418,16 +418,19 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 return
             body = self._body()
             if path == "/api/projects":
-                # 登记在注册表里（含建立时间），不写全局账本：账本没有项目列，写进去会
-                # 让别的项目的「最近更新」里出现这条并不属于它的事件。
+                # 登记在注册表里（含建立时间），并记一条属于**这个新项目自己**的事件：
+                # 账本现在有 project_id 了，不会再落到别的项目的「最近更新」里。
                 project = create_project(self.project_root, str(body.get("name", "")))
+                ledger_for_workspace(self.project_root, self.workspace).record_event(
+                    "project_created", {"project_id": project["id"], "name": project["name"]}
+                )
                 self._send(HTTPStatus.CREATED, dict(self._project_state(), project=project))
                 return
             if path == "/api/projects/select":
                 project = select_project(self.project_root, str(body.get("id", "")))
                 self._send(HTTPStatus.OK, dict(self._project_state(), project=project))
                 return
-            ledger = ExperimentLedger(self.project_root / "database" / "competition_agent.sqlite")
+            ledger = ledger_for_workspace(self.project_root, self.workspace)
             if path == "/api/data-audit/run":
                 requested_data_dir = body.get("data_dir")
                 if requested_data_dir is not None and not isinstance(requested_data_dir, str):

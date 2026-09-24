@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 from app.api_server import CompetitionApiHandler
 from app.orchestrator.workflow import workflow_state
 from agents.materials_agent import intake_selected_materials
+from database.ledger import ledger_path
 from training.catalog import recommend_runner
 from agents.reproduction_agent import intake_repository
 from agents.research_agent import search_research
@@ -424,12 +425,26 @@ class WorkflowExtensionTests(unittest.TestCase):
             # 关口随后可以正常通过：证据录入这一环真的解锁了规则确认。
             self.assertTrue(approval["approved"])
 
-            connection = sqlite3.connect(root / "database" / "competition_agent.sqlite")
+            # 事件必须落在**这个工作区对应的项目**名下（工作区目录名就是项目 id），
+            # 而且别的项目看不到它。账本已按项目隔离，这条断言不能再无过滤地全表查。
+            connection = sqlite3.connect(ledger_path(root))
             try:
-                event_types = [row[0] for row in connection.execute("select event_type from workflow_events")]
+                own = [
+                    row[0]
+                    for row in connection.execute(
+                        "select event_type from workflow_events where project_id=?", ("current",)
+                    )
+                ]
+                others = [
+                    row[0]
+                    for row in connection.execute(
+                        "select event_type from workflow_events where project_id<>?", ("current",)
+                    )
+                ]
             finally:
                 connection.close()
-            self.assertIn("rules_evidence_applied", event_types)
+            self.assertIn("rules_evidence_applied", own)
+            self.assertEqual(others, [])
 
     def test_draft_list_reports_recorded_drafts_newest_first(self) -> None:
         """GET /api/experiments/drafts 列出已登记的草案，最新的在前；未登记时为空。"""

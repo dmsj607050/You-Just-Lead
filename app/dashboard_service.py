@@ -7,7 +7,7 @@ from typing import Any
 
 from agents.rules_agent import rule_confirmation_readiness_for_workspace
 from agents.strategy_agent import recommend_next_actions
-from database.ledger import ExperimentLedger
+from database.ledger import ledger_for_workspace
 from app.orchestrator.workflow import workflow_state
 from training.catalog import supported_runners
 from tools.configuration import load_yaml
@@ -71,7 +71,7 @@ def dashboard_snapshot(project_root: Path, workspace: Path) -> dict[str, Any]:
     research = _json_if_exists(workspace / "research" / "papers.json", {})
     next_actions = recommend_next_actions(workspace, persist=False)
     rule_readiness = rule_confirmation_readiness_for_workspace(workspace)
-    ledger = ExperimentLedger(project_root / "database" / "competition_agent.sqlite")
+    ledger = ledger_for_workspace(project_root, workspace)
     return {
         "competition": {
             "name": spec.get("competition", {}).get("name"),
