@@ -10,7 +10,7 @@ import {
 import { ACCESS_TOKEN, BASE_URL } from '../common/BackendConfig';
 import AppTheme from '../common/AppTheme';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, KeyValueRow, PageHeader, StatTileGrid } from './Widgets';
+import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail } from './Widgets';
 import { LocalWorkspaceCard } from './LocalWorkspaceCard';
 
 /** 显存容量转成 GB 描述。 */
@@ -35,6 +35,13 @@ export struct SettingsPage {
   @State health: HealthInfo | null = null;
   @State settings: DeepSeekSettings | null = null;
   @State runtime: RuntimeSnapshot | null = null;
+  /**
+   * 当前分段：workspace / backend / model / runtime。
+   *
+   * 设置页原先也是「一排统计块 + 三张卡堆一列」。现在一次只看一段，
+   * 「连没连上、模型是什么、有没有 GPU」写在标题下面一行里。
+   */
+  @State section: string = 'workspace';
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
@@ -63,6 +70,36 @@ export struct SettingsPage {
     } finally {
       this.loading = false;
     }
+  }
+
+  /** 一行现状：后端连接 · 模型 · GPU · Conda。 */
+  private statusText(): string {
+    const connected: string = this.health === null ? this.tr('settings.notConnected') : this.tr('menu.backendOk');
+    const model: string = this.settings === null ? '—' : this.settings.model;
+    const gpu: string = this.runtime === null
+      ? '—'
+      : (this.runtime.gpu_available
+        ? this.trf('settings.gpuCount', [`${this.runtime.gpus.length}`])
+        : this.tr('settings.unavailable'));
+    const conda: string = this.runtime === null
+      ? '—'
+      : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable'));
+    return this.trf('settings.status', [connected, model, gpu, conda]);
+  }
+
+  /** 分段导航的项。色点说的是这一段通不通，不是它有多少条。 */
+  private railItems(): RailItemSpec[] {
+    const modelConfigured: boolean = this.settings !== null && this.settings.configured;
+    return [
+      { key: 'workspace', label: this.tr('settings.section.workspace'), tone: 'muted' },
+      { key: 'backend', label: this.tr('settings.section.backend'), tone: this.health === null ? 'warn' : 'ok' },
+      { key: 'model', label: this.tr('settings.section.model'), tone: modelConfigured ? 'ok' : 'warn' },
+      {
+        key: 'runtime',
+        label: this.tr('settings.section.runtime'),
+        tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn')
+      }
+    ];
   }
 
   @Builder
@@ -113,6 +150,7 @@ export struct SettingsPage {
       PageHeader({
         title: this.tr('nav.settings'),
         subtitle: this.tr('settings.subtitle'),
+        status: this.statusText(),
         onRefresh: () => {
           this.load();
         }
@@ -122,130 +160,109 @@ export struct SettingsPage {
         this.ErrorBanner()
       }
 
-      LocalWorkspaceCard()
-
-      StatTileGrid({
-        items: [
-          {
-            label: this.tr('settings.connectionStatus'),
-            value: this.health === null ? this.tr('settings.notConnected') : this.tr('menu.backendOk'),
-            hint: BASE_URL
-          },
-          {
-            label: this.tr('settings.model'),
-            value: this.settings === null ? '—' : this.settings.model,
-            hint: this.settings === null ? '' : this.trf('settings.keySourceHint', [this.settings.key_source])
-          },
-          {
-            label: 'GPU',
-            value: this.runtime === null
-              ? '—'
-              : (this.runtime.gpu_available
-                ? this.trf('settings.gpuCount', [`${this.runtime.gpus.length}`])
-                : this.tr('settings.unavailable')),
-            hint: this.tr('settings.gpuHint')
-          },
-          {
-            label: 'Conda',
-            value: this.runtime === null
-              ? '—'
-              : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable')),
-            hint: this.tr('settings.condaHint')
-          }
-        ]
+      SectionRail({
+        items: this.railItems(),
+        active: this.section,
+        onSelect: (key: string) => {
+          this.section = key;
+        }
       })
 
-      CardPanel({
-        title: this.tr('menu.backend'),
-        subtitle: this.tr('settings.backendSubtitle')
-      }) {
-        Column() {
-          KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
-          KeyValueRow({
-            label: this.tr('settings.sharedToken'),
-            value: ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured')
-          })
-          KeyValueRow({
-            label: this.tr('settings.health'),
-            value: this.health === null ? '—' : this.health.status
-          })
-          KeyValueRow({
-            label: this.tr('settings.workspace'),
-            value: this.health === null ? '—' : this.health.workspace,
-            mono: true
-          })
-        }
-        .width('100%')
-      }
-
-      CardPanel({
-        title: this.tr('settings.modelSettings'),
-        subtitle: this.tr('settings.modelSubtitle')
-      }) {
-        Column() {
-          KeyValueRow({
-            label: this.tr('settings.isConfigured'),
-            value: this.settings === null
-              ? '—'
-              : (this.settings.configured ? this.tr('settings.configured') : this.tr('settings.notConfigured'))
-          })
-          KeyValueRow({
-            label: this.tr('settings.keySource'),
-            value: this.settings === null ? '—' : this.settings.key_source
-          })
-          KeyValueRow({
-            label: this.tr('settings.secureStorage'),
-            value: this.settings === null
-              ? '—'
-              : (this.settings.secure_storage_available ? this.tr('settings.available') : this.tr('settings.unavailable'))
-          })
-          Text(this.tr('settings.supportedModels'))
-            .fontSize(13)
-            .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ top: 12, bottom: 10 })
-          Row() {
-            ForEach(this.settings === null ? [] : this.settings.supported_models, (model: string) => {
-              Text(model)
-                .fontSize(12)
-                .fontColor(model === (this.settings === null ? '' : this.settings.model)
-                  ? AppTheme.PRIMARY_DARK
-                  : AppTheme.TEXT_SECONDARY)
-                .backgroundColor(model === (this.settings === null ? '' : this.settings.model)
-                  ? AppTheme.PRIMARY_SOFT
-                  : AppTheme.PAGE_BG)
-                .borderRadius(6)
-                .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                .margin({ right: 8 })
-            }, (model: string) => model)
+      if (this.section === 'backend') {
+        CardPanel({
+          title: this.tr('menu.backend'),
+          subtitle: this.tr('settings.backendSubtitle')
+        }) {
+          Column() {
+            KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
+            KeyValueRow({
+              label: this.tr('settings.sharedToken'),
+              value: ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured')
+            })
+            KeyValueRow({
+              label: this.tr('settings.health'),
+              value: this.health === null ? '—' : this.health.status
+            })
+            KeyValueRow({
+              label: this.tr('settings.workspace'),
+              value: this.health === null ? '—' : this.health.workspace,
+              mono: true
+            })
           }
           .width('100%')
         }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
-      }
-
-      CardPanel({
-        title: this.tr('settings.runtime'),
-        subtitle: this.tr('settings.runtimeSubtitle')
-      }) {
-        Column() {
-          KeyValueRow({
-            label: this.tr('settings.platform'),
-            value: this.runtime === null ? '—' : this.runtime.platform
-          })
-          KeyValueRow({
-            label: 'Python',
-            value: this.runtime === null ? '—' : this.runtime.python
-          })
-          if (this.runtime === null || this.runtime.gpus.length === 0) {
-            EmptyHint({ text: this.tr('settings.noGpu') })
-          } else {
-            ForEach(this.runtime.gpus, (item: GpuDevice) => {
-              this.GpuRow(item)
-            }, (item: GpuDevice) => item.name)
+      } else if (this.section === 'model') {
+        CardPanel({
+          title: this.tr('settings.modelSettings'),
+          subtitle: this.tr('settings.modelSubtitle')
+        }) {
+          Column() {
+            KeyValueRow({
+              label: this.tr('settings.isConfigured'),
+              value: this.settings === null
+                ? '—'
+                : (this.settings.configured ? this.tr('settings.configured') : this.tr('settings.notConfigured'))
+            })
+            KeyValueRow({
+              label: this.tr('settings.keySource'),
+              value: this.settings === null ? '—' : this.settings.key_source
+            })
+            KeyValueRow({
+              label: this.tr('settings.secureStorage'),
+              value: this.settings === null
+                ? '—'
+                : (this.settings.secure_storage_available ? this.tr('settings.available') : this.tr('settings.unavailable'))
+            })
+            Text(this.tr('settings.supportedModels'))
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .margin({ top: 12, bottom: 10 })
+            Row() {
+              ForEach(this.settings === null ? [] : this.settings.supported_models, (model: string) => {
+                Text(model)
+                  .fontSize(12)
+                  .fontColor(model === (this.settings === null ? '' : this.settings.model)
+                    ? AppTheme.PRIMARY_DARK
+                    : AppTheme.TEXT_SECONDARY)
+                  .backgroundColor(model === (this.settings === null ? '' : this.settings.model)
+                    ? AppTheme.PRIMARY_SOFT
+                    : AppTheme.PAGE_BG)
+                  .borderRadius(6)
+                  .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  .margin({ right: 8 })
+              }, (model: string) => model)
+            }
+            .width('100%')
           }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
         }
-        .width('100%')
+      } else if (this.section === 'runtime') {
+        CardPanel({
+          title: this.tr('settings.runtime'),
+          subtitle: this.tr('settings.runtimeSubtitle')
+        }) {
+          Column() {
+            KeyValueRow({
+              label: this.tr('settings.platform'),
+              value: this.runtime === null ? '—' : this.runtime.platform
+            })
+            KeyValueRow({
+              label: 'Python',
+              value: this.runtime === null ? '—' : this.runtime.python
+            })
+            if (this.runtime === null || this.runtime.gpus.length === 0) {
+              EmptyHint({ text: this.tr('settings.noGpu') })
+            } else {
+              ForEach(this.runtime.gpus, (item: GpuDevice) => {
+                this.GpuRow(item)
+              }, (item: GpuDevice) => item.name)
+            }
+          }
+          .width('100%')
+        }
+      } else {
+        LocalWorkspaceCard()
       }
 
       if (this.loading) {

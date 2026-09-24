@@ -238,6 +238,26 @@ export struct TracePage {
   }
 
   /**
+   * 一行现状：锚点数 · 在册实验 · 文献记录 · 证据声明。
+   *
+   * 原先这四个数是四块等大的统计块。压成一句之后，页面顶部只剩一个结论，
+   * 而下面那排分段的色点回答的是另一件事：每条链通不通。
+   */
+  private statusText(): string {
+    if (this.snapshot === null) {
+      return '';
+    }
+    const total: number = this.snapshot.rule.required_field_count;
+    return this.trf('trace.status', [
+      `${total - this.snapshot.rule.missing_anchor_count}`,
+      `${total}`,
+      `${this.inScopeCount()}`,
+      `${this.snapshot.research.record_count}`,
+      `${this.claims().length}`
+    ]);
+  }
+
+  /**
    * 已带锚点的字段比例。
    *
    * 原先这是一个大统计块。它只在规则段里有意义，收进来之后页面顶部就不必再压一排数字。
@@ -961,6 +981,7 @@ export struct TracePage {
       PageHeader({
         title: this.tr('nav.trace'),
         subtitle: this.tr('trace.subtitle'),
+        status: this.statusText(),
         onRefresh: () => {
           this.load();
         }

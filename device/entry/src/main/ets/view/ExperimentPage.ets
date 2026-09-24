@@ -20,7 +20,7 @@ import {
   formatTimestamp
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, PageHeader, StatTileGrid, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /**
  * 实验页：实验账本与训练任务队列。
@@ -41,6 +41,13 @@ export struct ExperimentPage {
   @State drafts: ExperimentDraft[] = [];
   @State completed: number = 0;
   @State bestMetric: string = '—';
+  /**
+   * 当前分段：ledger / jobs / drafts / register。
+   *
+   * 四张卡原先堆在一列，实验一多就要一路滑到底。现在一次只看一段，
+   * 「几个实验、最佳多少」写在标题下面一行里。
+   */
+  @State section: string = 'ledger';
   /** 正在行内二次确认批准哪个实验；空串表示没有。 */
   @State approvingId: string = '';
   @State approving: boolean = false;
@@ -163,6 +170,38 @@ export struct ExperimentPage {
     } finally {
       this.loading = false;
     }
+  }
+
+  /** 一行现状：实验数 · 已完成 · 最佳指标 · 训练任务数。 */
+  private statusText(): string {
+    if (this.experiments.length === 0 && this.jobs.length === 0) {
+      return '';
+    }
+    return this.trf('exp.status', [
+      `${this.experiments.length}`, `${this.completed}`, this.bestMetric, `${this.jobs.length}`
+    ]);
+  }
+
+  /** 分段导航的项。色点说的是这一段通不通，不是它有多少条。 */
+  private railItems(): RailItemSpec[] {
+    return [
+      {
+        key: 'ledger',
+        label: this.tr('exp.section.ledger'),
+        tone: this.experiments.length === 0 ? 'muted' : 'ok'
+      },
+      {
+        key: 'jobs',
+        label: this.tr('exp.section.jobs'),
+        tone: this.jobs.length === 0 ? 'muted' : 'warn'
+      },
+      {
+        key: 'drafts',
+        label: this.tr('exp.section.drafts'),
+        tone: this.drafts.length === 0 ? 'muted' : 'warn'
+      },
+      { key: 'register', label: this.tr('exp.section.register'), tone: 'muted' }
+    ];
   }
 
   @Builder
@@ -435,6 +474,7 @@ export struct ExperimentPage {
       PageHeader({
         title: this.tr('nav.experiment'),
         subtitle: this.tr('exp.subtitle'),
+        status: this.statusText(),
         onRefresh: () => {
           this.load();
         }
@@ -444,74 +484,75 @@ export struct ExperimentPage {
         this.ErrorBanner()
       }
 
-      StatTileGrid({
-        items: [
-          { label: this.tr('exp.statTotal'), value: `${this.experiments.length}`, hint: this.tr('exp.statTotalHint') },
-          { label: this.tr('exp.statCompleted'), value: `${this.completed}`, hint: this.tr('exp.statCompletedHint') },
-          { label: this.tr('exp.statBest'), value: this.bestMetric, hint: this.tr('exp.statBestHint') },
-          { label: this.tr('exp.trainingJobs'), value: `${this.jobs.length}`, hint: this.tr('exp.statJobsHint') }
-        ]
+      SectionRail({
+        items: this.railItems(),
+        active: this.section,
+        onSelect: (key: string) => {
+          this.section = key;
+        }
       })
 
-      CardPanel({
-        title: this.tr('exp.ledgerTitle'),
-        subtitle: this.tr('exp.ledgerSubtitle')
-      }) {
-        if (this.approvalError.length > 0) {
-          Text(this.approvalError)
-            .fontSize(12)
-            .fontColor(AppTheme.DANGER)
-            .margin({ bottom: 12 })
-        }
-        if (this.experiments.length === 0) {
-          EmptyHint({ text: this.tr('exp.ledgerEmpty') })
-        } else {
-          Column() {
-            ForEach(this.experiments, (item: ExperimentRecord) => {
-              this.ExperimentRow(item)
-            }, (item: ExperimentRecord) => `${item.id}-${item.approved}`)
+      if (this.section === 'jobs') {
+        CardPanel({
+          title: this.tr('exp.trainingJobs'),
+          subtitle: this.tr('exp.jobsSubtitle')
+        }) {
+          if (this.jobs.length === 0) {
+            EmptyHint({ text: this.tr('exp.jobsEmpty') })
+          } else {
+            Column() {
+              ForEach(this.jobs, (item: TrainingJob) => {
+                this.JobRow(item)
+              }, (item: TrainingJob) => item.job_id)
+            }
+            .width('100%')
           }
-          .width('100%')
         }
-      }
-
-      CardPanel({
-        title: this.tr('exp.trainingJobs'),
-        subtitle: this.tr('exp.jobsSubtitle')
-      }) {
-        if (this.jobs.length === 0) {
-          EmptyHint({ text: this.tr('exp.jobsEmpty') })
-        } else {
-          Column() {
-            ForEach(this.jobs, (item: TrainingJob) => {
-              this.JobRow(item)
-            }, (item: TrainingJob) => item.job_id)
+      } else if (this.section === 'drafts') {
+        CardPanel({
+          title: this.tr('exp.draftsTitle'),
+          subtitle: this.tr('exp.draftsSubtitle')
+        }) {
+          if (this.drafts.length === 0) {
+            EmptyHint({ text: this.tr('exp.draftsEmpty') })
+          } else {
+            Column() {
+              ForEach(this.drafts, (item: ExperimentDraft) => {
+                this.DraftRow(item)
+              }, (item: ExperimentDraft) => `${item.draft_id}-${item.status}`)
+            }
+            .width('100%')
           }
-          .width('100%')
         }
-      }
-
-      CardPanel({
-        title: this.tr('exp.draftsTitle'),
-        subtitle: this.tr('exp.draftsSubtitle')
-      }) {
-        if (this.drafts.length === 0) {
-          EmptyHint({ text: this.tr('exp.draftsEmpty') })
-        } else {
-          Column() {
-            ForEach(this.drafts, (item: ExperimentDraft) => {
-              this.DraftRow(item)
-            }, (item: ExperimentDraft) => `${item.draft_id}-${item.status}`)
+      } else if (this.section === 'register') {
+        CardPanel({
+          title: this.tr('exp.registerTitle'),
+          subtitle: this.tr('exp.registerSubtitle')
+        }) {
+          this.DraftPanel()
+        }
+      } else {
+        CardPanel({
+          title: this.tr('exp.ledgerTitle'),
+          subtitle: this.tr('exp.ledgerSubtitle')
+        }) {
+          if (this.approvalError.length > 0) {
+            Text(this.approvalError)
+              .fontSize(12)
+              .fontColor(AppTheme.DANGER)
+              .margin({ bottom: 12 })
           }
-          .width('100%')
+          if (this.experiments.length === 0) {
+            EmptyHint({ text: this.tr('exp.ledgerEmpty') })
+          } else {
+            Column() {
+              ForEach(this.experiments, (item: ExperimentRecord) => {
+                this.ExperimentRow(item)
+              }, (item: ExperimentRecord) => `${item.id}-${item.approved}`)
+            }
+            .width('100%')
+          }
         }
-      }
-
-      CardPanel({
-        title: this.tr('exp.registerTitle'),
-        subtitle: this.tr('exp.registerSubtitle')
-      }) {
-        this.DraftPanel()
       }
 
       if (this.loading) {

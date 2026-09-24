@@ -31,7 +31,7 @@ import {
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { DIRECTION_OPTIONS, RUNTIME_OUTPUT_OPTIONS } from '../common/LocalRuleGate';
-import { CardPanel, EmptyHint, PageHeader, StatTileGrid, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /** 一个环节的展示行。labelKey 存文案键，渲染时再取 this.tr()，语言切换才会跟着变。 */
 interface ComponentRow {
@@ -101,6 +101,13 @@ function groupRuleGaps(gaps: RuleGap[]): RuleGapGroup[] {
 export struct WorkflowPage {
   @State loading: boolean = false;
   @State errorText: string = '';
+  /**
+   * 当前分段：status / rules / blockers / actions / ask。
+   *
+   * 原先这一页把组件状态、规则缺口、证据录入、批准、阻塞项、待办动作、问一问全堆在一列，
+   * 一次要滑很多屏；现在一次只渲染一段，「现在到哪一步、卡在哪」写在标题下面一行里。
+   */
+  @State section: string = 'status';
   @State stage: string = '';
   @State automatic: boolean = false;
   @State completedExperiments: number = 0;
@@ -877,6 +884,47 @@ export struct WorkflowPage {
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
+  /**
+   * 一行现状：阶段 · 执行方式 · 已完成实验 · 阻塞项。
+   *
+   * 原先这四个数是四块等大的统计块，谁也不比谁重要。压成一句之后，页面顶部只剩
+   * 「现在到哪一步了」这一个结论，其余数字留在各自的分段里。
+   */
+  private statusText(): string {
+    if (this.stage.length === 0 && this.blockers.length === 0) {
+      return '';
+    }
+    return this.trf('workflow.status', [
+      stageLabel(this.lang, this.stage),
+      this.automatic ? this.tr('workflow.autoOn') : this.tr('workflow.autoOff'),
+      `${this.completedExperiments}`,
+      `${this.blockers.length}`
+    ]);
+  }
+
+  /** 分段导航的项。色点说的是这一段通不通，不是它有多少条。 */
+  private railItems(): RailItemSpec[] {
+    return [
+      {
+        key: 'status',
+        label: this.tr('workflow.section.status'),
+        tone: this.blockers.length === 0 ? 'ok' : 'warn'
+      },
+      { key: 'rules', label: this.tr('workflow.section.rules'), tone: this.ruleReady ? 'ok' : 'warn' },
+      {
+        key: 'blockers',
+        label: this.tr('workflow.section.blockers'),
+        tone: this.openQuestions().length === 0 ? 'ok' : 'warn'
+      },
+      {
+        key: 'actions',
+        label: this.tr('workflow.section.actions'),
+        tone: this.actions.length === 0 ? 'ok' : 'warn'
+      },
+      { key: 'ask', label: this.tr('workflow.section.ask'), tone: 'muted' }
+    ];
+  }
+
   @Builder
   ErrorBanner() {
     Column() {
@@ -1039,6 +1087,7 @@ export struct WorkflowPage {
       PageHeader({
         title: this.tr('workflow.title'),
         subtitle: this.tr('workflow.subtitle'),
+        status: this.statusText(),
         onRefresh: () => {
           this.load();
         }
@@ -1048,87 +1097,72 @@ export struct WorkflowPage {
         this.ErrorBanner()
       }
 
-      StatTileGrid({
-        items: [
-          {
-            label: this.tr('workflow.currentStage'),
-            value: stageLabel(this.lang, this.stage),
-            hint: this.tr('workflow.currentStageHint')
-          },
-          {
-            label: this.tr('workflow.autoRun'),
-            value: this.automatic ? this.tr('workflow.autoOn') : this.tr('workflow.autoOff'),
-            hint: this.tr('workflow.autoHint')
-          },
-          {
-            label: this.tr('workflow.completedExperiments'),
-            value: `${this.completedExperiments}`,
-            hint: this.tr('workflow.completedExperimentsHint')
-          },
-          {
-            label: this.tr('workflow.blockers'),
-            value: `${this.blockers.length}`,
-            hint: this.tr('workflow.blockersHint')
-          }
-        ]
+      SectionRail({
+        items: this.railItems(),
+        active: this.section,
+        onSelect: (key: string) => {
+          this.section = key;
+        }
       })
 
-      CardPanel({
-        title: this.tr('workflow.componentStatus'),
-        subtitle: this.tr('workflow.componentStatusHint')
-      }) {
-        this.ComponentList()
-      }
-
-      CardPanel({
-        title: this.tr('workflow.ruleGapsTitle'),
-        subtitle: this.trf('workflow.rulesSummary', [
-          this.ruleReady ? this.tr('workflow.ruleReady') : this.tr('workflow.ruleNotReady'),
-          `${this.requiredFieldCount}`, `${this.gapCount()}`, `${this.uniqueFieldCount()}`, this.ruleProfile
-        ])
-      }) {
-        if (this.ruleGroups.length === 0) {
-          EmptyHint({ text: this.tr('workflow.noRuleGaps') })
-        } else {
-          Column() {
-            ForEach(this.ruleGroups, (group: RuleGapGroup) => {
-              this.RuleGapBlock(group)
-            }, (group: RuleGapGroup) => `${group.reason}-${group.fields.join(',')}`)
+      if (this.section === 'rules') {
+        CardPanel({
+          title: this.tr('workflow.ruleGapsTitle'),
+          subtitle: this.trf('workflow.rulesSummary', [
+            this.ruleReady ? this.tr('workflow.ruleReady') : this.tr('workflow.ruleNotReady'),
+            `${this.requiredFieldCount}`, `${this.gapCount()}`, `${this.uniqueFieldCount()}`, this.ruleProfile
+          ])
+        }) {
+          if (this.ruleGroups.length === 0) {
+            EmptyHint({ text: this.tr('workflow.noRuleGaps') })
+          } else {
+            Column() {
+              ForEach(this.ruleGroups, (group: RuleGapGroup) => {
+                this.RuleGapBlock(group)
+              }, (group: RuleGapGroup) => `${group.reason}-${group.fields.join(',')}`)
+            }
+            .width('100%')
           }
-          .width('100%')
+
+          this.EvidenceGate()
+          this.RuleGate()
         }
-
-        this.EvidenceGate()
-        this.RuleGate()
-      }
-
-      CardPanel({
-        title: this.tr('workflow.blockers'),
-        subtitle: this.trf('workflow.blockersSubtitle', [`${this.openQuestions().length}`])
-      }) {
-        if (this.openQuestions().length === 0) {
-          EmptyHint({ text: this.tr('workflow.noOpenQuestions') })
-        } else {
-          this.BlockerList()
+      } else if (this.section === 'blockers') {
+        CardPanel({
+          title: this.tr('workflow.blockers'),
+          subtitle: this.trf('workflow.blockersSubtitle', [`${this.openQuestions().length}`])
+        }) {
+          if (this.openQuestions().length === 0) {
+            EmptyHint({ text: this.tr('workflow.noOpenQuestions') })
+          } else {
+            this.BlockerList()
+          }
         }
-      }
-
-      CardPanel({
-        title: this.tr('workflow.actions'),
-        subtitle: this.tr('workflow.actionsHint')
-      }) {
-        if (this.actions.length === 0) {
-          EmptyHint({ text: this.tr('workflow.noActions') })
-        } else {
-          this.ActionList()
+      } else if (this.section === 'actions') {
+        CardPanel({
+          title: this.tr('workflow.actions'),
+          subtitle: this.tr('workflow.actionsHint')
+        }) {
+          if (this.actions.length === 0) {
+            EmptyHint({ text: this.tr('workflow.noActions') })
+          } else {
+            this.ActionList()
+          }
         }
-      }
-
-      CardPanel({
-        title: this.tr('workflow.askTitle'),
-        subtitle: this.tr('workflow.askSubtitle')
-      }) {
-        this.AskPanel()
+      } else if (this.section === 'ask') {
+        CardPanel({
+          title: this.tr('workflow.askTitle'),
+          subtitle: this.tr('workflow.askSubtitle')
+        }) {
+          this.AskPanel()
+        }
+      } else {
+        CardPanel({
+          title: this.tr('workflow.componentStatus'),
+          subtitle: this.tr('workflow.componentStatusHint')
+        }) {
+          this.ComponentList()
+        }
       }
 
       if (this.loading) {

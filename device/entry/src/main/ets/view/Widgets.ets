@@ -24,6 +24,13 @@ export struct PageHeader {
 
   @Prop title: string = '';
   @Prop subtitle: string = '';
+  /**
+   * 一行现状：把「现在是什么状态」压成一句带数字的话。
+   *
+   * 它替代了原先每页顶部那排四个等重的大统计块 —— 那种排法不回答任何问题，只是把页面
+   * 做成了仪表盘。这一行才是页面的结论，所以比说明行重、比标题轻。
+   */
+  @Prop status: string = '';
   /** 点击「刷新」重新取一次数据。 */
   onRefresh: () => void = () => {
   };
@@ -40,6 +47,13 @@ export struct PageHeader {
             .fontSize(13)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .margin({ top: 8 })
+        }
+        if (this.status.length > 0) {
+          Text(this.status)
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+            .margin({ top: 10 })
         }
       }
       .alignItems(HorizontalAlign.Start)
