@@ -56,7 +56,7 @@ export struct TopBar {
         // 当前项目是侧栏那些模块的上一层容器，所以它放在顶栏，而不是侧栏里的一项。
         Row() {
           AppIcon({ commands: IconPaths.FOLDER, color: AppTheme.PRIMARY_DARK, filled: false, iconSize: 16 })
-          Text(this.projectName.length > 0 ? this.projectName : this.tr('card.noCompetition'))
+          Text(this.projectName.length > 0 ? this.projectName : this.tr('topbar.noProject'))
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)

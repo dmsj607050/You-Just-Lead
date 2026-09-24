@@ -28,9 +28,6 @@ export struct RecentUpdates {
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
-        Text(this.tr('overview.viewAll'))
-          .fontSize(13)
-          .fontColor(AppTheme.PRIMARY)
       }
       .width('100%')
       .margin({ bottom: 8 })
@@ -76,11 +73,6 @@ export struct RecentUpdates {
             Text(relativeTime(this.lang, item.createdAt))
               .fontSize(12)
               .fontColor(AppTheme.TEXT_TERTIARY)
-
-            Text('⋯')
-              .fontSize(18)
-              .fontColor(AppTheme.TEXT_TERTIARY)
-              .margin({ left: 16 })
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)

@@ -52,6 +52,7 @@ const ENTRIES: Entry[] = [
   { key: 'topbar.notifications', zh: '通知', en: 'Notifications' },
   { key: 'topbar.avatarHint', zh: '账户菜单', en: 'Account menu' },
   { key: 'topbar.projectHint', zh: '当前项目，点击切换', en: 'Current project; click to switch' },
+  { key: 'topbar.noProject', zh: '尚未配置竞赛', en: 'No competition configured' },
 
   // ---- 侧栏 ----
   { key: 'nav.overview', zh: '概览', en: 'Overview' },
@@ -84,24 +85,23 @@ const ENTRIES: Entry[] = [
   { key: 'menu.langZh', zh: '简体中文', en: '简体中文' },
   { key: 'menu.langEn', zh: 'English', en: 'English' },
 
-  // ---- 项目总览 ----
-  { key: 'overview.title', zh: '项目总览', en: 'Project overview' },
-  { key: 'overview.summary', zh: '当前阶段：{0} · 数据文件 {1}（{2} 处质量问题）· 研究记录 {3} · 已完成实验 {4}', en: 'Stage: {0} · {1} data files ({2} issues) · {3} research records · {4} completed experiments' },
-
-  // ---- 快速开始 ----
-  { key: 'quick.title', zh: '快速开始', en: 'Quick start' },
-  { key: 'quick.newProject', zh: '新建项目', en: 'New project' },
-  { key: 'quick.newProjectDetail', zh: '开始一个新的研究课题', en: 'Start a new research topic' },
-  { key: 'quick.newWorkflow', zh: '创建工作流', en: 'Create a workflow' },
-  { key: 'quick.newWorkflowDetail', zh: '定制你的研究流程', en: 'Tailor your research process' },
-  { key: 'quick.runExperiment', zh: '运行实验', en: 'Run an experiment' },
-  { key: 'quick.runExperimentDetail', zh: '让 AI 帮你执行实验', en: 'Let the AI execute it for you' },
-  { key: 'quick.searchLiterature', zh: '检索文献', en: 'Search literature' },
-  { key: 'quick.searchLiteratureDetail', zh: '快速找到相关研究', en: 'Find related work fast' },
-  { key: 'quick.analyzeData', zh: '分析数据', en: 'Analyze data' },
-  { key: 'quick.analyzeDataDetail', zh: '从数据中发现洞察', en: 'Find insight in your data' },
-  { key: 'quick.startWriting', zh: '开始写作', en: 'Start writing' },
-  { key: 'quick.startWritingDetail', zh: '与 AI 协作完成论文', en: 'Draft the paper with the AI' },
+  // ---- 概览 ----
+  { key: 'overview.status', zh: '{0} · 数据 {1} 个文件（{2} 处问题）· 研究记录 {3} · 已完成实验 {4}', en: '{0} · {1} data files ({2} issues) · {3} research records · {4} completed experiments' },
+  { key: 'overview.section.project', zh: '项目', en: 'Project' },
+  { key: 'overview.section.workflow', zh: '工作流', en: 'Workflow' },
+  { key: 'overview.section.capabilities', zh: '内置能力', en: 'Capabilities' },
+  { key: 'overview.section.recent', zh: '最近动态', en: 'Recent' },
+  { key: 'overview.field.competition', zh: '竞赛', en: 'Competition' },
+  { key: 'overview.field.taskType', zh: '任务类型', en: 'Task type' },
+  { key: 'overview.field.metric', zh: '主指标', en: 'Primary metric' },
+  { key: 'overview.field.adapter', zh: '适配器', en: 'Adapter' },
+  { key: 'overview.field.lastUpdated', zh: '最后更新', en: 'Last updated' },
+  { key: 'overview.field.ruleFields', zh: '规则字段', en: 'Rule fields' },
+  { key: 'overview.field.blockers', zh: '阻塞项', en: 'Blockers' },
+  { key: 'overview.nextStep', zh: '下一步', en: 'Next step' },
+  { key: 'overview.noPendingActions', zh: '当前没有待办动作', en: 'No pending actions' },
+  { key: 'overview.recentUpdates', zh: '最近更新', en: 'Recent updates' },
+  { key: 'overview.noRecords', zh: '暂无记录', en: 'No records yet' },
 
   // ---- 项目选择页 ----
   { key: 'gate.title', zh: '选择项目', en: 'Choose a project' },
@@ -265,13 +265,6 @@ const ENTRIES: Entry[] = [
   { key: 'step.inProgress', zh: '进行中', en: 'In progress' },
   { key: 'step.completed', zh: '已完成', en: 'Done' },
   { key: 'step.notStarted', zh: '等待开始', en: 'Not started' },
-
-  // ---- 项目总览补充 ----
-  { key: 'overview.nextStep', zh: '下一步', en: 'Next step' },
-  { key: 'overview.noPendingActions', zh: '当前没有待办动作', en: 'No pending actions' },
-  { key: 'overview.recentUpdates', zh: '最近更新', en: 'Recent updates' },
-  { key: 'overview.viewAll', zh: '查看全部 →', en: 'View all →' },
-  { key: 'overview.noRecords', zh: '暂无记录', en: 'No records yet' },
 
   // ---- 数据页 ----
   { key: 'data.kindFile', zh: '普通文件', en: 'Regular file' },
@@ -619,27 +612,12 @@ const ENTRIES: Entry[] = [
   { key: 'trace.claimUnresolved', zh: '引用的结果文件缺失', en: 'Cited result missing' },
   { key: 'trace.paperMissing', zh: '还没有论文证据包。', en: 'No paper evidence package yet.' },
 
-  // ---- 横幅 / 能力网格 / 项目卡 ----
-  { key: 'hero.welcome', zh: '欢迎回来，{0}', en: 'Welcome back, {0}' },
-  { key: 'hero.welcomeFallback', zh: '继续推进你的科研工作流', en: "let's keep your research moving" },
-  { key: 'hero.flow', zh: '更高效的研究流程', en: 'A faster research workflow' },
-  { key: 'hero.insight', zh: '更深入的洞察发现', en: 'Deeper insight' },
-  { key: 'hero.impact', zh: '更有影响力的成果', en: 'More impactful results' },
-
+  // ---- 能力网格 / 工作流步骤 ----
   { key: 'cap.title', zh: '内置能力', en: 'Capabilities' },
   { key: 'cap.searchPlaceholder', zh: '搜索适配器', en: 'Search adapters' },
   { key: 'cap.empty', zh: '后端未连接，暂时读不到内置能力清单。', en: "Backend offline; the capability list can't be loaded right now." },
 
-  { key: 'card.noCompetition', zh: '尚未配置竞赛', en: 'No competition configured' },
-  { key: 'card.mainMetric', zh: '主指标 {0}', en: 'Primary metric {0}' },
-  { key: 'card.adapter', zh: '适配器 {0}', en: 'Adapter {0}' },
-  { key: 'card.inProgress', zh: '进行中', en: 'In progress' },
-  { key: 'card.lastUpdated', zh: '最后更新 {0}', en: 'Last updated {0}' },
-  { key: 'card.ruleFields', zh: '规则字段 {0}/{1}', en: 'Rule fields {0}/{1}' },
-  { key: 'card.blockers', zh: '阻塞项 {0} 条', en: '{0} blockers' },
-  { key: 'card.metric', zh: '指标 {0}', en: 'Metric {0}' },
-  { key: 'card.workflow', zh: '研究工作流', en: 'Research workflow' },
-  { key: 'card.viewDetails', zh: '查看详情 →', en: 'View details →' }
+  { key: 'card.workflow', zh: '研究工作流', en: 'Research workflow' }
 ];
 
 /** 键到文案的索引。 */

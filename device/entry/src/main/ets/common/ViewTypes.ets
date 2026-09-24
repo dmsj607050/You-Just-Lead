@@ -19,15 +19,6 @@ export interface StepSpec {
   status: string;
 }
 
-/** 快速开始入口。文案存键名，由调用方 `t()` 取，避免模块常量在导入时就把中文定死。 */
-export interface QuickAction {
-  key: string;
-  titleKey: string;
-  detailKey: string;
-  /** 点击后跳转的导航 key。 */
-  nav: string;
-}
-
 /** 最近更新条目。只存后端原始值，翻译放到渲染时做，切换语言时才会跟着变。 */
 export interface UpdateSpec {
   eventType: string;
@@ -43,14 +34,4 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'data', icon: IconPaths.CHART },
   { key: 'writing', icon: IconPaths.PEN },
   { key: 'trace', icon: IconPaths.TRACE }
-];
-
-/** 快速开始入口。 */
-export const QUICK_ACTIONS: QuickAction[] = [
-  { key: 'q1', titleKey: 'quick.newProject', detailKey: 'quick.newProjectDetail', nav: 'project' },
-  { key: 'q2', titleKey: 'quick.newWorkflow', detailKey: 'quick.newWorkflowDetail', nav: 'workflow' },
-  { key: 'q3', titleKey: 'quick.runExperiment', detailKey: 'quick.runExperimentDetail', nav: 'experiment' },
-  { key: 'q4', titleKey: 'quick.searchLiterature', detailKey: 'quick.searchLiteratureDetail', nav: 'literature' },
-  { key: 'q5', titleKey: 'quick.analyzeData', detailKey: 'quick.analyzeDataDetail', nav: 'data' },
-  { key: 'q6', titleKey: 'quick.startWriting', detailKey: 'quick.startWritingDetail', nav: 'writing' }
 ];

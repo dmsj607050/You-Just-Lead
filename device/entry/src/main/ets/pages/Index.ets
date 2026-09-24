@@ -7,21 +7,17 @@ import {
   RunnerCapability
 } from '../common/BackendClient';
 import AppTheme from '../common/AppTheme';
-import { relativeTime, stageLabel } from '../common/Format';
+import { priorityLabel, relativeTime, stageLabel } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { StepSpec, UpdateSpec } from '../common/ViewTypes';
-import { deriveSteps, initialSteps } from '../view/WorkflowStepper';
+import { WorkflowStepper, deriveSteps, initialSteps } from '../view/WorkflowStepper';
 import { TopBar } from '../view/TopBar';
 import { ProjectGate } from '../view/ProjectGate';
 import { UserMenu } from '../view/UserMenu';
 import { SideNav } from '../view/SideNav';
-import { HeroBanner } from '../view/HeroBanner';
-import { NextStepStrip } from '../view/NextStepStrip';
-import { ProjectCard } from '../view/ProjectCard';
 import { CapabilityGrid } from '../view/CapabilityGrid';
 import { RecentUpdates } from '../view/RecentUpdates';
-import { QuickStartPanel } from '../view/QuickStartPanel';
-import { PageHeader } from '../view/Widgets';
+import { CardPanel, KeyValueRow, PageHeader, ProgressBar, RailItemSpec, SectionRail, StatusBadge } from '../view/Widgets';
 import { WorkflowPage } from '../view/WorkflowPage';
 import { ExperimentPage } from '../view/ExperimentPage';
 import { LiteraturePage } from '../view/LiteraturePage';
@@ -50,6 +46,13 @@ struct Index {
   @State errorText: string = '';
   /** 侧栏当前页。项目不是侧栏项，所以默认落在概览。 */
   @State activeNav: string = 'overview';
+  /**
+   * 概览页当前展开的一段。
+   *
+   * 概览原先是一整条竖着的卡片流（欢迎横幅、下一步、项目卡、能力网格、动态、快速开始），
+   * 一屏装不下也没有主次。和其余长页面一样切成四段，一次只铺一段。
+   */
+  @State overviewSection: string = 'project';
   /** 是否已经选好项目。没选就停在项目选择页。 */
   @State entered: boolean = false;
   /** 当前项目名，顶栏显示用。 */
@@ -126,6 +129,48 @@ struct Index {
   /** 项目卡上的「最后更新」，由原始时间戳算相对时间。 */
   private lastUpdatedText(): string {
     return this.lastUpdatedAt.length > 0 ? relativeTime(this.lang, this.lastUpdatedAt) : '';
+  }
+
+  /** 概览的一行现状：阶段 + 四个数字，压在标题下面。 */
+  private overviewStatus(): string {
+    return this.trf('overview.status', [stageLabel(this.lang, this.stage), `${this.dataFiles}`,
+      `${this.dataIssues}`, `${this.researchRecords}`, `${this.completedExperiments}`]);
+  }
+
+  /** 后端给出的最高优先级动作；没有待办时返回空串。 */
+  private nextActionText(): string {
+    return this.actions.length > 0 ? this.actions[0].action : '';
+  }
+
+  /**
+   * 概览分段导航的项。色点说的是这一段通不通，不是它有多少条。
+   *
+   * 规则字段一项用「有没有必填字段」和「缺几项」分档：没有规则档案是 danger（这条链根本没开始），
+   * 有档案但缺项是 warn。
+   */
+  private overviewRail(): RailItemSpec[] {
+    return [
+      {
+        key: 'project',
+        label: this.tr('overview.section.project'),
+        tone: this.ruleTotal === 0 ? 'danger' : (this.ruleMissing > 0 ? 'warn' : 'ok')
+      },
+      {
+        key: 'workflow',
+        label: this.tr('overview.section.workflow'),
+        tone: this.blockers.length > 0 ? 'danger' : 'ok'
+      },
+      {
+        key: 'capabilities',
+        label: this.tr('overview.section.capabilities'),
+        tone: this.runners.length > 0 ? 'ok' : 'danger'
+      },
+      {
+        key: 'recent',
+        label: this.tr('overview.section.recent'),
+        tone: this.updates.length > 0 ? 'ok' : 'muted'
+      }
+    ];
   }
 
   /** 读取一次仪表盘快照，并把返回值摊平成各组件需要的字段。 */
@@ -230,63 +275,134 @@ struct Index {
     }
   }
 
+  /**
+   * 概览：标题 + 一行现状 + 分段导航，一次只铺一段。
+   *
+   * 四段分别回答「这个项目是什么」「走到哪了」「能跑什么」「刚发生了什么」。
+   * 原先压在这一页上的欢迎横幅（「欢迎回来…」加三句口号）和「快速开始」入口已删除：
+   * 前者没有一个数字、只是装饰，后者就是侧栏那几项，重复一遍还多出六行灰字。
+   */
   @Builder
   OverviewBody() {
-    Column() {
-      HeroBanner({ competitionName: this.competitionName })
-
-      NextStepStrip({
-        action: this.actions.length > 0 ? this.actions[0].action : '',
-        priority: this.actions.length > 0 ? this.actions[0].priority : ''
-      })
-
+    Column({ space: 20 }) {
       PageHeader({
-        title: this.tr('overview.title'),
+        title: this.tr('nav.overview'),
+        status: this.overviewStatus(),
         onRefresh: () => {
           this.load();
         }
       })
-      .margin({ top: 30, bottom: 18 })
 
-      ProjectCard({
-        competitionName: this.competitionName,
-        taskType: this.taskType,
-        runner: this.runner,
-        metric: this.metric,
-        ruleTotal: this.ruleTotal,
-        ruleMissing: this.ruleMissing,
-        blockerCount: this.blockers.length,
-        lastUpdated: this.lastUpdatedText(),
-        steps: this.steps
+      SectionRail({
+        items: this.overviewRail(),
+        active: this.overviewSection,
+        onSelect: (key: string) => {
+          this.overviewSection = key;
+        }
       })
 
-      CapabilityGrid({ runners: this.runners })
-        .margin({ top: 30 })
-
-      Row() {
+      if (this.overviewSection === 'project') {
+        this.ProjectSection()
+      } else if (this.overviewSection === 'workflow') {
+        this.WorkflowSection()
+      } else if (this.overviewSection === 'capabilities') {
+        CapabilityGrid({ runners: this.runners })
+      } else {
         RecentUpdates({ updates: this.updates })
-          .layoutWeight(2)
-
-        QuickStartPanel({
-          onNavigate: (key: string) => {
-            this.activeNav = key;
-          }
-        })
-          .layoutWeight(1)
-          .margin({ left: 20 })
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Top)
-      .margin({ top: 30 })
-
-      Text(this.trf('overview.summary', [stageLabel(this.lang, this.stage), `${this.dataFiles}`,
-        `${this.dataIssues}`, `${this.researchRecords}`, `${this.completedExperiments}`]))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 28 })
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 项目段：竞赛配置 + 规则字段进度 + 阻塞项。 */
+  @Builder
+  ProjectSection() {
+    CardPanel({ title: this.tr('overview.section.project') }) {
+      KeyValueRow({
+        label: this.tr('overview.field.competition'),
+        value: this.competitionName
+      })
+      KeyValueRow({
+        label: this.tr('overview.field.taskType'),
+        value: this.taskType
+      })
+      KeyValueRow({
+        label: this.tr('overview.field.metric'),
+        value: this.metric
+      })
+      KeyValueRow({
+        label: this.tr('overview.field.adapter'),
+        value: this.runner
+      })
+      KeyValueRow({
+        label: this.tr('overview.field.lastUpdated'),
+        value: this.lastUpdatedText()
+      })
+
+      // 规则字段本来就是「几分之几」，画成条比写成「规则字段 24/24」快。
+      ProgressBar({
+        label: this.tr('overview.field.ruleFields'),
+        current: this.ruleTotal - this.ruleMissing,
+        total: this.ruleTotal
+      })
+        .margin({ top: 16 })
+
+      Row() {
+        Text(this.tr('overview.field.blockers'))
+          .fontSize(13)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .layoutWeight(1)
+        StatusBadge({
+          text: `${this.blockers.length}`,
+          tone: this.blockers.length > 0 ? 'danger' : 'ok'
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ top: 18 })
+    }
+  }
+
+  /** 工作流段：下一步动作 + 八步进度条。 */
+  @Builder
+  WorkflowSection() {
+    CardPanel({ title: this.tr('card.workflow') }) {
+      Row() {
+        Text(this.tr('overview.nextStep'))
+          .fontSize(12)
+          .fontColor(AppTheme.PRIMARY_DARK)
+          .backgroundColor(AppTheme.PRIMARY_SOFT)
+          .borderRadius(6)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+
+        Text(this.nextActionText().length > 0 ? this.nextActionText() : this.tr('overview.noPendingActions'))
+          .fontSize(13)
+          .fontColor(this.nextActionText().length > 0 ? AppTheme.TEXT_PRIMARY : AppTheme.TEXT_TERTIARY)
+          .layoutWeight(1)
+          .margin({ left: 12 })
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        if (this.nextActionText().length > 0) {
+          Text(priorityLabel(this.lang, this.actions[0].priority))
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+        }
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      // 步骤条画在浅底色上：未开始的步骤点子本身是白底描边，铺在白卡上会看不见。
+      Column() {
+        WorkflowStepper({ steps: this.steps })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 18, bottom: 12 })
+      .margin({ top: 18 })
+      .backgroundColor(AppTheme.PAGE_BG)
+      .borderRadius(AppTheme.RADIUS)
+    }
   }
 
   build() {
