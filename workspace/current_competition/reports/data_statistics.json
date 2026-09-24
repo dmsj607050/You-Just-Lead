@@ -1,0 +1,29 @@
+{
+  "audit_schema_version": 1,
+  "data_dir": "B:\\You Just Lead\\competition-agent\\workspace\\current_competition\\data\\raw",
+  "exact_duplicate_groups": [],
+  "file_count": 1,
+  "file_kinds": {
+    "file": 1
+  },
+  "generated_at": "2026-08-19T14:51:42+00:00",
+  "images": {
+    "channels": {},
+    "count": 0,
+    "height": null,
+    "width": null
+  },
+  "inventory_sha256": "72fc4304c2c2b9a77aaa3414fae4b1aed1bb8178a22d91b7fbabd3f6cd08e3c2",
+  "issue_count": 0,
+  "metadata_format": "jsonl",
+  "segmentation_masks": {
+    "count": 0,
+    "empty_count": 0,
+    "foreground_ratio": null
+  },
+  "splits": {
+    "unassigned": 1
+  },
+  "tables": [],
+  "total_bytes": 1
+}

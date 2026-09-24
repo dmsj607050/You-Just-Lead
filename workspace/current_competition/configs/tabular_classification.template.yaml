@@ -1,0 +1,36 @@
+experiment:
+  hypothesis: A shallow numeric MLP establishes a reproducible tabular baseline.
+  change_type: baseline
+  expected_improvement: Establish a valid held-out reference metric.
+  estimated_gpu_hours: 0
+  rollback_plan: Retain this frozen baseline if later changes underperform.
+
+data:
+  version: replace-with-data-version
+  train_csv: data/raw/train.csv
+  test_csv: data/raw/test.csv
+  target_column: target
+  id_column: id
+  prediction_column: target
+  validation_fraction: 0.2
+  # feature_columns: [feature_1, feature_2]
+
+model:
+  hidden_dim: 64
+  dropout: 0.1
+
+training:
+  runner: tabular_classification
+  seed: 42
+  epochs: 20
+  batch_size: 64
+  device: cpu
+
+optimizer:
+  name: adamw
+  learning_rate: 0.001
+  weight_decay: 0.0
+
+validation:
+  metric: accuracy
+  direction: maximize

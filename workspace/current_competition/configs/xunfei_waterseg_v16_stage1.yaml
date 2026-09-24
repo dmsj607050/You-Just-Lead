@@ -1,0 +1,124 @@
+# External-project bridge: this file is immutable once a GPU approval is recorded.
+# It is derived from waterseg/configs/route_b_server_v16_data_ohem_768.yaml,
+# with the data and output paths bound to this machine and experiment ledger.
+name: route_b_v16_data_ohem_768
+seed: 45
+
+experiment:
+  hypothesis: "The existing v16 positive/negative/uniform 768-crop recipe is a valid single-model candidate only if it reproduces on the frozen fold-0 split."
+  change_type: reproduction
+  expected_improvement: "Establish a trustworthy v16 stage-1 local IoU before 1024 fine-tuning or new architecture work."
+  estimated_gpu_hours: 30
+  rollback_plan: "Keep the historical v15 record as a reference only; reject v16 when the reproduced fold-0 IoU and diagnostics fail the pre-declared gate."
+
+data:
+  version: "xunfei-train-a6634657711d43d15494a4f7a11d402c12c0f6f5080cb22f066e4730f3cc3e86"
+  train_images_dir: 'B:\2026xunfei\train\image'
+  train_masks_dir: 'B:\2026xunfei\train\mask'
+  mask_filename_suffix: "_mask"
+  root: 'B:\2026xunfei\train'
+  image_dir: image
+  mask_dir: mask
+  split_csv: 'B:\2026xunfei\waterseg\runs\fold_split.csv'
+  crop_size: 768
+  random_crop: uniform
+  augment: robust
+  num_workers: 12
+  pin_memory: true
+  crop_sampling:
+    enabled: true
+    positive_p: 0.40
+    negative_p: 0.30
+    uniform_p: 0.30
+    positive_min_ratio: 0.01
+    positive_max_ratio: 0.15
+    negative_max_ratio: 0.0
+    attempts: 24
+
+model:
+  arch: UPerNet
+  encoder: mit_b4
+  encoder_weights: imagenet
+  in_channels: 3
+  classes: 1
+  decoder_dense_aspp: false
+  decoder_se: false
+  dsconv:
+    enabled: true
+    multiscale: true
+    kernel_sizes: [7, 11, 15]
+    extend_scope: 1.0
+  water_context:
+    enabled: true
+    strip_kernel: 31
+    residual_scale: 0.20
+    use_highpass: true
+  aux_boundary: true
+  aux_multiscale: true
+
+loss:
+  type: combined
+  weights:
+    lovasz: 0.45
+    ohem_bce: 0.35
+    ohem_pos_weight: 1.0
+    ohem_neg_pos_ratio: 3.0
+    ohem_min_neg_fraction: 0.005
+    dice: 0.20
+    boundary: 0.10
+    boundary_rings: true
+    aux: 0.05
+    aux_shallow: 0.02
+    aux_mid: 0.03
+    aux_bce_pos_weight: 20.0
+    aux_shallow_pos_weight: 20.0
+    aux_mid_pos_weight: 20.0
+    bce: 0.0
+    focal: 0.0
+    tversky: 0.0
+
+optim:
+  optimizer: AdamW
+  lr: 0.00025
+  weight_decay: 0.01
+  scheduler: cosine
+  warmup_epochs: 5
+  min_lr: 0.000001
+
+train:
+  epochs: 65
+  batch_size: 4
+  accumulation_steps: 2
+  amp: true
+  ema: true
+  ema_decay: 0.9995
+  grad_clip: 1.0
+  val_interval: 1
+  early_stopping_patience: 12
+  early_stopping_min_epochs: 35
+  # The external bridge overrides this into EXP-xxxx artifacts at runtime.
+  save_dir: waterseg_run
+  swa:
+    enabled: false
+
+infer:
+  tta: []
+  threshold: 0.5
+
+training:
+  runner: waterseg_external
+  seed: 45
+  device: cuda
+
+validation:
+  metric: iou
+  direction: maximize
+
+external:
+  project_dir: 'B:\2026xunfei\waterseg'
+  waterseg_config: 'B:\You Just Lead\competition-agent\workspace\current_competition\configs\xunfei_waterseg_v16_stage1.yaml'
+  python_executable: 'A:\anaconda3\anaconda3_exe\envs\waterseg\python.exe'
+  source_inventory_sha256: ba767e159456d35cb9eb9cec89101a2574602d9c89ed04bdcf7429dc2628c025
+  fold: 0
+  require_cuda: true
+  timeout_seconds: 172800

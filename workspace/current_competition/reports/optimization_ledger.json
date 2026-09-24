@@ -1,0 +1,76 @@
+{
+  "current_competition_entries": [],
+  "entries": [
+    {
+      "best_epoch": 8,
+      "change_type": "baseline",
+      "conclusion": "Baseline completed with validation metric 0.9231.",
+      "config_path": "configs\\baseline_synthetic.yaml",
+      "current_competition": false,
+      "data_version": "synthetic-v1",
+      "decision": "keep_as_candidate",
+      "error": null,
+      "experiment_id": "EXP-0001",
+      "hypothesis": "Establish a deterministic workflow baseline before task adaptation.",
+      "metrics": {
+        "train_accuracy_at_best": 0.9558823529411765,
+        "val_accuracy": 0.9230769276618958,
+        "val_loss_at_best_accuracy": 0.21675339341163635
+      },
+      "next_candidates": [
+        "在保持当前基线的前提下，只验证一个低成本改动。"
+      ],
+      "parent_id": null,
+      "status": "completed",
+      "validation_metric": 0.9230769276618958
+    },
+    {
+      "best_epoch": 8,
+      "change_type": "baseline",
+      "conclusion": "Baseline completed with validation metric 0.9231.",
+      "config_path": "configs\\baseline_synthetic.yaml",
+      "current_competition": false,
+      "data_version": "synthetic-v1",
+      "decision": "keep_as_candidate",
+      "error": null,
+      "experiment_id": "EXP-0002",
+      "hypothesis": "Validate Git-bound reproducible baseline",
+      "metrics": {
+        "train_accuracy_at_best": 0.9558823529411765,
+        "val_accuracy": 0.9230769276618958,
+        "val_loss_at_best_accuracy": 0.21675339341163635
+      },
+      "next_candidates": [
+        "在保持当前基线的前提下，只验证一个低成本改动。"
+      ],
+      "parent_id": null,
+      "status": "completed",
+      "validation_metric": 0.9230769276618958
+    },
+    {
+      "best_epoch": 8,
+      "change_type": "baseline",
+      "conclusion": "Baseline completed with validation metric 0.9231.",
+      "config_path": "configs\\baseline_synthetic.yaml",
+      "current_competition": false,
+      "data_version": "synthetic-v1",
+      "decision": "keep_as_candidate",
+      "error": null,
+      "experiment_id": "EXP-TEST-SYN",
+      "hypothesis": "Establish a deterministic workflow baseline before task adaptation.",
+      "metrics": {
+        "train_accuracy_at_best": 0.9558823529411765,
+        "val_accuracy": 0.9230769276618958,
+        "val_loss_at_best_accuracy": 0.21675339341163635
+      },
+      "next_candidates": [
+        "在保持当前基线的前提下，只验证一个低成本改动。"
+      ],
+      "parent_id": null,
+      "status": "completed",
+      "validation_metric": 0.9230769276618958
+    }
+  ],
+  "generated_at": "2026-08-19T14:51:52+00:00",
+  "source_of_truth": "experiments/manifests/EXP-*.json and experiments/results/EXP-*.json"
+}

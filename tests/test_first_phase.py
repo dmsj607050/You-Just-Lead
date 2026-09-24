@@ -1,0 +1,248 @@
+"""End-to-end tests for the first-phase experiment infrastructure."""
+
+from __future__ import annotations
+
+import tempfile
+import unittest
+from contextlib import nullcontext
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from agents.data_agent import audit_dataset
+from app.experiment_service import ExperimentService
+from app.approval_service import approve_training_config
+from app.reporting import generate_reports
+from tools.configuration import load_yaml, write_yaml
+from tools.files import read_json
+from tools.files import write_json_atomic
+from tools.tracking import ExperimentTracker
+
+
+class FirstPhaseWorkflowTests(unittest.TestCase):
+    def test_config_run_ledger_and_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            config_path = workspace / "configs" / "smoke.yaml"
+            write_yaml(
+                config_path,
+                {
+                    "experiment": {
+                        "hypothesis": "A tiny deterministic run validates the workflow.",
+                        "change_type": "baseline",
+                    },
+                    "data": {
+                        "version": "smoke-v1",
+                        "synthetic_samples": 96,
+                        "synthetic_features": 4,
+                        "synthetic_label_noise": 0.2,
+                    },
+                    "model": {"hidden_dim": 8},
+                    "training": {
+                        "runner": "synthetic_binary_classification",
+                        "seed": 7,
+                        "epochs": 3,
+                        "batch_size": 16,
+                        "device": "cpu",
+                    },
+                    "optimizer": {"learning_rate": 0.02},
+                    "validation": {"metric": "accuracy", "direction": "maximize"},
+                },
+            )
+            service = ExperimentService(project_root, workspace)
+            manifest, result = service.run(
+                config_path,
+                experiment_id="EXP-0001",
+                command="python main.py run --experiment-id EXP-0001",
+            )
+
+            self.assertEqual(manifest["experiment_id"], "EXP-0001")
+            self.assertEqual(result["status"], "completed")
+            self.assertIsNotNone(result["validation_metric"])
+            self.assertTrue(
+                (workspace / "experiments" / "manifests" / "EXP-0001.json").exists()
+            )
+            stored_result = read_json(workspace / "experiments" / "results" / "EXP-0001.json")
+            self.assertEqual(stored_result["status"], "completed")
+
+            report = generate_reports(workspace)
+            self.assertEqual(report["best_experiment_id"], "EXP-0001")
+            log = (workspace / "experiments" / "EXPERIMENT_LOG.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("EXP-0001", log)
+            self.assertIn(result["tracker_backend"], {"mlflow", "local-jsonl"})
+            if result["tracker_backend"] == "local-jsonl":
+                self.assertTrue(
+                    (workspace / "experiments" / "tracking" / "mlflow_fallback.jsonl"
+                ).exists())
+            self.assertEqual(len(service.ledger.summaries()), 1)
+
+    def test_native_mlflow_branch_is_used_when_dependency_is_present(self) -> None:
+        calls: dict[str, object] = {}
+
+        def set_tracking_uri(value: str) -> None:
+            calls["tracking_uri"] = value
+
+        def set_experiment(value: str) -> None:
+            calls["experiment"] = value
+
+        def start_run(run_name: str):
+            calls["run_name"] = run_name
+            return nullcontext()
+
+        def log_params(value: dict[str, str]) -> None:
+            calls["params"] = value
+
+        def set_tags(value: dict[str, str]) -> None:
+            calls["tags"] = value
+
+        def log_metric(key: str, value: float) -> None:
+            calls.setdefault("metrics", []).append((key, value))
+
+        def log_artifacts(value: str) -> None:
+            calls["artifacts"] = value
+
+        fake_mlflow = SimpleNamespace(
+            set_tracking_uri=set_tracking_uri,
+            set_experiment=set_experiment,
+            start_run=start_run,
+            log_params=log_params,
+            set_tags=set_tags,
+            log_metric=log_metric,
+            log_artifacts=log_artifacts,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifacts = root / "artifacts"
+            artifacts.mkdir()
+            (artifacts / "history.json").write_text("{}", encoding="utf-8")
+            tracker = ExperimentTracker(root / "tracking")
+            with patch.dict("sys.modules", {"mlflow": fake_mlflow}):
+                backend = tracker.log_completed_run(
+                    {
+                        "experiment_id": "EXP-0001",
+                        "hypothesis": "verify native tracker",
+                        "git": {"commit": "abc123"},
+                        "config": {"training": {"epochs": 3}},
+                    },
+                    {"metrics": {"val_accuracy": 0.8}},
+                    artifacts,
+                )
+
+        self.assertEqual(backend, "mlflow")
+        self.assertEqual(calls["run_name"], "EXP-0001")
+        self.assertEqual(calls["experiment"], "current_competition")
+        self.assertIn(("val_accuracy", 0.8), calls["metrics"])
+
+    def test_real_runner_requires_rules_and_data_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            config_path = workspace / "configs" / "blocked.yaml"
+            write_yaml(
+                config_path,
+                {
+                    "experiment": {"hypothesis": "A real run needs safety gates."},
+                    "data": {"version": "real-v1", "train_csv": "data/raw/train.csv"},
+                    "training": {"runner": "tabular_classification", "seed": 1},
+                    "validation": {"metric": "accuracy", "direction": "maximize"},
+                },
+            )
+            service = ExperimentService(project_root, workspace)
+
+            with self.assertRaisesRegex(PermissionError, "competition_spec.yaml"):
+                service.run(config_path, experiment_id="EXP-0001")
+
+    def test_gpu_config_requires_matching_human_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            config_path = workspace / "configs" / "gpu.yaml"
+            write_yaml(
+                config_path,
+                {
+                    "experiment": {"hypothesis": "Review GPU scope.", "estimated_gpu_hours": 2},
+                    "data": {"version": "real-v1", "train_csv": "data/raw/train.csv"},
+                    "training": {"runner": "tabular_classification", "seed": 1, "device": "cuda"},
+                    "validation": {"metric": "accuracy", "direction": "maximize"},
+                },
+            )
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {"approval": {"requires_human_confirmation": False}},
+            )
+            raw = workspace / "data" / "raw"
+            raw.mkdir(parents=True)
+            (raw / "train.csv").write_text("feature,target\n1,1\n", encoding="utf-8")
+            audit_dataset(workspace)
+            service = ExperimentService(project_root, workspace)
+            config = service._resolve_runtime_config(load_yaml(config_path))
+
+            with self.assertRaisesRegex(PermissionError, "GPU training requires"):
+                service._require_real_training_preflight(config, config_path)
+            approve_training_config(workspace, config_path, "Approved two GPU hours.")
+            service._require_real_training_preflight(config, config_path)
+
+            approval = next((workspace / "experiments" / "approvals").glob("config-*.json"))
+            record = read_json(approval)
+            record["config_sha256"] = "tampered"
+            write_json_atomic(approval, record)
+            with self.assertRaisesRegex(PermissionError, "does not match"):
+                service._require_real_training_preflight(config, config_path)
+
+    def test_raw_data_change_requires_a_fresh_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            raw = workspace / "data" / "raw"
+            raw.mkdir(parents=True)
+            train_csv = raw / "train.csv"
+            train_csv.write_text("feature,target\n1,1\n", encoding="utf-8")
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {"approval": {"requires_human_confirmation": False}},
+            )
+            audit_dataset(workspace)
+            service = ExperimentService(project_root, workspace)
+            config = service._resolve_runtime_config(
+                {
+                    "data": {"train_csv": "data/raw/train.csv"},
+                    "training": {"runner": "tabular_classification", "device": "cpu"},
+                }
+            )
+
+            service._require_real_training_preflight(config, workspace / "configs" / "real.yaml")
+            train_csv.write_text("feature,target\n1,1\n2,0\n", encoding="utf-8")
+            with self.assertRaisesRegex(PermissionError, "Raw data changed"):
+                service._require_real_training_preflight(config, workspace / "configs" / "real.yaml")
+
+    def test_runtime_data_paths_are_relative_to_competition_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project_root = Path(temporary) / "project"
+            workspace = project_root / "workspace" / "current_competition"
+            service = ExperimentService(project_root, workspace)
+            logical_config = {
+                "data": {
+                    "train_csv": "data/raw/train.csv",
+                    "test_csv": "data/raw/test.csv",
+                    "train_images_dir": "data/raw/train/images",
+                }
+            }
+
+            runtime_config = service._resolve_runtime_config(logical_config)
+
+            self.assertEqual(
+                runtime_config["data"]["train_csv"],
+                str((workspace / "data" / "raw" / "train.csv").resolve()),
+            )
+            self.assertEqual(
+                runtime_config["data"]["train_images_dir"],
+                str((workspace / "data" / "raw" / "train" / "images").resolve()),
+            )
+            self.assertEqual(logical_config["data"]["train_csv"], "data/raw/train.csv")
+
+
+if __name__ == "__main__":
+    unittest.main()

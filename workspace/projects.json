@@ -1,0 +1,11 @@
+{
+  "current": "current_competition",
+  "projects": [
+    {
+      "created_at": "2026-07-17T01:13:02+00:00",
+      "id": "current_competition",
+      "name": "高分辨率遥感影像水体智能分割"
+    }
+  ],
+  "version": 1
+}

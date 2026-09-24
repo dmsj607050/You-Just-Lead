@@ -1,0 +1,41 @@
+experiment:
+  hypothesis: A compact U-Net establishes a reproducible binary segmentation baseline.
+  change_type: baseline
+  expected_improvement: Establish a held-out mean IoU reference.
+  estimated_gpu_hours: 1
+  rollback_plan: Retain the frozen baseline when later changes underperform.
+
+data:
+  version: replace-with-data-version
+  train_images_dir: data/raw/train/images
+  train_masks_dir: data/raw/train/masks
+  test_images_dir: data/raw/test/images
+  # Set to "_mask" for masks named <image_stem>_mask.png.
+  mask_filename_suffix: ""
+  # Set to "_mask" when prediction files must be <image_stem>_mask.png.
+  submission_filename_suffix: ""
+  image_size: [256, 256]
+  validation_fraction: 0.2
+  mask_foreground_threshold: 0
+  prediction_threshold: 0.5
+
+model:
+  base_channels: 16
+  dice_loss_weight: 0.5
+
+training:
+  runner: image_segmentation
+  seed: 42
+  epochs: 20
+  batch_size: 4
+  num_workers: 0
+  device: cpu
+
+optimizer:
+  name: adamw
+  learning_rate: 0.001
+  weight_decay: 0.0
+
+validation:
+  metric: global_iou
+  direction: maximize

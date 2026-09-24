@@ -1,0 +1,48 @@
+competition:
+  name: "高分辨率遥感影像水体智能分割"
+  platform: "iFLYTEK AI 开发者大赛"
+  task_type: image_segmentation
+  preferred_runner: waterseg_external
+  deadline: "2026-08-27 (public listing; exact cutoff time and time zone require authenticated rule-page confirmation)"
+
+evaluation:
+  primary_metric: global_water_iou
+  direction: maximize
+  public_private_split: "Hidden test set; local rule summary says training/test locations are separated."
+
+submission:
+  format: "tar.gz inference package; runtime prediction-output bundle requires official confirmation"
+  filename_rule: "<input_stem>_mask.png; single-channel 1024x1024 PNG with values 0 or 255"
+  daily_limit: 3
+  validation_profile: xunfei_waterseg_inference_package
+  contract:
+    package_layout: "one top-level directory containing run.py and model/"
+    required_files: [run.py, model/model.ts, model/config.json]
+    mask_size: [1024, 1024]
+    mask_filename_suffix: "_mask"
+    runtime_output: unresolved
+
+constraints:
+  external_data_allowed: null
+  pretrained_models_allowed: null
+  ensemble_allowed: null
+  inference_time_limit_seconds: null
+  model_size_limit_mb: 600
+
+approval:
+  requires_human_confirmation: true
+  official_evidence:
+    source_type: null
+    source_locator: null
+    reviewed_at: null
+    fields: {}
+  unresolved_questions:
+    - "Confirm the exact 2026-08-27 cutoff time and time zone from the authenticated rule page."
+    - "Confirm whether runtime results must be loose PNG files in /work/output or a submit.zip containing submit/*.png."
+    - "Confirm the rules for external data, ImageNet/foundation-model pretraining, and test-time augmentation."
+    - "Confirm inference hardware, dependency, time, and memory limits."
+
+risks:
+  - "The local rule summary is based on screenshots and is not a substitute for the current official rule page."
+  - "A recent official public listing confirms the 2026 water-segmentation challenge and the 2026-08-27 date, but not the exact cutoff time in this evidence record."
+  - "Existing TorchScript template writes submit.zip, while the local rule summary says PNG files should be written directly to /work/output."

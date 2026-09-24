@@ -1,5 +1,3 @@
 # Next actions
 
-1. Read and record the official competition rules.
-2. Run the deterministic data audit.
-3. Establish a reproducible baseline before proposing optimizations.
+1. 在保持当前基线的前提下，只验证一个低成本改动。

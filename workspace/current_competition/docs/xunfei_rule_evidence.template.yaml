@@ -1,0 +1,68 @@
+# Copy this file to a new, untracked YAML file and fill it only from the
+# authenticated official rule page or an official rule PDF.  Do not include
+# account credentials, cookies, signed links, or other secrets.
+source:
+  source_type: authenticated_rule_page
+  source_locator: "https://challenge.xfyun.cn/..."
+  reviewed_at: "2026-07-17T00:00:00+08:00"
+
+# value writes the reviewed competition specification; anchor is the exact
+# rule-page heading, quoted short phrase, page number, or screenshot filename.
+fields:
+  competition.name:
+    value: "高分辨率遥感影像水体分割挑战赛"
+    anchor: "待填：规则页标题或截图锚点"
+  competition.platform:
+    value: "iFLYTEK AI 开发者大赛"
+    anchor: "待填"
+  competition.task_type:
+    value: image_segmentation
+    anchor: "待填"
+  competition.deadline:
+    value: "2026-08-27 23:59 Asia/Shanghai"
+    anchor: "待填：精确截止时间与时区"
+  evaluation.primary_metric:
+    value: global_water_iou
+    anchor: "待填"
+  evaluation.direction:
+    value: maximize
+    anchor: "待填"
+  submission.format:
+    value: "tar.gz inference package"
+    anchor: "待填"
+  submission.filename_rule:
+    value: "<input_stem>_mask.png; single-channel 1024x1024 PNG with values 0 or 255"
+    anchor: "待填"
+  submission.daily_limit:
+    value: 3
+    anchor: "待填"
+  constraints.model_size_limit_mb:
+    value: 600
+    anchor: "待填"
+  submission.contract.package_layout:
+    value: "one top-level directory containing run.py and model/"
+    anchor: "待填"
+  submission.contract.required_files:
+    value: [run.py, model/model.ts, model/config.json]
+    anchor: "待填"
+  submission.contract.mask_size:
+    value: [1024, 1024]
+    anchor: "待填"
+  submission.contract.mask_filename_suffix:
+    value: "_mask"
+    anchor: "待填"
+  submission.contract.runtime_output:
+    value: loose_png
+    anchor: "待填：仅可填写 loose_png 或 submit_zip"
+  constraints.external_data_allowed:
+    value: false
+    anchor: "待填：官方原文"
+  constraints.pretrained_models_allowed:
+    value: false
+    anchor: "待填：官方原文"
+  constraints.ensemble_allowed:
+    value: false
+    anchor: "待填：官方原文"
+  constraints.inference_limit_evidence:
+    value: "待填：GPU/显存/CPU/RAM/时限，或官方明确未公布限制"
+    anchor: "待填"

@@ -1,0 +1,10 @@
+{
+  "config_path": null,
+  "created_at": "2026-09-19T15:52:10+00:00",
+  "draft_id": "DRAFT-0001",
+  "estimated_gpu_hours": null,
+  "hypothesis": "Replace cross entropy with boundary loss and watch global water iou",
+  "parent_experiment_id": null,
+  "safety_note": "Draft creation does not schedule training.",
+  "status": "awaiting_human_approval"
+}

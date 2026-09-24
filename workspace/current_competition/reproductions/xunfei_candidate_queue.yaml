@@ -1,0 +1,29 @@
+queue:
+  - id: LOCAL-V16-REPRO
+    type: existing_user_owned_project
+    source: 'B:\2026xunfei\waterseg'
+    status: ready_after_rule_and_gpu_approval
+    rationale: "Reproduce the known single-model recipe before importing new external methods."
+    required_approvals: [official_rules, exact_gpu_config]
+  - id: FOURIER-AUG-ABLATION
+    type: local_implementation
+    source: https://openaccess.thecvf.com/content/CVPR2021/html/Xu_A_Fourier-Based_Framework_for_Domain_Generalization_CVPR_2021_paper.html
+    status: queue_after_LOCAL-V16-REPRO
+    rationale: "Low-cost one-variable test for location/season appearance shift."
+    required_approvals: [official_rules, exact_gpu_config]
+  - id: REIN-PROBE
+    type: external_source
+    source: https://github.com/w1oves/Rein
+    repository: https://github.com/w1oves/Rein.git
+    license: GPL-3.0
+    status: blocked_pending_separate_reproduction_workspace_and_pretraining_permission
+    rationale: "Parameter-efficient VFM probe; do not vendor GPL code into the main project."
+    required_approvals: [official_rules, pretrained_weights, separate_source_review, exact_gpu_config]
+  - id: CROSSEARTH-PROBE
+    type: external_source
+    source: https://github.com/VisionXLab/CrossEarth
+    repository: https://github.com/VisionXLab/CrossEarth.git
+    license: MIT
+    status: research_only_training_entrypoint_not_confirmed
+    rationale: "Task-aligned remote-sensing domain-generalization model, but official training steps are incomplete."
+    required_approvals: [official_rules, pretrained_weights, source_release_review, exact_gpu_config]
