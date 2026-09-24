@@ -244,8 +244,12 @@ def paper_package_report(project_root: Path, workspace: Path) -> dict[str, Any]:
 
     只读，不重新生成包，所以一次 GET 不会改动任何证据。
     每条 claim 额外带上 `result_exists`：界面据此判断它引用的结果文件是否还在。
+
+    证据包按**工作区**定位（`<workspace>/paper/generated/`），与写入方
+    `paper/generator.py::generate_paper_package` 的默认位置一致 —— 之前这里按
+    `project_root` 读，只因为工作区恰好位于 `<repo>/workspace/<id>` 才碰巧对得上。
     """
-    package_dir = project_root / "paper" / "generated"
+    package_dir = workspace / "paper" / "generated"
     tex_path = package_dir / "competition_report.tex"
     bib_path = package_dir / "references.bib"
     evidence_path = package_dir / "evidence_map.json"

@@ -37,8 +37,13 @@ def _curated_bibliography(workspace: Path) -> tuple[str, list[str]]:
 
 
 def generate_paper_package(workspace: Path, output_dir: Path | None = None) -> dict[str, Any]:
-    """Build TeX, BibTeX and an evidence map without manufacturing claims."""
-    output = output_dir or workspace.parent.parent / "paper" / "generated"
+    """Build TeX, BibTeX and an evidence map without manufacturing claims.
+
+    默认输出到**工作区里**的 `paper/generated/`：证据图属于这条项目的证据，必须跟着工作区走，
+    否则"把工作区拷到另一台机器"就丢掉了论文那一环。读取方
+    （`app/trace_service.py::paper_package_report`）按同一个位置读，两边不能各按各的算。
+    """
+    output = output_dir or workspace / "paper" / "generated"
     output.mkdir(parents=True, exist_ok=True)
     spec = load_yaml(workspace / "competition_spec.yaml") if (workspace / "competition_spec.yaml").exists() else {}
     results = current_competition_results(workspace)

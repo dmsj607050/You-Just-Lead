@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import shutil
+import sqlite3
 import tempfile
 import threading
 import unittest
-import json
-import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 from http.server import ThreadingHTTPServer
@@ -22,6 +23,7 @@ from agents.reproduction_agent import intake_repository
 from agents.research_agent import search_research
 from agents.strategy_agent import recommend_next_actions
 from paper.generator import generate_paper_package
+from app.trace_service import paper_package_report
 from tools.configuration import load_yaml, write_yaml
 from tools.files import read_json, write_json_atomic
 from tools.submission import validate_submission
@@ -200,7 +202,8 @@ class WorkflowExtensionTests(unittest.TestCase):
             root = Path(temporary)
             workspace = root / "workspace" / "current"
             write_yaml(workspace / "competition_spec.yaml", _approved_spec("Paper Cup", "segmentation", "iou"))
-            package_dir = root / "paper" / "generated"
+            # 证据包在工作区里：写入方与 `/api/paper` 的读取方必须认同一个位置。
+            package_dir = workspace / "paper" / "generated"
             handler = type(
                 "TestPaperApiHandler",
                 (CompetitionApiHandler,),
@@ -235,6 +238,46 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertEqual(generated["bib_entries"], 0)
             self.assertTrue(str(generated["tex_path"]).endswith("competition_report.tex"))
             self.assertTrue(Path(generated["evidence_path"]).exists())
+
+    def test_paper_evidence_lands_where_the_trace_chain_reads_it(self) -> None:
+        """写入方与读取方必须认同一个位置，而不是"碰巧对得上"。
+
+        证据图属于这条项目的证据，必须落在工作区里 —— 否则把工作区拷到另一台机器，
+        论文那一环就断了（端侧离线状态页也正是按工作区读它的）。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace" / "current"
+            write_yaml(workspace / "competition_spec.yaml", _approved_spec("Paper Cup", "segmentation", "iou"))
+
+            package = generate_paper_package(workspace)
+
+            written = Path(package["evidence_map"])
+            self.assertEqual(written, workspace / "paper" / "generated" / "evidence_map.json")
+            self.assertTrue(written.is_file())
+
+            report = paper_package_report(root, workspace)
+            self.assertTrue(report["available"], "溯源链没读到刚写出来的证据包")
+            self.assertEqual(Path(str(report["evidence_path"])), written)
+
+    def test_workspace_can_be_relocated_without_losing_the_evidence_package(self) -> None:
+        """把工作区整体挪到别处再读：位置是相对工作区算的，读起来照旧。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = root / "workspace" / "current"
+            write_yaml(original / "competition_spec.yaml", _approved_spec("Paper Cup", "segmentation", "iou"))
+            generate_paper_package(original)
+
+            moved = root / "somewhere-else" / "current"
+            moved.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(original), str(moved))
+
+            report = paper_package_report(root, moved)
+            self.assertTrue(report["available"])
+            self.assertTrue(
+                str(report["evidence_path"]).startswith(str(moved)),
+                "证据包应当跟着工作区走",
+            )
 
     def test_trace_endpoint_reports_four_read_only_chains(self) -> None:
         """GET /api/trace 汇总四条溯源链，且一次 GET 不落任何文件。"""
