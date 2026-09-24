@@ -10,3 +10,8 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+
+# desktop/（Windows 桌面端）里有一个真实的 build/ 目录，放的是 vite 插件源码，
+# 不是构建产物；上面的 **/build 会连它一起忽略，所以这里显式放回来。
+!desktop/build/
+!desktop/build/**

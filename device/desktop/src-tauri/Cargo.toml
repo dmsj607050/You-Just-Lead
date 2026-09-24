@@ -1,0 +1,16 @@
+[package]
+name = "you-just-lead-desktop"
+version = "0.1.9"
+description = "Local-first competition training Agent"
+authors = ["You Just Lead"]
+edition = "2021"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
