@@ -255,6 +255,81 @@ export struct SectionRail {
   }
 }
 
+/** 可选项的一项。 */
+export interface ChoiceSpec {
+  key: string;
+  /** 已翻译的短标签。 */
+  label: string;
+  /** ok / warn / muted，决定选中时的底色与文字色。 */
+  tone: string;
+}
+
+/** 选中态的底色。 */
+function choiceBackground(tone: string): string {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY_SOFT;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_SOFT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER_SOFT;
+  }
+  return AppTheme.PAGE_BG;
+}
+
+/** 选中态的文字色。 */
+function choiceTextColor(tone: string): string {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY_DARK;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_TEXT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER;
+  }
+  return AppTheme.TEXT_SECONDARY;
+}
+
+/**
+ * 可选列表：一排互斥的小块，选中那一块用底色标出来。
+ *
+ * 与 `SectionRail` 的区别是用途：那个是切换页面分段，这个是在一段里对**一条记录**做取舍
+ * （调研 / 舍弃）。所以它不参与分段高亮的样式，选中态也用各自的色调说话。
+ */
+@Component
+export struct ChoiceChips {
+  @Prop items: ChoiceSpec[] = [];
+  /** 当前选中的 key；空串表示一项都没选。 */
+  @Prop active: string = '';
+  /** 提交中禁用，避免连点两次写出两条相反的取舍。 */
+  @Prop disabled: boolean = false;
+  onSelect: (key: string) => void = () => {
+  };
+
+  build() {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(this.items, (item: ChoiceSpec) => {
+        Text(item.label)
+          .fontSize(12)
+          .fontColor(item.key === this.active ? choiceTextColor(item.tone) : AppTheme.TEXT_SECONDARY)
+          .backgroundColor(item.key === this.active ? choiceBackground(item.tone) : AppTheme.PAGE_BG)
+          .borderRadius(6)
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .margin({ right: 8, bottom: 8 })
+          .opacity(this.disabled ? 0.5 : 1)
+          .onClick(() => {
+            if (!this.disabled) {
+              this.onSelect(item.key);
+            }
+          })
+      }, (item: ChoiceSpec) => `${item.key}-${item.key === this.active}-${item.label}`)
+    }
+    .width('100%')
+  }
+}
+
 /** 分布条的一项。 */
 export interface BarItemSpec {
   label: string;

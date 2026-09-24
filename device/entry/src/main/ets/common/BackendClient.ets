@@ -245,6 +245,64 @@ export interface DataAuditReport {
   tables: string[];
 }
 
+/**
+ * 相关性打分的四个分量，取值 0~1，算不出来的那一项为 null。
+ *
+ * 后端把分值拆开给出来，是为了让界面能解释「这个 0.68 是怎么来的」——
+ * 而不是只给一个说不清的数字。
+ */
+export interface RelevanceParts {
+  /** 查询词命中：标题权重最高，摘要次之。 */
+  terms: number | null;
+  /** 与竞赛规格里任务、模态、指标的吻合度。 */
+  task: number | null;
+  /** 记录里是否带代码仓库。 */
+  code: number | null;
+  /** 年份新旧。 */
+  recency: number | null;
+}
+
+/** 评判里的一条证据。`key` 是枚举，界面负责翻成文案。 */
+export interface CandidateSignal {
+  key: string;
+  /** ok / warn / danger / muted。 */
+  tone: string;
+  /** 证据本身（数值、许可名、仓库地址），不翻译。 */
+  detail: string;
+}
+
+/** 用论文标题在 GitHub 上找到的候选实现仓库。 */
+export interface CodeCandidate {
+  repository: string;
+  url: string | null;
+  license: string | null;
+  stars: number | null;
+  /** 标题词在该仓库名/描述里的命中率，低于阈值就不会出现在这里。 */
+  title_overlap: number;
+}
+
+/**
+ * 一条候选的价值评判。
+ *
+ * `verdict` 是结论枚举：reproduce（值得复现）/ adapt_component（只借鉴组件）/
+ * reference_only（只当参考，实现自己写）/ skip（不投入）。
+ * `has_official_code` 恒为 false —— 检索源不提供作者归属，无法证明「官方实现」。
+ */
+export interface CandidateAssessment {
+  paper_id: string;
+  verdict: string;
+  worth_reproducing: boolean;
+  has_public_code: boolean;
+  has_official_code: boolean;
+  /** found / none_found / lookup_failed / skipped。查不动 ≠ 没有代码。 */
+  code_lookup: string;
+  code_candidates: CodeCandidate[];
+  task_fit: number | null;
+  relevance_score: number | null;
+  assessed_at: string;
+  signals: CandidateSignal[];
+}
+
 /** 一条公开文献记录。 */
 export interface ResearchRecord {
   paper_id: string;
@@ -258,11 +316,29 @@ export interface ResearchRecord {
   code_url: string | null;
   official_code: boolean | null;
   relevance_score: number | null;
-  reproduction_priority: string | null;
+  /** 复现优先度，取值 0~1（旧数据里可能是 high/medium/low 这类文本）。 */
+  reproduction_priority: string | number | null;
   abstract: string | null;
+  /** 检索时就写好的打分分量；老工作区的记录里没有这个字段。 */
+  relevance_parts?: RelevanceParts;
+  /** undecided / investigate / discard。 */
+  decision: string;
+  decision_note: string;
+  decided_at: string | null;
+  /** 没评判过时为 null。 */
+  assessment: CandidateAssessment | null;
 }
 
-/** GET /api/research：文献雷达的检索结果。 */
+/** 取舍的计数，给「已调研 N / 已舍弃 M」用。 */
+export interface CandidateCounts {
+  records: number;
+  undecided: number;
+  investigate: number;
+  discard: number;
+  assessed: number;
+}
+
+/** GET /api/research：文献雷达的检索结果 + 取舍 + 评判。 */
 export interface ResearchReport {
   query: string | null;
   searched_at: string | null;
@@ -270,6 +346,7 @@ export interface ResearchReport {
   records: ResearchRecord[];
   provider_failures: Record<string, string>;
   report_markdown: string;
+  counts: CandidateCounts;
 }
 
 /** 论文里的一条证据声明。 */
@@ -640,6 +717,18 @@ interface DecisionApprovalRequest {
   experiment_id: string;
 }
 
+/** 检索请求：query 为空串表示按规则规格拼检索式。 */
+interface ResearchSearchRequest {
+  query: string;
+}
+
+/** 取舍请求：decision 取 investigate / discard / undecided。 */
+interface ResearchDecisionRequest {
+  paper_id: string;
+  decision: string;
+  note: string;
+}
+
 interface ProjectSelectRequest {
   id: string;
 }
@@ -768,9 +857,42 @@ export function fetchDataAudit(): Promise<DataAuditReport> {
   return requestJson<DataAuditReport>('/api/data-audit', http.RequestMethod.GET);
 }
 
-/** 读取文献检索记录。 */
+/** 读取文献检索记录 + 取舍 + 评判。 */
 export function fetchResearch(): Promise<ResearchReport> {
   return requestJson<ResearchReport>('/api/research', http.RequestMethod.GET);
+}
+
+/**
+ * 触发一次文献检索。
+ *
+ * `query` 传空串就是「按规则检索」：后端会从 competition_spec.yaml 里的任务类型与
+ * 模态拼检索式。给了词就按词查，用于人工微调。
+ */
+export function searchResearch(query: string): Promise<ResearchReport> {
+  const payload: ResearchSearchRequest = { query: query };
+  return requestJson<ResearchReport>('/api/research/search', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/**
+ * 记下一条候选的取舍。
+ *
+ * 取舍单独落盘，重跑检索不会覆盖它。decision 取 investigate / discard / undecided。
+ */
+export function decideResearchCandidate(paperId: string, decision: string, note: string): Promise<ResearchReport> {
+  const payload: ResearchDecisionRequest = { paper_id: paperId, decision: decision, note: note };
+  return requestJson<ResearchReport>('/api/research/decide', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/**
+ * 对已标记「调研」的候选做价值评判。
+ *
+ * 评判会用论文标题去 GitHub 找实现仓库，所以后端默认只评判 investigate 的那些，
+ * 已经决定不看的不值得再花一次查询。
+ */
+export function assessResearchCandidates(): Promise<ResearchReport> {
+  return requestJson<ResearchReport>('/api/research/assess', http.RequestMethod.POST, JSON.stringify({}));
 }
 
 /** 读取论文证据包与投稿契约。 */
