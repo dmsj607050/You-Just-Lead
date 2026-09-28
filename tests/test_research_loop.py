@@ -27,6 +27,8 @@ from schemas.research import (
     CHECK_LABELS,
     GRAPH_EDGE_KINDS,
     RESEARCH_ACTIONS,
+    STEP_STATUSES,
+    STEP_STATUS_LABELS,
     Decision,
     Evidence,
     Experiment,
@@ -547,6 +549,61 @@ class PolicyTests(unittest.TestCase):
 
 
 class LoopTests(unittest.TestCase):
+    def test_every_step_status_is_declared_in_the_contract(self) -> None:
+        """每一步的状态都会显示成徽章，所以六种状态一个都不能少，且都必须有中文名。
+
+        这条同时是**覆盖**断言：少一种就说明某条路径换了取值，而界面上的中文名会跟着对不上。
+        """
+        seen: set[str] = set()
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+
+            def silent_executor(_action, _decision, _state, _workspace):
+                return {}
+
+            # finished：动作预算用满，编排器直接结束。
+            seen.add(step(ResearchState(budget={"max_actions": 0}), workspace).status)
+
+            # deferred：没有执行器时，设计实验记为待办。
+            waiting = ResearchState()
+            waiting.add_hypothesis(_falsifiable())
+            seen.add(step(waiting, workspace).status)
+
+            # failed：执行器抛错，只让这一步失败，不炸整条循环。
+            def boom(_action, _decision, _state, _workspace):
+                raise RuntimeError("boom")
+
+            seen.add(step(waiting, workspace, executor=boom).status)
+
+            # applied：补全假设这一步真的落实了。跑三次仍然补不动，第四次转成终止 ——
+            # 而这条假设没有分支，于是拿到 noop。
+            vague = ResearchState()
+            vague.add_hypothesis(Hypothesis(hypothesis_id="H0001", statement="x"))
+            for _ in range(3):
+                seen.add(step(vague, workspace, executor=silent_executor).status)
+            seen.add(step(vague, workspace, executor=silent_executor).status)
+
+            # awaiting_approval：结论只跑了一个种子，先跨种子复现 —— 要动算力，得人批准。
+            replication = ResearchState()
+            replication.add_hypothesis(_falsifiable())
+            replication.add_experiment(
+                Experiment(
+                    experiment_id="E0001",
+                    hypothesis_id="H0001",
+                    question="q",
+                    artifacts=["experiments/artifacts/E0001/history.json"],
+                )
+            )
+            replication.record_evidence(
+                _evidence(prediction_met=True, replicated_across_seeds=False)
+            )
+            seen.add(step(replication, workspace, executor=silent_executor).status)
+
+        self.assertEqual(seen, set(STEP_STATUSES), f"这些状态没有被契约覆盖：{seen - set(STEP_STATUSES)}")
+        for name in STEP_STATUSES:
+            with self.subTest(status=name):
+                self.assertTrue(STEP_STATUS_LABELS[name].strip())
+
     def test_killing_a_branch_is_applied_without_an_executor(self) -> None:
         """终止路线是编排器自己的决定：不需要模型，也不需要动机器。"""
         with tempfile.TemporaryDirectory() as temporary:

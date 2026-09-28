@@ -42,6 +42,7 @@ from schemas.research import (
     HYPOTHESIS_STATUSES,
     PENDING_ACTIONS,
     RESEARCH_ACTIONS,
+    STEP_STATUSES,
     TERMINAL_ACTIONS,
     research_contract,
 )
@@ -86,6 +87,23 @@ class VocabularyTests(unittest.TestCase):
 
     def test_every_verdict_has_a_label_and_a_tone(self) -> None:
         self.assertEqual(set(EVIDENCE_VERDICT_LABELS), set(EVIDENCE_VERDICTS))
+
+    def test_every_status_has_a_label_and_a_tone(self) -> None:
+        """`active` / `killed` / `applied` 是内部取值，不该原样印在界面上 —— 中文名也属于契约。"""
+        payload = research_contract()
+        lists = (
+            "hypothesis_statuses",
+            "branch_statuses",
+            "verdicts",
+            "job_statuses",
+            "step_statuses",
+        )
+        for key in lists:
+            self.assertTrue(payload[key], f"{key} 是空的")
+            for item in payload[key]:
+                with self.subTest(list=key, name=item["name"]):
+                    self.assertTrue(item["label"].strip(), f"{key}.{item['name']} 没有中文名")
+                    self.assertIn(item["tone"], ("ok", "warn", "danger", "muted"))
 
     def test_falsification_preconditions_are_real_checks(self) -> None:
         """判"假设被反证"之前要先确认的那几项，必须是核查项里真的有名字的项。"""
@@ -138,6 +156,15 @@ class ContractPayloadTests(unittest.TestCase):
         terminal = {item["name"] for item in research_contract()["actions"] if item["terminal"]}
         self.assertEqual(terminal, set(TERMINAL_ACTIONS))
         self.assertTrue(terminal, "没有任何动作被标成终止 —— 界面会一直显示「还有事要做」")
+
+    def test_the_declared_step_statuses_are_the_ones_the_loop_uses(self) -> None:
+        """端侧靠这份清单把 `applied` 翻译成中文，所以它必须与编排器实际用的取值一致。
+
+        "编排器实际会返回哪些状态"由 `test_research_loop.py` 那条覆盖测试盯着。
+        """
+        declared = [item["name"] for item in research_contract()["step_statuses"]]
+
+        self.assertEqual(declared, list(STEP_STATUSES))
 
 
 class ContractEndpointTests(unittest.TestCase):

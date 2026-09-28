@@ -186,6 +186,54 @@ BRANCH_STATUS_TONES = {
     "concluded": "ok",
 }
 
+#: 状态的中文名。没有它们，两个端都会把 `active` / `killed` 这种内部取值直接印在界面上。
+HYPOTHESIS_STATUS_LABELS = {
+    "active": "进行中",
+    "supported": "已被支持",
+    "refuted": "已被反证",
+    "killed": "已终止",
+    "merged": "已合并",
+}
+
+BRANCH_STATUS_LABELS = {
+    "active": "活跃",
+    "killed": "已终止",
+    "merged": "已合并",
+    "concluded": "已结论",
+}
+
+#: 推进作业与其中每一步的状态。它们不属于科研对象，但同样会显示在界面上 ——
+#: `applied` / `awaiting_approval` 这种内部取值不该直接印给用户看。
+JOB_STATUSES = ("running", "completed", "failed")
+
+STEP_STATUSES = ("applied", "awaiting_approval", "deferred", "noop", "failed", "finished")
+
+JOB_STATUS_LABELS = {
+    "running": "进行中",
+    "completed": "已完成",
+    "failed": "失败",
+}
+
+STEP_STATUS_LABELS = {
+    "applied": "已落实",
+    "awaiting_approval": "等人批准",
+    "deferred": "缺执行器，记为待办",
+    "noop": "找不到目标",
+    "failed": "执行失败",
+    "finished": "编排结束",
+}
+
+JOB_STATUS_TONES = {"running": "warn", "completed": "ok", "failed": "danger"}
+
+STEP_STATUS_TONES = {
+    "applied": "ok",
+    "awaiting_approval": "warn",
+    "deferred": "warn",
+    "noop": "muted",
+    "failed": "danger",
+    "finished": "ok",
+}
+
 #: 契约格式自身的版本。改字段含义（不是加字段）时递增。
 RESEARCH_CONTRACT_VERSION = 1
 
@@ -214,14 +262,32 @@ def research_contract() -> dict[str, Any]:
         ],
         "falsification_preconditions": list(FALSIFICATION_PRECONDITIONS),
         "hypothesis_statuses": [
-            {"name": name, "tone": HYPOTHESIS_STATUS_TONES.get(name, "muted")} for name in HYPOTHESIS_STATUSES
+            {
+                "name": name,
+                "label": HYPOTHESIS_STATUS_LABELS[name],
+                "tone": HYPOTHESIS_STATUS_TONES.get(name, "muted"),
+            }
+            for name in HYPOTHESIS_STATUSES
         ],
         "branch_statuses": [
-            {"name": name, "tone": BRANCH_STATUS_TONES.get(name, "muted")} for name in BRANCH_STATUSES
+            {
+                "name": name,
+                "label": BRANCH_STATUS_LABELS[name],
+                "tone": BRANCH_STATUS_TONES.get(name, "muted"),
+            }
+            for name in BRANCH_STATUSES
         ],
         "verdicts": [
             {"name": name, "label": EVIDENCE_VERDICT_LABELS[name], "tone": VERDICT_TONES[name]}
             for name in EVIDENCE_VERDICTS
+        ],
+        "job_statuses": [
+            {"name": name, "label": JOB_STATUS_LABELS[name], "tone": JOB_STATUS_TONES[name]}
+            for name in JOB_STATUSES
+        ],
+        "step_statuses": [
+            {"name": name, "label": STEP_STATUS_LABELS[name], "tone": STEP_STATUS_TONES[name]}
+            for name in STEP_STATUSES
         ],
         "graph_node_kinds": list(GRAPH_NODE_KINDS),
         "graph_edge_kinds": list(GRAPH_EDGE_KINDS),
@@ -426,10 +492,12 @@ __all__ = [
     "GraphEdge",
     "HYPOTHESIS_STATUSES",
     "Hypothesis",
+    "JOB_STATUSES",
     "PENDING_ACTIONS",
     "RESEARCH_ACTIONS",
     "RESEARCH_CONTRACT_VERSION",
     "ResearchBranch",
+    "STEP_STATUSES",
     "TERMINAL_ACTIONS",
     "is_valid_action",
     "research_contract",

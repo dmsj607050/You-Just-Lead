@@ -84,9 +84,9 @@ const Contract = {
   checks() {
     return (Contract.data && Contract.data.checks) || [];
   },
-  //: 判定值 / 假设状态 / 分支状态的色调。界面不按字符串猜颜色。
+  //: 判定值 / 状态 / 作业与步骤状态的色调。界面不按字符串猜颜色。
   toneOf(name) {
-    for (const list of ['verdicts', 'hypothesis_statuses', 'branch_statuses']) {
+    for (const list of Contract.TONE_LISTS) {
       const entry = Contract._entry(list, name);
       if (entry) return entry.tone || 'muted';
     }
@@ -96,7 +96,19 @@ const Contract = {
     const entry = Contract._entry('verdicts', name);
     return entry ? entry.label : '';
   },
+  //: 假设 / 分支 / 作业 / 步骤状态的中文名。内部取值（active、applied）不该直接印给用户看。
+  statusLabel(name) {
+    for (const list of Contract.NAME_LISTS) {
+      const entry = Contract._entry(list, name);
+      if (entry && entry.label) return entry.label;
+    }
+    return '';
+  },
 };
+
+/** 契约里"名字 → 中文名/色调"的几组清单。界面按这些清单查，不自己写名单。 */
+Contract.NAME_LISTS = ['hypothesis_statuses', 'branch_statuses', 'job_statuses', 'step_statuses'];
+Contract.TONE_LISTS = ['verdicts'].concat(Contract.NAME_LISTS);
 
 // ------------------------------------------------------------------ 离线缓存
 

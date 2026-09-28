@@ -59,6 +59,11 @@ function verdictLabel(name) {
   return Contract.verdictLabel(name) || name || '';
 }
 
+/** 假设 / 分支状态的中文名。内部取值（active / killed）不该直接印给用户看。 */
+function statusLabel(name) {
+  return Contract.statusLabel(name) || name || '';
+}
+
 // ------------------------------------------------------------------ 概览
 
 const STAGE_LABELS = {
@@ -237,13 +242,13 @@ Views.loop = function (data) {
               `<div class="timeline-index">${index + 1}</div>` +
               '<div class="timeline-body">' +
               `<div class="timeline-action">${UI.esc(actionLabel(step.decision && step.decision.action))} ` +
-              `<span class="badge ${badgeToneForState(step.status === 'applied' ? 'ok' : step.status)}">${UI.esc(step.status)}</span></div>` +
+              `<span class="badge ${badgeToneForState(step.status)}">${UI.esc(statusLabel(step.status))}</span></div>` +
               `<div class="timeline-detail">${UI.esc(step.detail)}</div>` +
               '</div></div>'
           )
           .join('');
         const head =
-          `${UI.Badge(job.status, badgeToneForState(job.status))} ` +
+          `${UI.Badge(statusLabel(job.status), badgeToneForState(job.status))} ` +
           `<span class="meta-line">${UI.esc(job.job_id)} · 最多 ${UI.esc(count(job.max_steps))} 步` +
           (job.stopped_because ? ` · 停止于「${UI.esc(job.stopped_because)}」` : '') +
           (job.error ? ` · ${UI.esc(job.error)}` : '') +
@@ -278,7 +283,8 @@ Views.loop = function (data) {
       hypotheses.length
         ? hypotheses
             .map((item) => {
-              const falsifiable = (item.predictions || []).length > 0 && (item.falsifiers || []).length > 0;
+              // 可证伪的判据由后端给出（`Hypothesis.is_falsifiable()`），界面不自己再实现一遍。
+              const falsifiable = item.falsifiable === true;
               const killed = item.status === 'killed';
               const predictions = (item.predictions || []).map((line) => `<li>${UI.esc(line)}</li>`).join('');
               const falsifiers = (item.falsifiers || []).map((line) => `<li>${UI.esc(line)}</li>`).join('');
@@ -291,7 +297,7 @@ Views.loop = function (data) {
                 '<div class="hypothesis-head">' +
                 `<div class="hypothesis-id">${UI.esc(item.hypothesis_id)}</div>` +
                 `<div class="hypothesis-statement">${UI.esc(item.statement)}</div>` +
-                UI.Badge(item.status, badgeToneForState(item.status)) +
+                UI.Badge(statusLabel(item.status), badgeToneForState(item.status)) +
                 (falsifiable ? '' : UI.Badge('不可证伪', 'warn')) +
                 '</div>' +
                 (predictions ? `<div class="meta-line">预测</div><ul class="sub-list">${predictions}</ul>` : '') +
@@ -309,19 +315,24 @@ Views.loop = function (data) {
     );
   } else if (section === 'evidence') {
     const evidence = data.evidence || [];
-    // 核查项的名称与顺序来自契约（`GET /api/research/contract`），界面不抄。
-    const checks = Contract.checks().map((item) => [item.name, item.title]);
+    // 核查项的名称与顺序来自契约（`GET /api/research/contract`），取值由后端成对发出
+    // （`checks: [{name, value}]`）—— 界面两边都不自己抄。
+    const titles = {};
+    Contract.checks().forEach((item) => {
+      titles[item.name] = item.title;
+    });
     body = UI.Card(
       '证据核查',
       evidence.length
         ? evidence
             .map((item) => {
-              const rows = checks
-                .map(([field, label]) => {
-                  const value = item[field];
+              const rows = (item.checks || [])
+                .map((check) => {
+                  const value = check.value;
                   // 三态：true / false / null。null 是「没人查过」，不能显示成「不合格」。
                   const tone = value === true ? 'ok' : value === false ? 'danger' : 'muted';
                   const shown = value === true ? '是' : value === false ? '否' : '未核查';
+                  const label = titles[check.name] || check.name;
                   return `<div class="kv-row"><div class="kv-label">${UI.esc(label)}</div><div class="kv-value">${UI.Badge(shown, tone)}</div></div>`;
                 })
                 .join('');

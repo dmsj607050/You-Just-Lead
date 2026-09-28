@@ -141,12 +141,15 @@ Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_resear
 
 - 针对的真问题：Windows 界面原来自己抄了一份动作中文名表。抄的代价不是"多写几行"，
   而是**静默漂移** —— 后端删掉一个动作，界面还显示着它的中文名，谁都不会发现。
-- 依据：`schemas/research.py::research_contract`、`tests/test_research_contract.py`（16 项）、
-  `tests/test_web_views_render.py`（5 项，用真实脚本渲染真实快照，拦住"视图引用了不存在的变量"）。
-- **能力边界（缺口，如实写）**：鸿蒙端目前**没有**研究循环页，也没有调用这个接口。
-  它现有的页面把判定值当不透明字符串显示，所以不会和契约冲突，但"共用"只到
-  "不产生第二份副本"这一层 —— 端侧真正消费契约要等它有了研究循环页。ArkTS 的改动
-  本机无法编译（没有 DevEco 构建链），所以这一段没有动。
+- 依据：`schemas/research.py::research_contract`、`tests/test_research_contract.py`（17 项）、
+  `tests/test_web_views_render.py`（7 项，用真实脚本渲染真实快照，拦住"视图引用了不存在的变量"）。
+- **端侧没有反射，所以取值要成对发**：`evidence[].checks` 是 `[{name, value}]`、
+  `hypotheses[].falsifiable` 是后端算好的。不这么做，ArkTS 想按名字取字段就得把那九个核查项
+  的名字抄进源码 —— 那就等于契约有了第二份定义，而后端加第十项时端侧会静默地少显示一项。
+- **能力边界（缺口，如实写）**：端侧（ArkTS）**没有编译过** —— 本机没有 DevEco 构建链。
+  能自动验的那部分由 `tests/test_arkts_sources.py`（6 项）盯着：括号配平、import 的符号真的
+  导出过、页面上的 `this.xxx` 真的在这个 struct 上存在。类型对不对、ArkUI 的语法限制
+  （`@Builder` 的参数规则、`@State` 的可观察性）有没有守住，要装机验收。
 
 ---
 

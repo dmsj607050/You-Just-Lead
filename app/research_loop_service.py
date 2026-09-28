@@ -25,7 +25,7 @@ from app.orchestrator.executor import ResearchExecutor
 from app.orchestrator.loop import run as run_loop
 from app.orchestrator.policy import decide_next_action
 from app.orchestrator.state import ResearchState
-from schemas.research import Hypothesis, ResearchBranch
+from schemas.research import CHECK_FIELDS, Evidence, Hypothesis, ResearchBranch
 from tools.files import write_json_atomic
 from tools.provenance import utc_now
 
@@ -35,6 +35,31 @@ JOB_HISTORY_LIMIT = 20
 
 # 一次提交最多推进几步。给上限是因为每一步都要真调模型，跑飞了要有人能按住。
 MAX_STEPS_PER_JOB = 6
+
+
+def hypothesis_payload(item: Hypothesis) -> dict[str, Any]:
+    """一条假设 + 它的可证伪判定。
+
+    "可证伪"的判据（既写了预测、又写了反证条件）只在 `Hypothesis.is_falsifiable()` 里
+    写一次。让两个前端各自再实现一遍这条判断，就多出两个实现漂移的机会 —— 而界面上
+    "不可证伪"标错属于最难查的那类问题：两边看起来都"有道理"。
+    """
+    payload = item.to_dict()
+    payload['falsifiable'] = item.is_falsifiable()
+    return payload
+
+
+def evidence_payload(item: Evidence) -> dict[str, Any]:
+    """一条证据 + 它九项核查的**逐项取值**，成对发出。
+
+    为什么要把取值配成 `[{"name": ..., "value": ...}]` 而不是只发字段：端侧（ArkTS）
+    没有反射，想按名字取字段就得把九个名字抄进端侧源码 —— 那就等于契约有了第二份定义，
+    后端将来加第十项时端侧会静默地少显示一项。名字与顺序仍然只来自契约
+    （`GET /api/research/contract` 的 checks），这里只负责把"查到了什么"配上对。
+    """
+    payload = item.to_dict()
+    payload['checks'] = [{'name': name, 'value': getattr(item, name)} for name in CHECK_FIELDS]
+    return payload
 
 
 class ResearchLoopError(RuntimeError):
@@ -153,9 +178,9 @@ class ResearchLoopService:
 
         return {
             "summary": state.summary(),
-            "hypotheses": [asdict(item) for item in state.hypotheses.values()],
+            "hypotheses": [hypothesis_payload(item) for item in state.hypotheses.values()],
             "experiments": [asdict(item) for item in state.experiments.values()],
-            "evidence": [asdict(item) for item in state.latest_evidence()],
+            "evidence": [evidence_payload(item) for item in state.latest_evidence()],
             "branches": [asdict(item) for item in state.branches.values()],
             "decisions": [item.to_dict() for item in state.decisions[-30:]],
             "edges": [asdict(item) for item in state.edges[-200:]],

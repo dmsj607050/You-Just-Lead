@@ -277,6 +277,10 @@ CONTRACTS: dict[str, Contract] = {
         invariants=(
             "evidence 只给每个实验最新的一条（`ResearchState.latest_evidence`）；完整历史留在 "
             "证据集合与账本里。界面要显示的是「现在怎么看」，不是每一条核查记录",
+            "evidence 的每一项都带 `checks: [{name, value}]` —— 名字与顺序只来自契约，"
+            "取值由后端配上对；任何一端都不许自己写一份核查项名字清单",
+            "hypotheses 的每一项都带 `falsifiable` —— 判据只在 `Hypothesis.is_falsifiable()` "
+            "里写一次，不让两个前端各实现一遍",
             "next_action 是**预测**：`decide_next_action` 只读状态，取快照不会推进任何东西",
             "jobs 里的 pending_approvals 必须如实列出等人批准的动作；"
             "把它们藏起来会让「循环停了」看起来像「没事可做」",

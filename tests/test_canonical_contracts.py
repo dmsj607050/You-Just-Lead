@@ -30,7 +30,7 @@ from database.ledger import ExperimentLedger, ledger_path
 from paper.generator import generate_paper_package
 from schemas.contracts import CONTRACTS, Contract, resolve, type_matches
 from schemas.experiment import ExperimentManifest, ExperimentResult
-from schemas.research import RESEARCH_ACTIONS
+from schemas.research import CHECK_FIELDS, RESEARCH_ACTIONS, Evidence, Experiment
 from tools.configuration import load_yaml, write_yaml
 from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
 from tools.files import read_json, write_json_atomic
@@ -545,17 +545,36 @@ class ContractPayloadTests(unittest.TestCase):
     def test_research_loop_snapshot_matches_the_declared_shape(self) -> None:
         """研究循环快照是**真跑出来**的那一份，不是手写的样例。
 
-        它同时钉住两件事：字段集合与类型，以及"证据只给每个实验最新的一条"
-        —— 界面按这个口径显示，接口改口径而不改契约就会在这里红。
+        它同时钉住三件事：字段集合与类型、"证据只给每个实验最新的一条"、以及每条证据都
+        带着九项核查的逐项取值。最后一条是给端侧用的：ArkTS 没有反射，取值不成对发出，
+        端侧就只能把那九个名字抄进源码。
         """
         contract = CONTRACTS["research_loop_snapshot"]
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary)
             service = ResearchLoopService(workspace, workspace)
-            service.add_hypothesis(
+            added = service.add_hypothesis(
                 statement="契约探针：这条假设必须可被判决",
                 predictions=["某个指标提升"],
                 falsifiers=["某个指标没有提升"],
+            )
+            state = service.state()
+            state.add_experiment(
+                Experiment(
+                    experiment_id=state.new_id("experiment"),
+                    hypothesis_id=added["hypothesis_id"],
+                    question="探针实验",
+                    config_path="configs/loop/probe.yaml",
+                    artifacts=["experiments/artifacts/E0001/history.json"],
+                )
+            )
+            state.record_evidence(
+                Evidence(
+                    evidence_id=state.new_id("evidence"),
+                    experiment_id="E0001",
+                    ran_successfully=True,
+                    prediction_met=None,
+                )
             )
             snapshot = service.snapshot()
 
@@ -566,6 +585,17 @@ class ContractPayloadTests(unittest.TestCase):
         # 每个实验最多一条证据 —— 核查会反复写证据，但"当前结论"只有一个。
         seen = [item["experiment_id"] for item in snapshot["evidence"]]
         self.assertEqual(len(seen), len(set(seen)), "快照里同一个实验出现了多条证据")
+
+        # 九项核查成对发出：名字来自契约、取值来自记录，端侧照着渲染就行。
+        self.assertEqual(len(snapshot["evidence"]), 1)
+        pairs = snapshot["evidence"][0]["checks"]
+        self.assertEqual([item["name"] for item in pairs], list(CHECK_FIELDS))
+        by_name = {item["name"]: item["value"] for item in pairs}
+        self.assertIs(by_name["ran_successfully"], True)
+        self.assertIsNone(by_name["prediction_met"], "没查过的项必须是 None，不能是 False")
+
+        # 可证伪判定由后端给出，两个前端不各自实现一遍这条判据。
+        self.assertIs(snapshot["hypotheses"][0]["falsifiable"], True)
 
     def test_a_producer_that_gains_a_field_would_fail(self) -> None:
         """证明这套检查不是摆设：多一个未声明的顶层字段就必须失败。"""

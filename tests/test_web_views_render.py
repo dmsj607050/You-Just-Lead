@@ -120,6 +120,9 @@ def _real_snapshot(workspace: Path) -> dict:
         Experiment(experiment_id=state.new_id("experiment"), hypothesis_id=older["hypothesis_id"], question=""),
         branch_id=state.branch_of(older["hypothesis_id"]).branch_id,
     )
+    # 再来一条还没补上预测与反证条件的：它必须被标成"不可证伪"。这一位的判据由后端给出
+    # （`falsifiable`），所以这条断言同时在钉"界面用的是后端的判据，不是自己算的"。
+    service.add_hypothesis(statement="早融合对红外与深度的利用效率如何", predictions=[], falsifiers=[])
     return service.snapshot()
 
 
@@ -188,6 +191,16 @@ class LoopViewRenderTests(unittest.TestCase):
         self.assertIn("这次设计跑不起来：没有对照也没有配置", rendered["hypotheses"])
         # 空设计不算"欠着核查"，但要在界面上单独数出来。
         self.assertIn("设计跑不起来", rendered["now"])
+
+    def test_a_hypothesis_without_predictions_is_marked_unfalsifiable(self) -> None:
+        """可证伪的判据来自后端的 `falsifiable`，不是界面自己拿两个数组长度算的。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            snapshot = _real_snapshot(Path(temporary))
+        rendered = self._render(snapshot)
+
+        unfalsifiable = [item for item in snapshot["hypotheses"] if item["falsifiable"] is not True]
+        self.assertTrue(unfalsifiable, "fixture 里应当有一条不可证伪的假设")
+        self.assertIn("不可证伪", rendered["hypotheses"])
 
     def test_the_evidence_section_uses_the_contract_wording(self) -> None:
         """九项核查的名称来自契约。界面自己抄一份的话，这里会因为名字对不上而红。"""
