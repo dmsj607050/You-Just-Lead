@@ -140,7 +140,7 @@ $hdc = "$deveco\sdk\default\openharmony\toolchains\hdc.exe"
 | 项 | 值 |
 |---|---|
 | Release 页 | `https://github.com/dmsj607050/You-Just-Lead/releases/tag/v1.0.0-rc.1` |
-| 后端分支 | `You-Just-Lead` 的 `main` @ `3577789` |
+| 后端分支 | `You-Just-Lead` 的 `main`（发布时是 `3577789`；之后只多了本文件的文字修订，构建输入没动） |
 | 端侧分支 | `YouJustLead-Harmony` 的 `main` @ `33fd233`（本地工作分支叫 `master`，和远端 `main` 是同一串提交） |
 | 标签 | `v1.0.0-rc.1` → `3577789`（发布时的那次提交；本文件后来的修订不在这个标签里，只改了文字） |
 | 资产 | `YouJustLead.exe`、`competition-agent-api.exe`、`entry-default-signed.hap`、`SHA256SUMS.txt` |
