@@ -5,16 +5,14 @@
 | 项 | 值 |
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
-| 后端仓库 | `You-Just-Lead` @ `1d2b42b0d0a463b884c72acf3750c4fcf3e2dba7`（`master`，无未提交改动） |
+| 后端仓库 | `You-Just-Lead` @ `0d4e5450466fd9b6286b5dff7abcd94a6e06cf6e`（`master`，无未提交改动） |
 | 端侧仓库 | `YouJustLead-Harmony` @ `8b623f5e461f2908d4d35f91c13295ab8465498a`（`master`，无未提交改动） |
-| 清单生成时间 | `2026-09-28T06:59:24+00:00` |
+| 清单生成时间 | `2026-09-28T07:38:28+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
-两个 exe 是用这份树构建的：清单里的 commit 是**生成清单那一刻的 HEAD**，它比构建时刻多了
-发布工具那一次提交（`main.py` / `app/release_service.py` / 测试 / 文档）—— 这几样都不在
-两个 exe 里（它们的入口分别只依赖 `app/desktop_entry.py` 与 `app/local_agent_entry.py → app/api_server.py`），
-所以 commit 号对得上实际打包进去的代码。
+两个 exe 就是用清单记录的那个 commit 构建的，构建之后代码没有改动过 —— 这是 `release_ready`
+要求"仓库干净"的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
 
 ## 产物与校验和
 
@@ -22,15 +20,15 @@
 「发出去的是哪一个文件」的东西）：
 
 ```text
-6a4f5b7cd8442232306a19b7820efa856b395b010a9a9376be718e44df7a6789  competition-agent-api.exe
-10ce8e04fb2f938278518ab05bfbbffc10cd9703b54f67450ddccce2dc3f6eff  YouJustLead.exe
+2fe5d8da0bd2d9150bf1b61f086cf69a76f2f2f06d79daad8e57940a0dfd1972  competition-agent-api.exe
+135642a25664de4769beabd76f3db7f82aa707df146100192311e70aa0d46580  YouJustLead.exe
 c09cec59f182343d3c29441c8a766051da2f76ad1b3f1aef10d6414598f5dabf  entry-default-signed.hap
 ```
 
 | 产物 | 大小 | 说明 |
 |---|---|---|
-| `YouJustLead.exe` | 9,773,093 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
-| `competition-agent-api.exe` | 9,997,267 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
+| `YouJustLead.exe` | 10,041,849 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
+| `competition-agent-api.exe` | 9,998,326 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
 | `entry-default-signed.hap` | 2,822,262 字节 | 鸿蒙端调试签名 HAP（端侧仓库构建产物） |
 | `.app` | 缺失 | 上架要交的产物。**必须**在 DevEco 里 `Build APP(s)` 才有，需要 AGC 账号与云管理证书；清单里如实记 `present: false`、`required_for_release: false` |
 
