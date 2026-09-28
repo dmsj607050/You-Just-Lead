@@ -146,10 +146,13 @@ Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_resear
 - **端侧没有反射，所以取值要成对发**：`evidence[].checks` 是 `[{name, value}]`、
   `hypotheses[].falsifiable` 是后端算好的。不这么做，ArkTS 想按名字取字段就得把那九个核查项
   的名字抄进源码 —— 那就等于契约有了第二份定义，而后端加第十项时端侧会静默地少显示一项。
-- **能力边界（缺口，如实写）**：端侧（ArkTS）**没有编译过** —— 本机没有 DevEco 构建链。
-  能自动验的那部分由 `tests/test_arkts_sources.py`（6 项）盯着：括号配平、import 的符号真的
-  导出过、页面上的 `this.xxx` 真的在这个 struct 上存在。类型对不对、ArkUI 的语法限制
-  （`@Builder` 的参数规则、`@State` 的可观察性）有没有守住，要装机验收。
+- **端侧编译过一次，但不是每次改动都编**：用 DevEco 自带的 hvigor（`hvigorw clean assembleHap --no-daemon`，
+  见 `docs/versioning.md`）全量重编是 BUILD SUCCESSFUL，并且 `hvigor-config.json5` 的 `typeCheck` 已打开 ——
+  就是它抓出 `ResearchContract` 漏声明了后端早在发的 `job_statuses` / `step_statuses`。另外
+  `tests/test_arkts_sources.py`（6 项）在没有构建链的环境里守着括号配平、import 的符号真的导出过、
+  页面上的 `this.xxx` 真的存在。
+- **剩下的边界（如实写）**：编译过不等于跑起来对 —— 端侧**没有在真机或模拟器上运行过**，
+  布局在手机宽度下是否挤、轮询是否真的随页面销毁而停，都要装机验收。
 
 ---
 

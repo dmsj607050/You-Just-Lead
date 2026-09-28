@@ -5,15 +5,15 @@
 | 项 | 值 |
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
-| 后端仓库 | `You-Just-Lead` @ `0cbc7b8ba2874589b46dac47aab4d60cb7766a68`（`master`，无未提交改动） |
-| 端侧仓库 | `YouJustLead-Harmony` @ `8f95534`（`master`，无未提交改动；清单生成时是 `910ab33`，之后多了一次很小的重构 —— 去掉一个没人读的状态变量，不影响任何 Windows 产物） |
-| 清单生成时间 | `2026-09-28T08:38:25+00:00` |
+| 后端仓库 | `You-Just-Lead` @ `6baa7a0a91ab1c994e7335ecf6f9c4abe4855a46`（`master`，无未提交改动） |
+| 端侧仓库 | `YouJustLead-Harmony` @ `458d852f04d5e127ee2dfff51f8a4521ffc57117`（`master`，无未提交改动） |
+| 清单生成时间 | `2026-09-28T09:52:37+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
-两个 exe 是用**清单记录的那个 commit** 构建的。生成清单之后只多了一次提交 —— 就是这份发布说明
-本身（只有 `docs/` 下的文字），所以产物与代码仍然对得上。这也是 `release_ready` 要求"仓库干净"
-的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
+两个 exe 是用**清单记录的那个 commit** 构建的；HAP 也是同一个 commit 在端侧仓库里现编的。
+生成清单之后只多了提交以外的文字改动（`docs/`），所以产物与代码仍然对得上。这也是
+`release_ready` 要求"仓库干净"的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
 
 ## 产物与校验和
 
@@ -23,14 +23,14 @@
 ```text
 bba63495d627a89e0f197f024040cc3f56d16149b9d94cd75e2c18a92b115c8c  competition-agent-api.exe
 6375c9721ce9beb3952520b1415ae20fd2e3378201650c516c57b2174c2eeffb  YouJustLead.exe
-c09cec59f182343d3c29441c8a766051da2f76ad1b3f1aef10d6414598f5dabf  entry-default-signed.hap
+48e303c87c3650105d8bad214531f34352f39193ad35cf56c1108c861758989d  entry-default-signed.hap
 ```
 
 | 产物 | 大小 | 说明 |
 |---|---|---|
 | `YouJustLead.exe` | 10,043,573 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
 | `competition-agent-api.exe` | 9,998,270 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
-| `entry-default-signed.hap` | 2,822,262 字节 | 鸿蒙端调试签名 HAP。**注意：这个文件是端侧新增研究循环页之前构建的**（摘要与上一版一致），要用上新页面必须在 DevEco 里重新 `Build Hap(s)` |
+| `entry-default-signed.hap` | 3,025,374 字节 | 鸿蒙端**调试签名** HAP，含研究循环页（在端侧仓库现编，命令见文末） |
 | `.app` | 缺失 | 上架要交的产物。**必须**在 DevEco 里 `Build APP(s)` 才有，需要 AGC 账号与云管理证书；清单里如实记 `present: false`、`required_for_release: false` |
 
 列表也可以从 `release/SHA256SUMS.txt` 直接取（由 `main.py release-manifest` 生成，不是手抄的）。
@@ -55,7 +55,9 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 | 本地执行器 exe 真能起服务 | `dist\competition-agent-api.exe --port 8896`：`/health` 返回 ok，契约端点可用 |
 | 离线页在后端完全不在时可用 | 停掉后端 → 浏览器打开 `%LOCALAPPDATA%\YouJustLead\offline\index.html#loop`：顶部徽章「离线：显示上次同步的数据」，页面上写着"这是后端起不来时打开的静态快照（时间）"，研究循环页照常显示假设/证据/决策轨迹 |
 | 端侧要的数据真的在接口上 | 服务端实查：契约返回 14 动作 / 9 核查 / 5 判定 / 3 作业状态 / 6 步骤状态（都带中文名与色调）；快照里每条证据带 9 对 `{name, value}`、每条假设带 `falsifiable` |
-| 端侧改动能自动验的部分 | `tests/test_arkts_sources.py`（6 项）：6 个端侧文件的括号配平、import 的符号都真的导出过、新页面上的 60 余个 `this.xxx` 都在那个 struct 上 |
+| **端侧真的编译过** | 用 DevEco 自带的 hvigor 6.26.4 + SDK 全量重编：`hvigorw clean assembleHap --no-daemon` → **BUILD SUCCESSFUL**。`typeCheck` 已打开，所以类型错误也会被拦；这次就是它抓出 `ResearchContract` 漏声明了后端早在发的 `job_statuses` / `step_statuses`（8 个错误） |
+| 端侧 HAP 由这一版现编 | `entry-default-signed.hap`：2,822,262 → **3,025,374** 字节，含新建的研究循环页 |
+| 端侧源码的结构检查（补充） | `tests/test_arkts_sources.py`（6 项）：6 个端侧文件的括号配平、import 的符号都真的导出过、新页面上的 60 余个 `this.xxx` 都在那个 struct 上 |
 | 研究循环在真实工作区跑通一整圈 | 见下节 |
 | 界面把整圈显示出来 | 研究循环页「最近的推进」显示该次推进的 3 步（核查结果 / 终止路线 / 综合结论）与每步详情；假设页显示被终止的 H0007 与 3 条新假设；证据页显示 EXP-0008 的九项核查与判定「假设被反证」 |
 
@@ -76,13 +78,9 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 
 ## 已知缺口（如实列出，不虚报）
 
-- **端侧的 ArkTS 没有编译过**。本机没有 DevEco 构建链，所以新增的研究循环页（`ResearchLoopPage.ets`
-  与 `BackendClient` / `I18n` / `ViewTypes` / `Index` 的改动）只做了能自动验的那部分：
-  `tests/test_arkts_sources.py` 检查括号配平、import 的符号真的导出过、页面上的 `this.xxx`
-  真的在那个 struct 上存在。**类型与 ArkUI 的语法限制（`@Builder` 的参数规则、`@State` 的
-  可观察性）要装机验收** —— 第一次在 DevEco 里编译时可能要改几处。
-- **`entry-default-signed.hap` 是旧的**：它构建于端侧新增这一页之前，摘要与上一版相同。
-  要把它作为可交付的端侧产物，得在 DevEco 里重新 `Build Hap(s)`。
+- **端侧只证明"编译得过"，还没证明"跑起来对"**。全量重编（`typeCheck` 打开）是 BUILD SUCCESSFUL，
+  但它**没有在真机或模拟器上运行过**：页面布局在手机宽度下是否挤、轮询在切页时是否真的停住、
+  契约取不到时的退化显示长什么样，这些都要装机验收。
 - **`.app` 未构建**；签名、AGC 建应用、工信部备案、隐私政策 URL、AI 功能声明都需要账号或资质。
 - **「批准执行」与「人提假设」两个动作两端界面都还没有入口**。后端接口都在
   （`POST /api/research/loop/run`、`POST /api/research/loop/hypotheses`），但要在界面上点，
@@ -99,8 +97,18 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 cd 'B:\You Just Lead\competition-agent'
 powershell -ExecutionPolicy Bypass -File tools\build_desktop_app.ps1      # -> dist\YouJustLead.exe
 powershell -ExecutionPolicy Bypass -File tools\build_local_agent.ps1      # -> dist\competition-agent-api.exe
-# 端侧 HAP：DevEco Studio 里 Build Hap(s)
 python main.py release-manifest                                          # 退出码 0，并归位产物 + 写 SHA256SUMS.txt
+```
+
+端侧 HAP 用 DevEco 自带的 hvigor 从命令行编（不必打开 IDE）：
+
+```powershell
+$deveco = 'B:\Deveco_studio\setup\DevEco Studio'   # 本机的 DevEco 安装位置
+$env:DEVECO_SDK_HOME = "$deveco\sdk"
+$env:NODE_HOME = "$deveco\tools\node"
+$env:PATH = "$deveco\tools\node;$deveco\tools\ohpm\bin;$deveco\tools\hvigor\bin;$env:PATH"
+Set-Location 'B:\YouJustLead'
+hvigorw.bat clean assembleHap --no-daemon           # -> entry\build\default\outputs\default\entry-default-signed.hap
 ```
 
 清单与校验和落在 `release/`；版本号只有一处来源（仓库根的 `VERSION`），流程见 `docs/versioning.md`。

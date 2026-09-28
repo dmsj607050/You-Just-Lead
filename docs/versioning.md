@@ -88,11 +88,20 @@ python main.py release-manifest --device-repo 'B:\YouJustLead'   # 手动指定�
 
 ```text
 1. 改 VERSION（并同步端侧 AppScope/app.json5 的 versionName）
-2. 编译产物：后端 dist/competition-agent-api.exe、dist/YouJustLead.exe、端侧 HAP（DevEco 里 Build Hap(s)）
+2. 编译产物：后端 dist/competition-agent-api.exe、dist/YouJustLead.exe、端侧 HAP
 3. python main.py release-manifest        # 退出码必须是 0；并把产物归位到 release/ 并写出 SHA256SUMS.txt
 4. 写 docs/RELEASE_<版本>.md，**贴进清单里的 version / commit / 产物 SHA-256**
 5. 提交（清单与产物在 release/，那是输出目录、不进版本库；摘要进发布说明才留得下来）
 6. 打 tag，并把 release/ 里的产物上传到分发位置
+```
+
+端侧 HAP 可以用 DevEco 自带的 hvigor **从命令行**编，不必打开 IDE：
+
+```powershell
+$deveco = 'B:\Deveco_studio\setup\DevEco Studio'
+$env:DEVECO_SDK_HOME = "$deveco\sdk"; $env:NODE_HOME = "$deveco\tools\node"
+$env:PATH = "$deveco\tools\node;$deveco\tools\ohpm\bin;$deveco\tools\hvigor\bin;$env:PATH"
+Set-Location 'B:\YouJustLead'; hvigorw.bat clean assembleHap --no-daemon
 ```
 
 第 3 步会把清单里**确实存在**的产物复制到 `release/`（复制，不是移动：`dist/` 仍是构建产物的原处），

@@ -96,10 +96,10 @@ EXP-0008 得到的是**负结果**：早融合没有带来提升。编排器据�
 
 ### 尚未完成（如实列出）
 
-- 端侧 `.app`（上架要交的产物）还没构建过，需要 DevEco 的 `Build APP(s)`；
-  签名、AGC 建应用、备案、隐私政策 URL、AI 功能声明都需要账号或资质。
+- **端侧编译通过，但没在真机上跑过**。用 DevEco 自带的 hvigor 全量重编
+  （`hvigorw clean assembleHap --no-daemon`）是 BUILD SUCCESSFUL，`typeCheck` 也打开了 ——
+  就是它抓出 `ResearchContract` 漏声明了后端早在发的 `job_statuses` / `step_statuses`。
+  但"编得过"不等于"跑起来对"：布局在手机宽度下是否挤、轮询是否真的随页面销毁而停，要装机验收。
+- **`.app` 未构建**；签名、AGC 建应用、备案、隐私政策 URL、AI 功能声明都需要账号或资质。
 - 「批准执行」与「人提假设」两个动作：后端接口都在（`POST /api/research/loop/run`、
   `POST /api/research/loop/hypotheses`），但**两个端的界面上都还没有入口**。
-- 端侧的 ArkTS 代码本机没有 DevEco 构建链，**没有编译过**。能自动验的部分由
-  `tests/test_arkts_sources.py` 盯着（括号配平、import 的符号真的导出过、`this.xxx` 真的存在），
-  类型与 ArkUI 的语法限制要装机验收。
