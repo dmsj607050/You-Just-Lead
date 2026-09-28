@@ -2,25 +2,32 @@
 
 **这一版的产物就在本机，是可下载的**（早期 `0.1.5`~`0.1.9` 那几份是历史记录，产物已不在）。
 
-| 项 | 值 |
+下面这一节说的是**那次发布发出去的是什么**，不是"今天的仓库重编会得到什么"。
+
+| 项（发布当时） | 值 |
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
-| 后端仓库 | `You-Just-Lead` @ `140696f6be5d54d8c8fd7b4ea44d1c4651eb118e`（`master`，无未提交改动） |
-| 端侧仓库 | `YouJustLead-Harmony` @ `33fd233b2a0e5c5d7a0daf16e0665f6efa1224d7`（`master`，无未提交改动） |
+| 后端 commit | `140696f6be5d54d8c8fd7b4ea44d1c4651eb118e`（`master`，无未提交改动） |
+| 端侧 commit | `33fd233b2a0e5c5d7a0daf16e0665f6efa1224d7` 的 `YouJustLead-Harmony`（当时还是独立仓库） |
 | 清单生成时间 | `2026-09-28T12:16:30+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
-三个产物各自的构建输入都与清单记录的 commit 对得上：HAP 是在端侧 `33fd233` 上现编、并装进
-模拟器验过的那一个；两个 exe 的构建输入（`app/`、`schemas/`、`main.py`、`web/`）自后端 `6baa7a0`
-起就没有再动过 —— 之后的后端提交只改了 `docs/`、`CHANGELOG.md` 与 `tests/`（包括本文件这次修订），
-所以 exe 的内容与当前 `master` 一致。这也是 `release_ready` 要求"仓库干净"的原因：产物与 commit
-必须对得上，否则差的那一个提交没人说得清。
+两个 exe 是用发布当时那个 commit 构建的；HAP 是在端侧 `33fd233` 上现编、并装进模拟器验过的那一个。
+
+**发布之后仓库继续前进了**：端侧工程并入了本仓库的 `device/`（`docs/architecture.md` D10），
+发布工具本身也改过（同一件事）。所以今天重编**不会**逐字节得到同样的文件 —— HAP 已经实测过：
+同一份源码换个位置重编，3,042,268 → 3,042,265 字节。本机 `release/` 里的清单与校验和是**这次
+重编之后**的，与本文下面记的"发出去的那一份"不是同一批字节；要核对下载到的东西，认本文的
+SHA-256，不要认本机 `release/`。
+
+这也是 `release_ready` 要求"仓库干净"的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
 
 ## 产物与校验和
 
-产物在本机 `release/` 目录（该目录不进版本库，所以摘要记在这里 —— 这才是事后能证明
-「发出去的是哪一个文件」的东西）：
+**发出去的那一批**（上传到 GitHub Release 的就是这三个文件）的摘要。
+产物本身不进版本库（`/release/` 在 `.gitignore` 里），所以摘要记在这里 ——
+这才是事后能证明「发出去的是哪一个文件」的东西：
 
 ```text
 bba63495d627a89e0f197f024040cc3f56d16149b9d94cd75e2c18a92b115c8c  competition-agent-api.exe
