@@ -185,6 +185,7 @@ class LoopViewRenderTests(unittest.TestCase):
         self.assertIn("这次设计跑不起来", rendered["hypotheses"])
         # 没有留下理由的那些也要能解释自己，否则"有 N 个跑不起来"是没头没尾的一句话。
         self.assertIn("生成它时还没有记下原因", rendered["hypotheses"])
+        self.assertIn("这次设计跑不起来：没有对照也没有配置", rendered["hypotheses"])
         # 空设计不算"欠着核查"，但要在界面上单独数出来。
         self.assertIn("设计跑不起来", rendered["now"])
 

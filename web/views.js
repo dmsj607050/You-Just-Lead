@@ -271,7 +271,7 @@ Views.loop = function (data) {
     (data.experiments || []).forEach((item) => {
       if (undesignableIds.indexOf(item.experiment_id) < 0) return;
       blocked[item.hypothesis_id] =
-        item.blocked || '这次设计没有对照也没有配置，跑不起来（生成它时还没有记下原因）。';
+        item.blocked || '没有对照也没有配置（生成它时还没有记下原因）';
     });
     body = UI.Card(
       '假设池',
