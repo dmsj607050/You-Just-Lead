@@ -36,12 +36,18 @@ bba63495d627a89e0f197f024040cc3f56d16149b9d94cd75e2c18a92b115c8c  competition-ag
 > 换了个位置就是另一个字节流，所以 HAP 不是逐字节可复现的。已发布的那份仍然是 `590f4965…`，
 > 本文件记它是对的；要确认下载到的就是它，比 SHA-256，不要比重编结果。
 
-| 产物 | 大小 | 说明 |
-|---|---|---|
-| `YouJustLead.exe` | 10,043,573 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
-| `competition-agent-api.exe` | 9,998,270 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
-| `entry-default-signed.hap` | 3,042,268 字节 | 鸿蒙端**调试签名** HAP，含研究循环页（在端侧仓库 `33fd233` 现编，并装进模拟器验过，命令见文末） |
-| `.app` | 缺失 | 上架要交的产物。**必须**在 DevEco 里 `Build APP(s)` 才有，需要 AGC 账号与云管理证书；清单里如实记 `present: false`、`required_for_release: false` |
+**这是一个项目、一个仓库，下载时按你的系统选一个包**（产物都在本仓库里构建，命令见文末）：
+
+| 你的系统 | 下载 | 大小 | 说明 |
+|---|---|---|---|
+| **Windows** | `YouJustLead.exe` | 10,043,573 字节 | **大多数人要的这个**：双击即用，自带界面与后端，离线可读。不需要先装 Python |
+| **Windows** | `competition-agent-api.exe` | 9,998,270 字节 | 只要服务不要界面：无窗口的本地执行器（`python main.py serve` 的等价物），鸿蒙端在电脑上连的就是它 |
+| **鸿蒙** | `entry-default-signed.hap` | 3,042,268 字节 | 比赛要交的端侧应用，含研究循环页。**调试签名**，装真机要走开发者模式（DevEco / `hdc install`），命令见文末 |
+| **Linux** | —— | —— | **还没有**，如实说明：不是"再打一个包"就有。[desktop_entry.py](app/desktop_entry.py) 是 Windows 专用的（找 `C:\Program Files` 下的 Edge、离线目录取 `%LOCALAPPDATA%`），要出 Linux 版得先改那段；训练与后端的 Python 部分本身是跨平台的 |
+| 鸿蒙上架 | `.app` | 缺失 | 交应用市场要的是 `.app`（不是 HAP）。**必须**在 DevEco 里 `Build APP(s)` 才有，需要 AGC 账号与云管理证书；清单里如实记 `present: false`、`required_for_release: false` |
+
+三类产物是同一份东西的三个出口：**鸿蒙端是比赛要交的，Windows 是给用户用的**。
+两边共用同一个后端与同一套科研契约，所以一个仓库就能装下它们 —— 端侧工程在 `device/`。
 
 列表也可以从 `release/SHA256SUMS.txt` 直接取（由 `main.py release-manifest` 生成，不是手抄的）。
 

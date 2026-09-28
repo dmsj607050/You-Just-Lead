@@ -57,13 +57,17 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 | 据此改进 | 终止 H0007 与分支 B0007（负结果是有价值的结论，不是要修的 bug） |
 | 新假设 | 综合证据后开出 3 条：三模态读取/配对是否真的成立、0.002 是否只是 1 epoch+10% 数据的产物、差距是否在噪声内 |
 
-## 三个交付端
+## 交付形态：一个项目，按系统选一个包
 
-| 端 | 产物 | 用途 |
+鸿蒙端是比赛要交的，Windows 是给用户用的 —— 同一份东西的两个出口，共用同一个后端与同一套
+科研契约，所以都在本仓库里构建。
+
+| 你的系统 | 产物 | 用途 |
 |---|---|---|
-| Windows 桌面应用 | `dist/YouJustLead.exe` | 给用户直接下载使用：自带界面、自带后端、离线可读 |
-| Windows 本地执行器 | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；鸿蒙端在电脑上连的就是它 |
-| 鸿蒙端应用 | `device/` 编出来的 HAP | 比赛交付用的端侧应用 |
+| Windows | `dist/YouJustLead.exe` | 给用户直接下载使用：自带界面、自带后端、离线可读 |
+| Windows | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；鸿蒙端在电脑上连的就是它 |
+| 鸿蒙 | `device/` 编出来的 HAP | 比赛交付用的端侧应用 |
+| Linux | —— | **还没有**。后端本身跨平台，但桌面壳是 Windows 专用的（找 Edge 与 `%LOCALAPPDATA%`），要出 Linux 版得先改 `app/desktop_entry.py` |
 
 前两个由 `tools/build_desktop_app.ps1` 与 `tools/build_local_agent.ps1` 构建，
 产物位于 `dist/`（不进版本库），摘要记录在对应的 `docs/RELEASE_<版本>.md` 里。
