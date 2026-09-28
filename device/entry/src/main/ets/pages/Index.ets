@@ -25,6 +25,7 @@ import { DataPage } from '../view/DataPage';
 import { WritingPage } from '../view/WritingPage';
 import { TracePage } from '../view/TracePage';
 import { ReproductionPage } from '../view/ReproductionPage';
+import { ResearchLoopPage } from '../view/ResearchLoopPage';
 import { SettingsPage } from '../view/SettingsPage';
 import { LocalRulePage } from '../view/LocalRulePage';
 import { LocalStatusPage } from '../view/LocalStatusPage';
@@ -275,6 +276,9 @@ struct Index {
       TracePage()
     } else if (this.activeNav === 'reproduction') {
       ReproductionPage()
+    } else if (this.activeNav === 'loop') {
+      // 研究循环：这套编排框架的正面。与 Windows 端是同一页（同样的四段、同样的顺序）。
+      ResearchLoopPage()
     } else if (this.activeNav === 'settings') {
       SettingsPage()
     } else {

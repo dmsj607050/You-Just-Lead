@@ -34,5 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'data', icon: IconPaths.CHART },
   { key: 'writing', icon: IconPaths.PEN },
   { key: 'trace', icon: IconPaths.TRACE },
-  { key: 'reproduction', icon: IconPaths.BOX }
+  { key: 'reproduction', icon: IconPaths.BOX },
+  // 研究循环是这套编排框架的正面：上面八项是"这条链上有什么"，它是"这条链自己在走"。
+  { key: 'loop', icon: IconPaths.LOOP }
 ];

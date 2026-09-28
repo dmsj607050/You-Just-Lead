@@ -99,6 +99,16 @@ export default class IconPaths {
   static readonly BOX: string =
     'M4 7 L12 3 L20 7 L20 17 L12 21 L4 17 Z M4 7 L12 11 L20 7 M12 11 L12 21';
 
+  /**
+   * 圆环：研究循环。
+   *
+   * 用八边形逼近圆，仍然只用直线指令 —— 与 Windows 端 `ui.js` 的 `loop` 是同一串路径，
+   * 两个端的这一项图标必须长得一样。视觉上的"循环"含义靠旁边的文字补足，
+   * 所以这里不画箭头：24×24 下的箭头只会变成一团噪点。
+   */
+  static readonly LOOP: string =
+    'M19 12 L16.95 16.95 L12 19 L7.05 16.95 L5 12 L7.05 7.05 L12 5 L16.95 7.05 Z';
+
   /** 远山：横幅装饰，按 280×110 坐标系绘制。 */
   static readonly RIDGE_BACK: string =
     'M0 110 L52 44 L88 78 L136 24 L200 110 Z';

@@ -788,6 +788,210 @@ interface AgentRequest {
   max_turns: number;
 }
 
+/** 科研契约里的一个动作：内部名字 + 中文名 + 三个标记。 */
+export interface ResearchActionSpec {
+  name: string;
+  label: string;
+  /** 规则覆盖不到时，模型是否可以在自由选择里挑走它。 */
+  choosable: boolean;
+  /** 要动算力的动作：编排器不会自动触发，只登记成待批准。 */
+  pending_approval: boolean;
+  /** 会让循环停下来的动作（只有"结束"是）。 */
+  terminal: boolean;
+}
+
+/** 九项核查里的一项：判词（不合格时说的话）与界面的正向问法。 */
+export interface ResearchCheckSpec {
+  name: string;
+  label: string;
+  title: string;
+}
+
+/** 带中文名与色调的状态项（假设状态 / 分支状态）。 */
+export interface ResearchStatusSpec {
+  name: string;
+  label: string;
+  tone: string;
+}
+
+/** 判定值：名字 + 中文名 + 色调。 */
+export interface ResearchVerdictSpec {
+  name: string;
+  label: string;
+  tone: string;
+}
+
+/**
+ * GET /api/research/contract：科研词汇的**唯一来源**。
+ *
+ * 动作名、九项核查、判定值、假设与分支状态的名字、中文名和色调都在后端定义一次，
+ * 端侧运行时取。这里刻意没有第二份清单 —— 后端加一个动作，端侧自己就会多显示一个；
+ * 而抄一份的代价不是多写几行，是**静默漂移**。
+ */
+export interface ResearchContract {
+  contract_version: number;
+  actions: ResearchActionSpec[];
+  checks: ResearchCheckSpec[];
+  /** 判"假设被反证"之前必须先确认的那几项核查。 */
+  falsification_preconditions: string[];
+  hypothesis_statuses: ResearchStatusSpec[];
+  branch_statuses: ResearchStatusSpec[];
+  verdicts: ResearchVerdictSpec[];
+  graph_node_kinds: string[];
+  graph_edge_kinds: string[];
+}
+
+/** 一条可被实验判决的假设。 */
+export interface ResearchHypothesis {
+  hypothesis_id: string;
+  statement: string;
+  rationale: string[];
+  predictions: string[];
+  falsifiers: string[];
+  uncertainty: number | null;
+  status: string;
+  parent_id: string | null;
+  created_at: string;
+  /** 有没有预测与反证条件。判据由后端给出，端侧不自己再算一遍。 */
+  falsifiable: boolean;
+}
+
+/** 一次科研实验的设计（与"一次训练运行"是两件事）。 */
+export interface ResearchExperiment {
+  experiment_id: string;
+  hypothesis_id: string;
+  question: string;
+  baseline: string;
+  independent: string;
+  controlled: string[];
+  metrics: string[];
+  success_condition: string;
+  config_path: string;
+  /** 非空表示这次设计是空的：编排器判定它跑不起来，理由就在这里。 */
+  blocked: string;
+  run_id: string;
+  artifacts: string[];
+  created_at: string;
+}
+
+/** 一项核查的取值。三态：true 合格 / false 不合格 / null 没人查过。 */
+export interface ResearchCheckValue {
+  name: string;
+  value: boolean | null;
+}
+
+/** 一条证据核查结果。 */
+export interface ResearchEvidence {
+  evidence_id: string;
+  experiment_id: string;
+  /**
+   * 九项核查的名字与取值，由后端**成对**发出。
+   *
+   * 端侧（ArkTS）没有反射，按名字取字段就得把那九个名字抄进这里 —— 那就等于契约有了
+   * 第二份定义，后端将来加第十项时端侧会静默地少显示一项。
+   */
+  checks: ResearchCheckValue[];
+  verdict: string;
+  notes: string;
+  recorded_at: string;
+}
+
+/** 一条研究分支：一个假设 + 它的实验 + 它的证据 + 它的结论。 */
+export interface ResearchBranch {
+  branch_id: string;
+  hypothesis_id: string;
+  experiments: string[];
+  evidence_ids: string[];
+  conclusion: string;
+  status: string;
+}
+
+/** 编排器的一次决策。 */
+export interface ResearchDecision {
+  decision_id: string;
+  action: string;
+  target_id: string | null;
+  reason: string;
+  decided_at: string;
+}
+
+/** 编排器的下一步。它是**预测**：只读状态，取快照不会推进任何东西。 */
+export interface ResearchNextAction {
+  decision_id: string;
+  action: string;
+  target_id: string | null;
+  reason: string;
+}
+
+/** 假设计数。 */
+export interface ResearchHypothesisCounts {
+  total: number;
+  active: number;
+  falsifiable: number;
+}
+
+/** 实验计数。「跑完没核查」与「设计跑不起来」是两件事，分开报。 */
+export interface ResearchExperimentCounts {
+  total: number;
+  awaiting_evidence: string[];
+  undesignable: string[];
+}
+
+/** 分支计数。 */
+export interface ResearchBranchCounts {
+  total: number;
+  active: string[];
+}
+
+/** 研究状态摘要。 */
+export interface ResearchLoopSummary {
+  hypotheses: ResearchHypothesisCounts;
+  experiments: ResearchExperimentCounts;
+  branches: ResearchBranchCounts;
+  cursor: string | null;
+  updated_at: string;
+}
+
+/** 推进作业里的一步。 */
+export interface ResearchLoopStep {
+  decision: ResearchDecision;
+  status: string;
+  detail: string;
+}
+
+/** 一次推进作业。 */
+export interface ResearchLoopJob {
+  job_id: string;
+  status: string;
+  started_at: string;
+  max_steps: number;
+  finished_at: string | null;
+  steps: ResearchLoopStep[];
+  stopped_because: string;
+  /** 登记下来、等人批准的动作。它们不阻塞其他路线，但必须显示出来。 */
+  pending_approvals: string[];
+  error: string;
+}
+
+/** GET /api/research/loop 的一屏全貌。 */
+export interface ResearchLoopSnapshot {
+  summary: ResearchLoopSummary;
+  hypotheses: ResearchHypothesis[];
+  experiments: ResearchExperiment[];
+  evidence: ResearchEvidence[];
+  branches: ResearchBranch[];
+  decisions: ResearchDecision[];
+  next_action: ResearchNextAction;
+  /** 正在跑的作业号；没有作业在跑时是 null。 */
+  running: string | null;
+  jobs: ResearchLoopJob[];
+}
+
+/** 推进循环的请求体。 */
+interface ResearchLoopStepRequest {
+  max_steps: number;
+}
+
 /** 请求头。令牌始终发送，后端绑定回环地址时会忽略它。 */
 interface BackendHeaders {
   'Content-Type': string;
@@ -1073,6 +1277,46 @@ export function runReproduction(planId: string, commandId: string, note: string,
   };
   return requestJson<ReproductionRun>('/api/reproductions/run', http.RequestMethod.POST,
     JSON.stringify(payload));
+}
+
+/**
+ * 读取科研契约。
+ *
+ * 它是端侧唯一该认的词汇表：动作名、九项核查、判定与状态的中文名和色调都从这里取。
+ * 端侧不抄第二份 —— 抄一份的代价是静默漂移：后端删掉一个动作，界面还显示着它的名字。
+ */
+export function fetchResearchContract(): Promise<ResearchContract> {
+  return requestJson<ResearchContract>('/api/research/contract', http.RequestMethod.GET);
+}
+
+/** 读取研究循环的一屏全貌（含编排器对下一步的**预测**，取它不会推进任何东西）。 */
+export function fetchResearchLoop(): Promise<ResearchLoopSnapshot> {
+  return requestJson<ResearchLoopSnapshot>('/api/research/loop', http.RequestMethod.GET);
+}
+
+/**
+ * 推进循环若干步。
+ *
+ * 走作业模式：一步可能跑满多轮模型调用，同步返回必然读超时。后端返回作业号，
+ * 界面再轮询 `/api/research/loop` 的 running 与 jobs 看进度。
+ *
+ * 要动算力的动作（跑训练、复现）**不会被这一步触发**，它们只被登记成待批准。
+ */
+export function stepResearchLoop(maxSteps: number): Promise<ResearchLoopJob> {
+  const payload: ResearchLoopStepRequest = { max_steps: maxSteps };
+  return requestJson<ResearchLoopJob>('/api/research/loop/step', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/**
+ * 把已有实验记录重新接进研究状态。
+ *
+ * 幂等：训练是异步的，跑完之后没有谁通知编排层 —— 界面上的「重新回填」和轮询时的自动
+ * 回填走的是同一条路。
+ */
+export function backfillResearchLoop(): Promise<ResearchLoopSnapshot> {
+  return requestJson<ResearchLoopSnapshot>('/api/research/loop/backfill', http.RequestMethod.POST,
+    JSON.stringify({}));
 }
 
 /** 读取论文证据包与投稿契约。 */
