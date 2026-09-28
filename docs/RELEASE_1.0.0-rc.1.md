@@ -5,9 +5,9 @@
 | 项 | 值 |
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
-| 后端仓库 | `You-Just-Lead` @ `8b39ecaa345ef7863a4f5563459e26e4e2806afb`（`master`，无未提交改动） |
+| 后端仓库 | `You-Just-Lead` @ `140696f6be5d54d8c8fd7b4ea44d1c4651eb118e`（`master`，无未提交改动） |
 | 端侧仓库 | `YouJustLead-Harmony` @ `33fd233b2a0e5c5d7a0daf16e0665f6efa1224d7`（`master`，无未提交改动） |
-| 清单生成时间 | `2026-09-28T12:02:58+00:00` |
+| 清单生成时间 | `2026-09-28T12:16:30+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
