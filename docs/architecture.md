@@ -123,7 +123,7 @@ v1 的交付形态：**鸿蒙端应用 + 本地 Python 执行器**。
 
 可以发布要同时满足三条：版本处于 `rc`/`release` 阶段、发布必需的产物都在、两个仓库都没有未提交改动。
 
-- 依据：`app/release_service.py`、`tests/test_release_manifest.py`（22 项）、`docs/versioning.md`。
+- 依据：`app/release_service.py`、`tests/test_release_manifest.py`（25 项）、`docs/versioning.md`。
 - 针对的真问题：`docs/RELEASE_0.1.5.md` 记了安装包 SHA-256，`0.1.6`~`0.1.9` 都没记 ——
   纪律靠人记就会退化，所以改成工具会拦住的条件。
 - 未被这条决定覆盖的：Release 签名（`.app`）、AGC、备案、隐私政策、AI 声明都要用户侧账号或资质，
@@ -149,10 +149,15 @@ Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_resear
 - **端侧编译过一次，但不是每次改动都编**：用 DevEco 自带的 hvigor（`hvigorw clean assembleHap --no-daemon`，
   见 `docs/versioning.md`）全量重编是 BUILD SUCCESSFUL，并且 `hvigor-config.json5` 的 `typeCheck` 已打开 ——
   就是它抓出 `ResearchContract` 漏声明了后端早在发的 `job_statuses` / `step_statuses`。另外
-  `tests/test_arkts_sources.py`（6 项）在没有构建链的环境里守着括号配平、import 的符号真的导出过、
-  页面上的 `this.xxx` 真的存在。
-- **剩下的边界（如实写）**：编译过不等于跑起来对 —— 端侧**没有在真机或模拟器上运行过**，
-  布局在手机宽度下是否挤、轮询是否真的随页面销毁而停，都要装机验收。
+  `tests/test_arkts_sources.py`（8 项）在没有构建链的环境里守着括号配平、import 的符号真的导出过、
+  页面上的 `this.xxx` 真的存在，以及**页面声明的字段与后端实际在发的一致**。
+- **这一层在模拟器上真的跑起来过**：现编的 HAP 装进模拟器启 `EntryAbility`，四段
+  （当前 / 假设 / 证据 / 决策轨迹）逐一核对 —— 五个数字 10 / 5 / 13 / 0 / 3、EXP-0008 的九项核查
+  逐条显示、动作名显示中文。顺带在装机时抓到 `@Builder` 按值传参导致数值不刷新的缺陷，
+  改成 `@Component` + `@Prop` 才对。
+- **剩下的边界（如实写）**：模拟器不等于真机 —— 窄屏布局、深色模式、字体放大、轮询定时器
+  是否真的随页面销毁而停，都还没验。`test_arkts_sources.py` 是**源码级**扫描，它拦的是
+  "名字对不上"，拦不住"渲染出来不对"，后者只有装机看。
 
 ---
 
