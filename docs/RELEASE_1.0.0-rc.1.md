@@ -13,9 +13,9 @@
 
 三个产物各自的构建输入都与清单记录的 commit 对得上：HAP 是在端侧 `33fd233` 上现编、并装进
 模拟器验过的那一个；两个 exe 的构建输入（`app/`、`schemas/`、`main.py`、`web/`）自后端 `6baa7a0`
-起就没有改动过 —— 那之后的三个提交只动了 `docs/`、`CHANGELOG.md` 与 `tests/`，所以 exe 的内容
-与当前 `8b39eca` 一致。这也是 `release_ready` 要求"仓库干净"的原因：产物与 commit 必须对得上，
-否则差的那一个提交没人说得清。
+起就没有再动过 —— 之后的后端提交只改了 `docs/`、`CHANGELOG.md` 与 `tests/`（包括本文件这次修订），
+所以 exe 的内容与当前 `master` 一致。这也是 `release_ready` 要求"仓库干净"的原因：产物与 commit
+必须对得上，否则差的那一个提交没人说得清。
 
 ## 产物与校验和
 
