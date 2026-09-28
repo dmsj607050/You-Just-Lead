@@ -6,13 +6,14 @@
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
 | 后端仓库 | `You-Just-Lead` @ `0cbc7b8ba2874589b46dac47aab4d60cb7766a68`（`master`，无未提交改动） |
-| 端侧仓库 | `YouJustLead-Harmony` @ `910ab33a84dfc83b60e2fe8890cafb3255e19da8`（`master`，无未提交改动） |
+| 端侧仓库 | `YouJustLead-Harmony` @ `8f95534`（`master`，无未提交改动；清单生成时是 `910ab33`，之后多了一次很小的重构 —— 去掉一个没人读的状态变量，不影响任何 Windows 产物） |
 | 清单生成时间 | `2026-09-28T08:38:25+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
-两个 exe 就是用清单记录的那个 commit 构建的，构建之后代码没有改动过 —— 这是 `release_ready`
-要求"仓库干净"的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
+两个 exe 是用**清单记录的那个 commit** 构建的。生成清单之后只多了一次提交 —— 就是这份发布说明
+本身（只有 `docs/` 下的文字），所以产物与代码仍然对得上。这也是 `release_ready` 要求"仓库干净"
+的原因：产物与 commit 必须对得上，否则差的那一个提交没人说得清。
 
 ## 产物与校验和
 
