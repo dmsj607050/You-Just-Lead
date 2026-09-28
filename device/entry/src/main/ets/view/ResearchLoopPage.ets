@@ -53,8 +53,6 @@ export struct ResearchLoopPage {
   @State loading: boolean = false;
   @State errorText: string = '';
   @State section: string = 'now';
-  /** 契约是否到位。取到后改一下它，让读到契约的那些节点重建一次。 */
-  @State contractVersion: number = -1;
 
   @State hypotheses: ResearchHypothesis[] = [];
   @State experiments: ResearchExperiment[] = [];
@@ -114,15 +112,16 @@ export struct ResearchLoopPage {
   /**
    * 取一次契约。取不到不算致命：缺的是中文名，动作名本身还在，界面照样能用 ——
    * 所以这里只记下失败，不把它抛给调用方。
+   *
+   * 它必须在取快照**之前**完成：下面每一次 `apply()` 都会重新赋值若干 @State，
+   * 那时顺手就把读到契约的那些节点一起重建了，不需要额外的"契约到位"信号。
    */
   private async ensureVocabulary(): Promise<void> {
     if (vocabulary !== null) {
       return;
     }
     try {
-      const loaded: ResearchContract = await fetchResearchContract();
-      vocabulary = loaded;
-      this.contractVersion = loaded.contract_version;
+      vocabulary = await fetchResearchContract();
     } catch (err) {
       // 契约拿不到时下面所有 lookup 都退回内部名字，界面不会因此空白。
     }
