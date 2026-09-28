@@ -32,15 +32,18 @@ from schemas.contracts import CONTRACTS, Contract, resolve, type_matches
 from schemas.experiment import ExperimentManifest, ExperimentResult
 from schemas.research import CHECK_FIELDS, RESEARCH_ACTIONS, Evidence, Experiment
 from tools.configuration import load_yaml, write_yaml
-from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
+from tools.device_project import device_project_root, device_source_present
 from tools.files import read_json, write_json_atomic
 
-#: 端侧仓库的根由 `tools/device_repo.py` 统一解析（环境变量或约定位置）。
 
+def _arkts_root() -> Path:
+    """端侧工程的根。
 
-def _arkts_root() -> Path | None:
-    """端侧仓库的根；找不到就跳过端侧那半检查。"""
-    return device_repo_root(_repo_root())
+    它就在本仓库的 `device/` 里，所以缺了不是"这台机器上没有"，而是检出坏了 —— 直接红。
+    """
+    if not device_source_present(_repo_root()):
+        raise AssertionError(f"端侧工程不在 {device_project_root(_repo_root())}；它随本仓库走，不该缺")
+    return device_project_root(_repo_root())
 
 
 def _repo_root() -> Path:
@@ -178,8 +181,6 @@ class ContractDeclarationTests(unittest.TestCase):
 
     def test_arkts_sites_point_at_files_that_exist(self) -> None:
         root = _arkts_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
         for contract in CONTRACTS.values():
             for site in contract.arkts_sites:
                 target = root / _file_of(site.locator)
@@ -187,8 +188,6 @@ class ContractDeclarationTests(unittest.TestCase):
 
     def test_declared_field_names_still_appear_in_the_arkts_sources(self) -> None:
         root = _arkts_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
         for contract in CONTRACTS.values():
             for site in contract.arkts_sites:
                 source = (root / _file_of(site.locator)).read_text(encoding="utf-8")

@@ -21,18 +21,25 @@ from pathlib import Path
 
 from app.research_loop_service import ResearchLoopService
 from schemas.research import research_contract
-from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
+from tools.device_project import device_project_root, device_source_present
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _device_root() -> Path | None:
-    return device_repo_root(_repo_root())
+def _device_root() -> Path:
+    """端侧工程的位置。
+
+    它现在就在本仓库的 `device/` 里，所以**不再跳过**：缺了说明检出坏了，
+    要让测试红，而不是安静地少检查一遍（这正是当初分仓留下的病）。
+    """
+    if not device_source_present(_repo_root()):
+        raise AssertionError(f"端侧工程不在 {device_project_root(_repo_root())}；它随本仓库走，不该缺")
+    return device_project_root(_repo_root())
 
 
-#: 要检查的文件（相对端侧仓库根）。
+#: 要检查的文件（相对端侧工程根）。
 CHECKED_FILES = (
     "entry/src/main/ets/view/ResearchLoopPage.ets",
     "entry/src/main/ets/common/BackendClient.ets",
@@ -72,11 +79,19 @@ def _strip_noise(source: str) -> str:
     return _STRING.sub('""', without_lines)
 
 
+class DeviceCheckoutTests(unittest.TestCase):
+    def test_the_device_project_ships_with_this_repository(self) -> None:
+        """端侧工程在本仓库里，随本仓库克隆而克隆。
+
+        这条钉的是一段真实病史：端侧原先在第二个仓库，那九条检查在拿不到它的机器上会
+        **静默跳过**，`Ran 403 tests` 照样是绿的。现在缺了它，这里直接红。
+        """
+        self.assertTrue(device_source_present(_repo_root()))
+
+
 class BalanceTests(unittest.TestCase):
     def test_every_checked_file_has_balanced_brackets(self) -> None:
         root = _device_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
 
         for relative in CHECKED_FILES:
             code = _strip_noise((root / relative).read_text(encoding="utf-8"))
@@ -96,8 +111,6 @@ class ImportTests(unittest.TestCase):
     def test_everything_the_loop_page_imports_is_exported(self) -> None:
         """手写 import 最容易出的事是"这个名字其实没导出"。"""
         root = _device_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
 
         page = root / "entry/src/main/ets/view/ResearchLoopPage.ets"
         source = page.read_text(encoding="utf-8")
@@ -129,8 +142,6 @@ class MemberTests(unittest.TestCase):
     def test_the_declaration_extraction_finds_the_members(self) -> None:
         """自检：一条都抽不到的话，下面那条会**空着通过**。"""
         root = _device_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
 
         code = _strip_noise((root / "entry/src/main/ets/view/ResearchLoopPage.ets").read_text(encoding="utf-8"))
         declared = self._declared(code)
@@ -146,8 +157,6 @@ class MemberTests(unittest.TestCase):
         漏改名字、或者把方法写成另一个页面的名字，在这台机器上编译不出来也看不出来。
         """
         root = _device_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
 
         page = root / "entry/src/main/ets/view/ResearchLoopPage.ets"
         code = _strip_noise(page.read_text(encoding="utf-8"))
@@ -180,8 +189,6 @@ class ContractShapeTests(unittest.TestCase):
 
     def _client_source(self) -> str:
         root = _device_root()
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
         return (root / "entry/src/main/ets/common/BackendClient.ets").read_text(encoding="utf-8")
 
     def _declared(self, interface: str) -> set[str]:

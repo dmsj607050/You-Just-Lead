@@ -46,11 +46,18 @@ from schemas.research import (
     TERMINAL_ACTIONS,
     research_contract,
 )
-from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
+from tools.device_project import device_project_root, device_source_present
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def _arkts_root() -> Path:
+    """端侧工程的根；它就在本仓库的 `device/` 里，缺了就是检出坏了，不跳过。"""
+    if not device_source_present(_repo_root()):
+        raise AssertionError(f"端侧工程不在 {device_project_root(_repo_root())}；它随本仓库走，不该缺")
+    return device_project_root(_repo_root())
 
 
 #: 前端不许自带副本的那些名字。
@@ -215,9 +222,7 @@ class NoPrivateCopyTests(unittest.TestCase):
                 )
 
     def test_the_arkts_app_keeps_no_private_copy(self) -> None:
-        root = device_repo_root(_repo_root())
-        if root is None:
-            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
+        root = _arkts_root()
         sources = sorted((root / "entry" / "src" / "main" / "ets").rglob("*.ets"))
         self.assertTrue(sources, "端侧工程里一个 .ets 都没有，路径可能不对")
 

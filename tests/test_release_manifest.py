@@ -141,13 +141,12 @@ class ManifestShapeTests(unittest.TestCase):
         self.assertEqual(manifest["stage"], "rc")
         self.assertEqual(manifest["build_time"], "2026-01-01T00:00:00+00:00")
 
-    def test_records_git_state_for_both_repositories(self) -> None:
+    def test_records_git_state_for_the_working_repository(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             manifest = build_release_manifest(
                 Path(temporary), version_text="1.0.0-rc.1", artifacts=[]
             )
-        self.assertIn("backend", manifest["git"])
-        self.assertIn("device", manifest["git"])
+        self.assertEqual(list(manifest["git"]), ["backend"])
         # 临时目录不是仓库：如实记 available=false，不假装有 commit。
         self.assertFalse(manifest["git"]["backend"]["available"])
         self.assertIsNone(manifest["git"]["backend"]["commit"])
@@ -313,26 +312,35 @@ class DeviceAppVersionTests(unittest.TestCase):
             manifest["release_blockers"],
         )
 
-    def test_real_device_repository_matches_the_project_version(self) -> None:
-        """本机上端侧是真的存在且版本对得上的 —— 对不上说明有一侧的版本号该改。"""
-        from tools.device_repo import device_repo_root
-
-        device = device_repo_root(_repo_root())
-        if device is None:
-            self.skipTest("端侧仓库不在这台机器上")
-        manifest = build_release_manifest(
-            _repo_root(), device_root=device, version_text="1.0.0-rc.1", artifacts=[]
-        )
+    def test_the_real_device_project_matches_the_project_version(self) -> None:
+        """本仓库里的端侧工程版本与应用内声明必须对得上 —— 对不上说明有一次改版本漏了一半。"""
+        manifest = build_release_manifest(_repo_root(), version_text="1.0.0-rc.1", artifacts=[])
         info = manifest["components"]["device"]
+        self.assertIsNotNone(info, "device/AppScope/app.json5 没读到，端侧工程是不是不在？")
         self.assertEqual(info["version_name"], "1.0.0")
 
-    def test_missing_device_repository_is_recorded_as_null(self) -> None:
+    def test_the_hap_is_always_a_required_artifact(self) -> None:
+        """HAP 无条件在产物清单里，缺了就是阻塞项。
+
+        这条钉的是一个真的洞：端侧还在第二个仓库时，`_default_artifacts` 找不到那个仓库
+        就**根本不把 HAP 列进去**，于是清单少了一半而 `release_ready` 是 true。
+        产物"该在哪"由位置决定，跟这次找没找到无关。
+        """
         with tempfile.TemporaryDirectory() as temporary:
-            manifest = build_release_manifest(
-                Path(temporary), device_root=None, version_text="1.0.0-rc.1", artifacts=[]
-            )
-        self.assertIsNone(manifest["git"]["device"])
-        self.assertIsNone(manifest["components"]["device"])
+            root = Path(temporary)
+            (root / "dist").mkdir()
+            (root / "dist" / "competition-agent-api.exe").write_bytes(b"api")
+            (root / "dist" / "YouJustLead.exe").write_bytes(b"desktop")
+
+            manifest = build_release_manifest(root, version_text="1.0.0-rc.1")
+
+        names = {entry["name"] for entry in manifest["artifacts"]}
+        self.assertIn("device-hap", names)
+        self.assertFalse(manifest["release_ready"])
+        self.assertTrue(
+            any("device-hap" in item for item in manifest["release_blockers"]),
+            manifest["release_blockers"],
+        )
 
 
 class ManifestWritingTests(unittest.TestCase):

@@ -27,7 +27,6 @@ from app.reporting import generate_reports
 from database.ledger import ledger_for_workspace
 from paper.generator import generate_paper_package
 from tools.configuration import load_yaml
-from tools.device_repo import device_repo_root
 from tools.submission import validate_submission
 from training.catalog import supported_runners
 
@@ -191,7 +190,6 @@ def _parser() -> argparse.ArgumentParser:
     release_parser = subparsers.add_parser(
         "release-manifest", help="Write release/release_manifest.json describing this version"
     )
-    release_parser.add_argument("--device-repo", help="Path to the HarmonyOS repository (auto-detected by default)")
     release_parser.add_argument(
         "--print", dest="print_only", action="store_true", help="Print the manifest without writing it"
     )
@@ -209,11 +207,10 @@ def main() -> int:
 
     if args.command == "release-manifest":
         # 描述的是"这次构建/这个版本"，不是某个项目，所以也不需要先有工作区。
-        device_root = Path(args.device_repo).resolve() if args.device_repo else device_repo_root(PROJECT_ROOT)
-        manifest = build_release_manifest(PROJECT_ROOT, device_root=device_root)
+        manifest = build_release_manifest(PROJECT_ROOT)
         if not args.print_only:
             write_release_manifest(PROJECT_ROOT, manifest)
-            # 产物分散在 dist/ 与端侧仓库，用户下载的是一个版本包 —— 归到 release/ 并给出校验和。
+            # 产物分散在 dist/ 与 device/，用户下载的是一个版本包 —— 归到 release/ 并给出校验和。
             sums = stage_release_artifacts(PROJECT_ROOT, manifest)
             print(f"Release artifacts staged next to {sums}")
         print(json.dumps(manifest, ensure_ascii=False, indent=2))

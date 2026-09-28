@@ -99,10 +99,10 @@
 
 | 项 | 实况 |
 |---|---|
-| 客户端仓库 | `YouJustLead-Harmony` **只有端侧应用**（`entry/` 等 DevEco 工程），没有 `desktop/` |
-| 仪表盘源码 | **已从两个仓库移除**；历史留在客户端仓库的提交里（引入 `43aeaf1`、移除 `a26ca7f`），需要时可取回 |
+| 端侧工程 | **只有端侧应用**（`entry/` 等 DevEco 工程），没有 `desktop/`。当时它在客户端仓库 `YouJustLead-Harmony`，2026-09-28 并入本仓库的 `device/`（见 D10） |
+| 仪表盘源码 | **已从仓库移除**；历史留在端侧工程那串提交里（引入 `43aeaf1`、移除 `a26ca7f`），需要时可取回。那段历史现在也在本仓库里 —— 它随 `device/` 一起并了过来 |
 | 第三方托管 | 已废弃，`git.chatgpt-team.site` 不再被任何东西引用 |
-| 本机残留 | **无**：安装包与历史镜像已按用户要求删除。仪表盘历史的唯一留存处是客户端仓库的提交（`43aeaf1` 引入 / `a26ca7f` 移除） |
+| 本机残留 | **无**：安装包与历史镜像已按用户要求删除。仪表盘历史的唯一留存处是端侧工程那串提交（`43aeaf1` 引入 / `a26ca7f` 移除） |
 | 判定 | 仪表盘**不在 v1 架构内，也不再作为交付物存在** |
 
 **两件名字里带 dashboard / desktop、但不是那个仪表盘的东西，不要连坐删掉**：
@@ -121,7 +121,7 @@ v1 的交付形态：**鸿蒙端应用 + 本地 Python 执行器**。
 `MAJOR.MINOR.PATCH` 部分。`python main.py release-manifest` 产出 `release/release_manifest.json`，
 **退出码即答案**（0 可发布 / 1 不可发布），并在 `release_blockers` 里说明原因。
 
-可以发布要同时满足三条：版本处于 `rc`/`release` 阶段、发布必需的产物都在、两个仓库都没有未提交改动。
+可以发布要同时满足三条：版本处于 `rc`/`release` 阶段、发布必需的产物都在、工作仓库没有未提交改动。
 
 - 依据：`app/release_service.py`、`tests/test_release_manifest.py`（25 项）、`docs/versioning.md`。
 - 针对的真问题：`docs/RELEASE_0.1.5.md` 记了安装包 SHA-256，`0.1.6`~`0.1.9` 都没记 ——
@@ -158,6 +158,33 @@ Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_resear
 - **剩下的边界（如实写）**：模拟器不等于真机 —— 窄屏布局、深色模式、字体放大、轮询定时器
   是否真的随页面销毁而停，都还没验。`test_arkts_sources.py` 是**源码级**扫描，它拦的是
   "名字对不上"，拦不住"渲染出来不对"，后者只有装机看。
+
+### D10 端侧工程与后端在同一个仓库里（2026-09-28）
+
+端侧 ArkTS 工程从 `YouJustLead-Harmony` 并进本仓库，落在 `device/` 子目录，19 个提交的历史
+原样保留（路径重写加前缀）。第二个仓库不再更新，作为历史留档。
+
+**为什么改**：分仓的理由当初是"工具链不同"，但工具链要求的是**不同的构建根**，不是不同的仓库 ——
+实测 `hvigorw clean assembleHap` 在 `device/` 子目录里照样 BUILD SUCCESSFUL。而分仓的代价是真的：
+
+| 代价 | 具体 | 实测证据 |
+|---|---|---|
+| 端侧的自动保护会**静默消失** | 后端有 9 处 `skipTest` 的条件是"端侧仓库不在这台机器上"，其中 5 处就是端侧全部的源码检查。换台机器照样 `Ran 403 tests` 全绿 | 合并前 |
+| 发布门禁会说谎 | `_default_artifacts` 在找不到端侧仓库时**根本不把 HAP 列进产物清单**，于是 `release_ready: true` 而端侧那半没被看过 | `release_ready = True` / `artifacts = ['backend-executable','desktop-app']` |
+| 契约改动无法原子 | 后端加 `job_statuses` / `step_statuses` 时忘了端侧那份接口声明，只有端侧编译能抓，而端侧编译只在这台机器上发生过 | 8 个编译错误 |
+
+**合仓改了什么**：`tools/device_project.py` 只认一个位置（没有猜测、没有环境变量、不返回 None）；
+端侧两个产物**无条件**进清单，找不到就 `present: false` 变成阻塞项；那 9 处 `skipTest` 全部去掉，
+缺 `device/` 直接红；`release_manifest` 不再记 `git.device`（同一个仓库，重复记一次只会误导）。
+
+**合仓没改什么（如实写）**：两份实现仍然要各自同步 —— 端侧是 83 个手写 ArkTS 文件，与本仓库的
+Python 一行都不共用。配色就是一处例子：`device/entry/src/main/ets/common/AppTheme.ets` 与
+`web/styles.css` 的十六进制值逐字相同，而**没有任何测试比对它们**。合仓只是让"加一条比对测试"
+变得顺手，没有自动修好它。
+
+- 依据：`app/release_service.py`、`tools/device_project.py`、`docs/versioning.md`、
+  `tests/test_release_manifest.py::test_the_hap_is_always_a_required_artifact`、
+  `tests/test_arkts_sources.py::DeviceCheckoutTests`。
 
 ---
 

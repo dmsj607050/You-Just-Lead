@@ -35,7 +35,7 @@ from database.ledger import SCHEMA_VERSION as DB_MIGRATION_VERSION
 from app.project_registry import REGISTRY_VERSION
 from app.training_scaffold_service import SCHEMA_VERSION as SCAFFOLD_SCHEMA_VERSION
 from schemas.contracts import CONTRACT_VERSION
-from tools.device_repo import device_repo_root
+from tools.device_project import device_project_root
 from tools.files import write_json_atomic
 from tools.provenance import file_sha256, git_provenance, utc_now
 
@@ -113,8 +113,8 @@ def _resolve(spec: ArtifactSpec) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def _default_artifacts(project_root: Path, device_root: Path | None) -> list[ArtifactSpec]:
-    specs = [
+def _default_artifacts(project_root: Path, device_root: Path) -> list[ArtifactSpec]:
+    return [
         ArtifactSpec(
             name="backend-executable",
             kind="windows-executable",
@@ -132,35 +132,30 @@ def _default_artifacts(project_root: Path, device_root: Path | None) -> list[Art
             # 一个给端侧当执行器，一个给人当工具，混起来会让"少了哪个"说不清。
             required_for_release=True,
         ),
+        # 端侧这两个**无条件列进来**。以前端侧在另一个仓库里，找不到那个仓库时这里
+        # 直接不 append —— 于是清单少了一半、`release_ready` 却是 true。产物"该在哪"
+        # 由位置决定，跟"这次找没找到"无关；找不到就记 present=false，让它变成阻塞项。
+        ArtifactSpec(
+            name="device-hap",
+            kind="harmony-hap",
+            root=device_root,
+            relative="entry/build/default/outputs/default/entry-default-signed.hap",
+            required_for_release=True,
+        ),
+        ArtifactSpec(
+            name="device-app",
+            kind="harmony-app",
+            root=device_root,
+            relative="build/outputs/default/*.app",
+            # Release 上架交的是 `.app`（要在 DevEco 里 Build APP(s) 才产出），
+            # 当前只有调试签名 HAP，所以这一条先记成"非发布必需"，缺了就如实记 present=false。
+            required_for_release=False,
+        ),
     ]
-    if device_root is not None:
-        specs.append(
-            ArtifactSpec(
-                name="device-hap",
-                kind="harmony-hap",
-                root=device_root,
-                relative="entry/build/default/outputs/default/entry-default-signed.hap",
-                required_for_release=True,
-            )
-        )
-        specs.append(
-            ArtifactSpec(
-                name="device-app",
-                kind="harmony-app",
-                root=device_root,
-                relative="build/outputs/default/*.app",
-                # Release 上架交的是 `.app`（要在 DevEco 里 Build APP(s) 才产出），
-                # 当前只有调试签名 HAP，所以这一条先记成"非发布必需"，缺了就如实记 present=false。
-                required_for_release=False,
-            )
-        )
-    return specs
 
 
-def _device_app_info(device_root: Path | None) -> dict[str, Any] | None:
+def _device_app_info(device_root: Path) -> dict[str, Any] | None:
     """端侧应用标识：bundleName / versionName / versionCode（读 `AppScope/app.json5`）。"""
-    if device_root is None:
-        return None
     path = device_root / "AppScope" / "app.json5"
     if not path.is_file():
         return None
@@ -195,11 +190,11 @@ def build_release_manifest(
 ) -> dict[str, Any]:
     """生成发布清单。
 
-    `device_root` 为 None 表示找不到端侧仓库（清单里端侧那部分记 null，不假装它存在）；
+    `device_root` 默认是仓库里的 `device/`；测试可以注入一个临时目录来验版本一致性。
     `artifacts` 可注入，测试与将来换打包路径都用得上。
     """
     root = Path(project_root).resolve()
-    device = Path(device_root).resolve() if device_root is not None else None
+    device = Path(device_root).resolve() if device_root is not None else device_project_root(root)
     version = parse_version(version_text) if version_text is not None else read_project_version(root)
 
     specs = artifacts if artifacts is not None else _default_artifacts(root, device)
@@ -219,11 +214,9 @@ def build_release_manifest(
         )
 
     backend_git = git_provenance(root)
-    device_git = git_provenance(device) if device is not None else None
 
     missing = [entry["name"] for entry in entries if entry["required_for_release"] and not entry["present"]]
-    dirty = [name for name, state in (("backend", backend_git), ("device", device_git))
-             if state is not None and state.get("dirty")]
+    dirty = ["backend"] if backend_git is not None and backend_git.get("dirty") else []
     blockers: list[str] = []
     if not version.is_release_stage:
         blockers.append(f"version stage is {version.stage!r}, not rc/release")
@@ -245,7 +238,7 @@ def build_release_manifest(
         "version_core": version.core,
         "stage": version.stage,
         "build_time": build_time or utc_now(),
-        "git": {"backend": backend_git, "device": device_git},
+        "git": {"backend": backend_git},
         "schema": {
             "data_contracts": CONTRACT_VERSION,
             "db_migration": DB_MIGRATION_VERSION,
@@ -275,10 +268,9 @@ def write_release_manifest(project_root: Path, manifest: dict[str, Any]) -> Path
 
 
 def release_manifest_for_project(project_root: Path, *, device_root: Path | None = None) -> dict[str, Any]:
-    """便捷入口：自己找端侧仓库、自己写文件，返回清单。"""
+    """便捷入口：按默认位置找端侧工程、自己写文件，返回清单。"""
     root = Path(project_root).resolve()
-    resolved_device = device_root if device_root is not None else device_repo_root(root)
-    manifest = build_release_manifest(root, device_root=resolved_device)
+    manifest = build_release_manifest(root, device_root=device_root)
     write_release_manifest(root, manifest)
     return manifest
 
@@ -286,7 +278,7 @@ def release_manifest_for_project(project_root: Path, *, device_root: Path | None
 def stage_release_artifacts(project_root: Path, manifest: dict[str, Any]) -> Path:
     """把清单里**确实存在**的产物复制进 `release/`，并写出 `SHA256SUMS.txt`。
 
-    产物本来分散在两处（Windows 两个 exe 在 `dist/`，HAP 在端侧仓库），而用户下载的是
+    产物本来分散在两处（Windows 两个 exe 在 `dist/`，HAP 在 `device/entry/build/`），而用户下载的是
     一个版本包 —— 这里把它们归到一处，并给出下载页要贴的那几行校验和。
 
     **复制而不是移动**：`dist/` 仍然是构建产物的原处，删掉 `release/` 不会毁掉构建结果。

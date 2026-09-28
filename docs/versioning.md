@@ -16,11 +16,11 @@ MAJOR.MINOR.PATCH-<stage>.<序号>   预发布
 
 `<stage>` ∈ `dev` / `alpha` / `beta` / `rc`。写歪了工具会**直接拒绝**，不猜、不兜底。
 
-**端侧必须跟着走**：`B:\YouJustLead\AppScope\app.json5` 里的 `versionName` 必须等于 `VERSION` 的
-`MAJOR.MINOR.PATCH` 部分（`1.0.0-dev.0` ↔ `versionName: "1.0.0"`）。
+**端侧必须跟着走**：`device/AppScope/app.json5` 里的 `versionName` 必须等于 `VERSION` 的
+`MAJOR.MINOR.PATCH` 部分（`1.0.0-rc.1` ↔ `versionName: "1.0.0"`）。
 对不上就是「文档里的版本 ≠ 实际构建的版本」，工具会把它记成阻塞项。
 
-当前：`1.0.0-dev.0` —— v1 线路上的开发版（六个 Gate 里只过了 G1）。
+当前：`1.0.0-rc.1` —— 功能冻结，只剩装机验收（六个 Gate 里过了 G1，G6 卡在账号与资质）。
 
 ---
 
@@ -46,7 +46,6 @@ dev ──► alpha ──► beta ──► rc ──► release
 cd 'B:\You Just Lead\competition-agent'
 python main.py release-manifest            # 写 release/release_manifest.json 并打印
 python main.py release-manifest --print    # 只看不写
-python main.py release-manifest --device-repo 'B:\YouJustLead'   # 手动指定端侧仓库
 ```
 
 **退出码就是答案**：`0` = 这个版本可以发布，`1` = 不可以（并打印 `release_blockers` 说明原因）。
@@ -57,7 +56,7 @@ python main.py release-manifest --device-repo 'B:\YouJustLead'   # 手动指定�
 |---|---|
 | `version` / `version_core` / `stage` | `VERSION` |
 | `build_time` | 生成时刻（秒级 UTC） |
-| `git.backend` / `git.device` | 两个仓库各自的 commit、分支、是否有未提交改动 |
+| `git.backend` | 工作仓库的 commit、分支、是否有未提交改动 |
 | `schema.data_contracts` | `schemas/contracts.py::CONTRACT_VERSION` |
 | `schema.db_migration` | `database/ledger.py::SCHEMA_VERSION`（**迁移版本就是它**） |
 | `schema.experiment_registry` / `schema.training_scaffold` | 各自的模块常量 |
@@ -76,7 +75,7 @@ python main.py release-manifest --device-repo 'B:\YouJustLead'   # 手动指定�
 
 1. 版本号处于 `rc` 或 `release` 阶段；
 2. 所有「发布必需」的产物都在（后端 exe、端侧 HAP）；
-3. 两个仓库都**没有未提交改动** —— 发布必须从干净的提交切出来，否则 commit 号对不上实际内容。
+3. 工作仓库**没有未提交改动** —— 发布必须从干净的提交切出来，否则 commit 号对不上实际内容。
 
 缺哪条就会出现在 `release_blockers` 里。这条门槛针对的是一个已发生过的真问题：
 `docs/RELEASE_0.1.5.md` 记了安装包的 SHA-256，而 `0.1.6`~`0.1.9` 都没记 ——
@@ -95,14 +94,19 @@ python main.py release-manifest --device-repo 'B:\YouJustLead'   # 手动指定�
 6. 打 tag，并把 release/ 里的产物上传到分发位置
 ```
 
-端侧 HAP 可以用 DevEco 自带的 hvigor **从命令行**编，不必打开 IDE：
+端侧 HAP 用 DevEco 自带的 hvigor 从命令行编（不必打开 IDE）。
+`hvigorw.bat` 是 DevEco 装在 `tools\hvigor\bin` 里的**全局**脚本，不是工程文件 —— 进到工程根跑就行：
 
 ```powershell
 $deveco = 'B:\Deveco_studio\setup\DevEco Studio'
 $env:DEVECO_SDK_HOME = "$deveco\sdk"; $env:NODE_HOME = "$deveco\tools\node"
 $env:PATH = "$deveco\tools\node;$deveco\tools\ohpm\bin;$deveco\tools\hvigor\bin;$env:PATH"
-Set-Location 'B:\YouJustLead'; hvigorw.bat clean assembleHap --no-daemon
+Set-Location 'B:\You Just Lead\competition-agent\device'; hvigorw.bat clean assembleHap --no-daemon
 ```
+
+端侧工程自 2026-09-28 起就在本仓库的 `device/` 里（此前是第二个仓库 `YouJustLead-Harmony`，
+理由见 `docs/architecture.md` D10）。**它不是必须放在仓库根才能构建** ——
+上面这条命令就是在子目录里跑的，已实测通过。
 
 第 3 步会把清单里**确实存在**的产物复制到 `release/`（复制，不是移动：`dist/` 仍是构建产物的原处），
 并写出 `release/SHA256SUMS.txt` —— 下载页要贴的那几行是算出来的，不是手抄的。缺的产物直接跳过。

@@ -109,16 +109,21 @@ powershell -ExecutionPolicy Bypass -File tools\build_local_agent.ps1      # -> d
 python main.py release-manifest                                          # 退出码 0，并归位产物 + 写 SHA256SUMS.txt
 ```
 
-端侧 HAP 用 DevEco 自带的 hvigor 从命令行编（不必打开 IDE）：
+端侧 HAP 用 DevEco 自带的 hvigor 从命令行编（不必打开 IDE）。
+`hvigorw.bat` 是 DevEco 装在 `tools\hvigor\bin` 里的**全局**脚本，进到工程根跑就行：
 
 ```powershell
 $deveco = 'B:\Deveco_studio\setup\DevEco Studio'   # 本机的 DevEco 安装位置
 $env:DEVECO_SDK_HOME = "$deveco\sdk"
 $env:NODE_HOME = "$deveco\tools\node"
 $env:PATH = "$deveco\tools\node;$deveco\tools\ohpm\bin;$deveco\tools\hvigor\bin;$env:PATH"
-Set-Location 'B:\YouJustLead'
+Set-Location 'B:\You Just Lead\competition-agent\device'
 hvigorw.bat clean assembleHap --no-daemon           # -> entry\build\default\outputs\default\entry-default-signed.hap
 ```
+
+> **2026-09-28 之后路径变了**：端侧工程已并入本仓库的 `device/` 子目录（理由见
+> `docs/architecture.md` D10）。上面记的端侧提交 `33fd233`、产物大小与摘要**都没变** —— 那是发布
+> 当时的事实；变的是重新构建时该 `Set-Location` 到哪里（过去是独立的 `B:\YouJustLead`）。
 
 那次模拟器验收是这么走的（后端要在本机 8765 上起着，且已做过 `rport`，见 `docs/operation_guide.md` 第 5 节）：
 
@@ -126,7 +131,7 @@ hvigorw.bat clean assembleHap --no-daemon           # -> entry\build\default\out
 $hdc = "$deveco\sdk\default\openharmony\toolchains\hdc.exe"
 & $hdc list targets                                  # 127.0.0.1:5555
 & $hdc rport tcp:8765 tcp:8765
-& $hdc install -r 'B:\YouJustLead\entry\build\default\outputs\default\entry-default-signed.hap'
+& $hdc install -r 'B:\You Just Lead\competition-agent\device\entry\build\default\outputs\default\entry-default-signed.hap'
 & $hdc shell aa start -a EntryAbility -b com.youjustlead.agent
 & $hdc shell uitest dumpLayout -p /data/local/tmp/layout.json   # 按文本找控件坐标，别靠截图目测
 ```
@@ -141,7 +146,7 @@ $hdc = "$deveco\sdk\default\openharmony\toolchains\hdc.exe"
 |---|---|
 | Release 页 | `https://github.com/dmsj607050/You-Just-Lead/releases/tag/v1.0.0-rc.1` |
 | 后端分支 | `You-Just-Lead` 的 `main`（发布时是 `3577789`；之后只多了本文件的文字修订，构建输入没动） |
-| 端侧分支 | `YouJustLead-Harmony` 的 `main` @ `33fd233`（本地工作分支叫 `master`，和远端 `main` 是同一串提交） |
+| 端侧分支 | `YouJustLead-Harmony` 的 `main` @ `33fd233`（本地工作分支叫 `master`，和远端 `main` 是同一串提交）。2026-09-28 起端侧已并入本仓库的 `device/`，那个仓库不再更新 |
 | 标签 | `v1.0.0-rc.1` → `3577789`（发布时的那次提交；本文件后来的修订不在这个标签里，只改了文字） |
 | 资产 | `YouJustLead.exe`、`competition-agent-api.exe`、`entry-default-signed.hap`、`SHA256SUMS.txt` |
 

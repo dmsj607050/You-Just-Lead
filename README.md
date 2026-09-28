@@ -63,10 +63,12 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 |---|---|---|
 | Windows 桌面应用 | `dist/YouJustLead.exe` | 给用户直接下载使用：自带界面、自带后端、离线可读 |
 | Windows 本地执行器 | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；鸿蒙端在电脑上连的就是它 |
-| 鸿蒙端应用 | 端侧仓库的 HAP | 比赛交付用的端侧应用 |
+| 鸿蒙端应用 | `device/` 编出来的 HAP | 比赛交付用的端侧应用 |
 
 前两个由 `tools/build_desktop_app.ps1` 与 `tools/build_local_agent.ps1` 构建，
 产物位于 `dist/`（不进版本库），摘要记录在对应的 `docs/RELEASE_<版本>.md` 里。
+鸿蒙端工程就在本仓库的 `device/` 子目录（2026-09-28 从 `YouJustLead-Harmony` 并进来，
+理由见 `docs/architecture.md` D10），构建命令见 `docs/versioning.md`。
 
 ## 从源码跑
 
