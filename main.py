@@ -22,7 +22,7 @@ from app.approval_service import approve_training_config
 from app.orchestrator.workflow import workflow_state
 from app.experiment_service import ExperimentService, ensure_workspace_layout
 from app.project_registry import current_workspace
-from app.release_service import build_release_manifest, write_release_manifest
+from app.release_service import build_release_manifest, stage_release_artifacts, write_release_manifest
 from app.reporting import generate_reports
 from database.ledger import ledger_for_workspace
 from paper.generator import generate_paper_package
@@ -213,6 +213,9 @@ def main() -> int:
         manifest = build_release_manifest(PROJECT_ROOT, device_root=device_root)
         if not args.print_only:
             write_release_manifest(PROJECT_ROOT, manifest)
+            # 产物分散在 dist/ 与端侧仓库，用户下载的是一个版本包 —— 归到 release/ 并给出校验和。
+            sums = stage_release_artifacts(PROJECT_ROOT, manifest)
+            print(f"Release artifacts staged next to {sums}")
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return 0 if manifest["release_ready"] else 1
 

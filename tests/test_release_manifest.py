@@ -31,6 +31,7 @@ from app.release_service import (
     manifest_path,
     parse_version,
     read_project_version,
+    stage_release_artifacts,
     write_release_manifest,
 )
 
@@ -371,6 +372,67 @@ class ReleaseOutputIsIgnoredTests(unittest.TestCase):
             capture_output=True,
         )
         self.assertEqual(result.returncode, 0, "release/ 没有被 .gitignore 忽略，发布产物可能被误提交")
+
+
+class StagedArtifactTests(unittest.TestCase):
+    """产物归位与校验和：下载页要贴的那几行必须是算出来的，不是手抄的。"""
+
+    def _manifest(self, root: Path) -> dict:
+        return build_release_manifest(
+            root,
+            version_text="1.0.0-rc.1",
+            artifacts=[
+                ArtifactSpec(
+                    name="desktop-app",
+                    kind="windows-desktop-app",
+                    root=root,
+                    relative="dist/YouJustLead.exe",
+                    required_for_release=True,
+                ),
+                ArtifactSpec(
+                    name="device-app",
+                    kind="harmony-app",
+                    root=root,
+                    relative="build/outputs/default/*.app",
+                    required_for_release=False,
+                ),
+            ],
+        )
+
+    def test_present_artifacts_are_copied_and_get_a_checksum_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "VERSION").write_text("1.0.0-rc.1\n", encoding="utf-8")
+            (root / "dist").mkdir()
+            payload = b"not really an exe, but the bytes are what matter"
+            (root / "dist" / "YouJustLead.exe").write_bytes(payload)
+            manifest = self._manifest(root)
+
+            sums = stage_release_artifacts(root, manifest)
+
+            staged = root / "release" / "YouJustLead.exe"
+            self.assertTrue(staged.is_file())
+            self.assertEqual(staged.read_bytes(), payload, "归位的是副本，内容必须一模一样")
+            lines = sums.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            digest = hashlib.sha256(payload).hexdigest()
+            self.assertEqual(lines[0], f"{digest}  YouJustLead.exe")
+
+    def test_a_missing_artifact_is_not_given_a_checksum_line(self) -> None:
+        """缺的产物在清单里已经是 present=false，这里也不许补一行假校验和。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "VERSION").write_text("1.0.0-rc.1\n", encoding="utf-8")
+            (root / "dist").mkdir()
+            (root / "dist" / "YouJustLead.exe").write_bytes(b"stub")
+            manifest = self._manifest(root)
+            self.assertFalse(next(item for item in manifest["artifacts"] if item["name"] == "device-app")["present"])
+
+            sums = stage_release_artifacts(root, manifest)
+
+            text = sums.read_text(encoding="utf-8")
+            self.assertNotIn(".app", text)
+            self.assertEqual(len(text.strip().splitlines()), 1)
 
 
 class ReleaseNoteDisciplineTests(unittest.TestCase):

@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -280,3 +281,28 @@ def release_manifest_for_project(project_root: Path, *, device_root: Path | None
     manifest = build_release_manifest(root, device_root=resolved_device)
     write_release_manifest(root, manifest)
     return manifest
+
+
+def stage_release_artifacts(project_root: Path, manifest: dict[str, Any]) -> Path:
+    """把清单里**确实存在**的产物复制进 `release/`，并写出 `SHA256SUMS.txt`。
+
+    产物本来分散在两处（Windows 两个 exe 在 `dist/`，HAP 在端侧仓库），而用户下载的是
+    一个版本包 —— 这里把它们归到一处，并给出下载页要贴的那几行校验和。
+
+    **复制而不是移动**：`dist/` 仍然是构建产物的原处，删掉 `release/` 不会毁掉构建结果。
+    缺的产物直接跳过（清单里已经如实记成 `present: false`），不编一行假校验和。
+    """
+    directory = Path(project_root) / "release"
+    directory.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    for entry in manifest.get("artifacts", []):
+        if not entry.get("present"):
+            continue
+        source = Path(str(entry["path"]))
+        target = directory / source.name
+        if source.resolve() != target.resolve():
+            shutil.copyfile(source, target)
+        lines.append(f"{entry['sha256']}  {source.name}")
+    sums = directory / "SHA256SUMS.txt"
+    sums.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return sums
