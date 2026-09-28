@@ -837,6 +837,10 @@ export interface ResearchContract {
   hypothesis_statuses: ResearchStatusSpec[];
   branch_statuses: ResearchStatusSpec[];
   verdicts: ResearchVerdictSpec[];
+  /** 推进作业的状态（进行中 / 已完成 / 失败）。 */
+  job_statuses: ResearchStatusSpec[];
+  /** 作业里每一步的状态（已落实 / 等人批准 / …）。 */
+  step_statuses: ResearchStatusSpec[];
   graph_node_kinds: string[];
   graph_edge_kinds: string[];
 }
