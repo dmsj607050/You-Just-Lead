@@ -133,16 +133,32 @@ $hdc = "$deveco\sdk\default\openharmony\toolchains\hdc.exe"
 
 清单与校验和落在 `release/`；版本号只有一处来源（仓库根的 `VERSION`），流程见 `docs/versioning.md`。
 
-## 下一步（上传到 GitHub Release）
+## 已经发布
 
-仓库已有远端（`https://github.com/dmsj607050/You-Just-Lead.git`）。上传产物需要**你的账号凭据**，
-所以这一步留给你：
+`v1.0.0-rc.1` 已推上远端并发布（标成 **预发布**：还是 `rc` 阶段，功能冻结但装机验收没做完）：
+
+| 项 | 值 |
+|---|---|
+| Release 页 | `https://github.com/dmsj607050/You-Just-Lead/releases/tag/v1.0.0-rc.1` |
+| 后端分支 | `You-Just-Lead` 的 `main` @ `3577789` |
+| 端侧分支 | `YouJustLead-Harmony` 的 `main` @ `33fd233`（本地工作分支叫 `master`，和远端 `main` 是同一串提交） |
+| 标签 | `v1.0.0-rc.1` → `3577789`（发布时的那次提交；本文件后来的修订不在这个标签里，只改了文字） |
+| 资产 | `YouJustLead.exe`、`competition-agent-api.exe`、`entry-default-signed.hap`、`SHA256SUMS.txt` |
+
+发布之后由 GitHub 自己算的 sha256 与上面那三行**逐字一致**（`gh release view v1.0.0-rc.1 --json assets`
+的 `digest` 字段）。所以"发出去的是哪一个文件"现在是平台侧可查的，不再只靠本文件里的记录 ——
+这正是把摘要写进本文件的意义：产物不进版本库，能证明它身份的只有摘要。
+
+发布时用的命令（`gh` 已登录，所以没有手点网页）：
 
 ```powershell
-git push origin master
+git push origin master:main                  # 本地工作分支 master → 远端默认分支 main
 git tag -a v1.0.0-rc.1 -m "You Just Lead 1.0.0-rc.1"
 git push origin v1.0.0-rc.1
-# 然后把 release\ 下的 4 个文件（3 个产物 + SHA256SUMS.txt）作为 Release 资产上传
+gh release create v1.0.0-rc.1 --title "You Just Lead 1.0.0-rc.1" --prerelease `
+  --notes-file docs/RELEASE_1.0.0-rc.1.md `
+  release/YouJustLead.exe release/competition-agent-api.exe `
+  release/entry-default-signed.hap release/SHA256SUMS.txt
 ```
 
-Release 说明可以直接用本文件；`CHANGELOG.md` 里有面向用户的变更摘要。
+`CHANGELOG.md` 里有面向用户的变更摘要。
