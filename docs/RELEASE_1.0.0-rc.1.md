@@ -5,9 +5,9 @@
 | 项 | 值 |
 |---|---|
 | 版本 | `1.0.0-rc.1`（`rc` 阶段：功能冻结，只剩验证） |
-| 后端仓库 | `You-Just-Lead` @ `0d4e5450466fd9b6286b5dff7abcd94a6e06cf6e`（`master`，无未提交改动） |
-| 端侧仓库 | `YouJustLead-Harmony` @ `8b623f5e461f2908d4d35f91c13295ab8465498a`（`master`，无未提交改动） |
-| 清单生成时间 | `2026-09-28T07:38:28+00:00` |
+| 后端仓库 | `You-Just-Lead` @ `0cbc7b8ba2874589b46dac47aab4d60cb7766a68`（`master`，无未提交改动） |
+| 端侧仓库 | `YouJustLead-Harmony` @ `910ab33a84dfc83b60e2fe8890cafb3255e19da8`（`master`，无未提交改动） |
+| 清单生成时间 | `2026-09-28T08:38:25+00:00` |
 | 发布判定 | `release_ready: true`，`release_blockers: []`，`main.py release-manifest` 退出码 0 |
 | 应用版本 | `com.youjustlead.agent` / `versionName 1.0.0` / `versionCode 1000000` |
 
@@ -20,16 +20,16 @@
 「发出去的是哪一个文件」的东西）：
 
 ```text
-2fe5d8da0bd2d9150bf1b61f086cf69a76f2f2f06d79daad8e57940a0dfd1972  competition-agent-api.exe
-135642a25664de4769beabd76f3db7f82aa707df146100192311e70aa0d46580  YouJustLead.exe
+bba63495d627a89e0f197f024040cc3f56d16149b9d94cd75e2c18a92b115c8c  competition-agent-api.exe
+6375c9721ce9beb3952520b1415ae20fd2e3378201650c516c57b2174c2eeffb  YouJustLead.exe
 c09cec59f182343d3c29441c8a766051da2f76ad1b3f1aef10d6414598f5dabf  entry-default-signed.hap
 ```
 
 | 产物 | 大小 | 说明 |
 |---|---|---|
-| `YouJustLead.exe` | 10,041,849 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
-| `competition-agent-api.exe` | 9,998,326 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
-| `entry-default-signed.hap` | 2,822,262 字节 | 鸿蒙端调试签名 HAP（端侧仓库构建产物） |
+| `YouJustLead.exe` | 10,043,573 字节 | **给用户下载的那个**：双击即用，自带界面与后端，离线可读 |
+| `competition-agent-api.exe` | 9,998,270 字节 | 无界面的本地服务（`python main.py serve` 的等价物），给没有 Python 环境的机器用 |
+| `entry-default-signed.hap` | 2,822,262 字节 | 鸿蒙端调试签名 HAP。**注意：这个文件是端侧新增研究循环页之前构建的**（摘要与上一版一致），要用上新页面必须在 DevEco 里重新 `Build Hap(s)` |
 | `.app` | 缺失 | 上架要交的产物。**必须**在 DevEco 里 `Build APP(s)` 才有，需要 AGC 账号与云管理证书；清单里如实记 `present: false`、`required_for_release: false` |
 
 列表也可以从 `release/SHA256SUMS.txt` 直接取（由 `main.py release-manifest` 生成，不是手抄的）。
@@ -45,7 +45,7 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 
 ## 这一版验证过什么
 
-全部 389 项自动化测试通过（`python -m unittest discover -s tests`）。除此之外，下列事情是**真跑过**的，
+全部 401 项自动化测试通过（`python -m unittest discover -s tests`），连续多轮全绿。除此之外，下列事情是**真跑过**的，
 不是"应该能行"：
 
 | 验证 | 证据 |
@@ -53,6 +53,8 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 | 冻结后的 exe 真能起服务 | `dist\YouJustLead.exe --port 8899` 真机启动：`/health` 返回 ok，`/api/research/contract` 返回 14 个动作 / 9 项核查，工作区骨架与离线包自动就位 |
 | 本地执行器 exe 真能起服务 | `dist\competition-agent-api.exe --port 8896`：`/health` 返回 ok，契约端点可用 |
 | 离线页在后端完全不在时可用 | 停掉后端 → 浏览器打开 `%LOCALAPPDATA%\YouJustLead\offline\index.html#loop`：顶部徽章「离线：显示上次同步的数据」，页面上写着"这是后端起不来时打开的静态快照（时间）"，研究循环页照常显示假设/证据/决策轨迹 |
+| 端侧要的数据真的在接口上 | 服务端实查：契约返回 14 动作 / 9 核查 / 5 判定 / 3 作业状态 / 6 步骤状态（都带中文名与色调）；快照里每条证据带 9 对 `{name, value}`、每条假设带 `falsifiable` |
+| 端侧改动能自动验的部分 | `tests/test_arkts_sources.py`（6 项）：6 个端侧文件的括号配平、import 的符号都真的导出过、新页面上的 60 余个 `this.xxx` 都在那个 struct 上 |
 | 研究循环在真实工作区跑通一整圈 | 见下节 |
 | 界面把整圈显示出来 | 研究循环页「最近的推进」显示该次推进的 3 步（核查结果 / 终止路线 / 综合结论）与每步详情；假设页显示被终止的 H0007 与 3 条新假设；证据页显示 EXP-0008 的九项核查与判定「假设被反证」 |
 
@@ -73,15 +75,22 @@ Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器�
 
 ## 已知缺口（如实列出，不虚报）
 
-- **鸿蒙端没有研究循环页**，也没有调用 `GET /api/research/contract`。它现有的页面把判定值当不透明
-  字符串显示，所以不会与契约冲突，但「三端共用一套契约」在端侧目前只到「不产生第二份副本」这一层。
-  ArkTS 的改动本机无法编译（没有 DevEco 构建链），所以这一版没有动端侧代码。
+- **端侧的 ArkTS 没有编译过**。本机没有 DevEco 构建链，所以新增的研究循环页（`ResearchLoopPage.ets`
+  与 `BackendClient` / `I18n` / `ViewTypes` / `Index` 的改动）只做了能自动验的那部分：
+  `tests/test_arkts_sources.py` 检查括号配平、import 的符号真的导出过、页面上的 `this.xxx`
+  真的在那个 struct 上存在。**类型与 ArkUI 的语法限制（`@Builder` 的参数规则、`@State` 的
+  可观察性）要装机验收** —— 第一次在 DevEco 里编译时可能要改几处。
+- **`entry-default-signed.hap` 是旧的**：它构建于端侧新增这一页之前，摘要与上一版相同。
+  要把它作为可交付的端侧产物，得在 DevEco 里重新 `Build Hap(s)`。
 - **`.app` 未构建**；签名、AGC 建应用、工信部备案、隐私政策 URL、AI 功能声明都需要账号或资质。
+- **「批准执行」与「人提假设」两个动作两端界面都还没有入口**。后端接口都在
+  （`POST /api/research/loop/run`、`POST /api/research/loop/hypotheses`），但要在界面上点，
+  得再补一轮；目前只能走接口。
 - **比赛成绩不在这一版里**：`workspace/aic2026` 上的实验是管线级验证（1 epoch、10% 子集），
   不是冲榜配方；上面那个 `0.00211` 是"链路正确性"的证据，不是模型能力。
 - H0003 / H0004 这两条假设在当前工作区**无法被一次性判决**（模型给出的理由是：它们把"三模态读取"
   与"同口径可比"两件互相冲突的要求绑在一起）。编排器把它们记成没有对照的设计，不会拿它们去烧算力 ——
-  这是设计边界，不是缺陷，但界面上的"已设计实验"计数会包含这种空设计。
+  这是设计边界，不是缺陷，但界面上的"实验总数"计数会包含这种空设计（另有一个数字单独说明）。
 
 ## 复现这一次发布
 
