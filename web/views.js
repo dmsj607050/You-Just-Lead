@@ -175,11 +175,14 @@ Views.loop = function (data) {
   const prediction = data.next_action || {};
   const running = data.running;
 
+  const undesignable = exp.undesignable || [];
   const status =
     `假设 ${count(hyp.total)}（可证伪 ${count(hyp.falsifiable)}） · ` +
     `实验 ${count(exp.total)} · ` +
     `分支 ${count((branches.active || []).length)}/${count(branches.total)} 活跃 · ` +
-    `证据 ${count((data.evidence || []).length)}`;
+    `证据 ${count((data.evidence || []).length)}` +
+    // 空设计单独说：它们不会跑，所以既不算"待核查"，也不算"在推进"。
+    (undesignable.length ? ` · 其中 ${count(undesignable.length)} 个设计跑不起来` : '');
 
   // 「当前」这条的颜色表达的是"还有没有下一步"：编排器认为没事可做了就是绿的。
   // 哪些动作算结束由契约说了算，界面不自己认字符串。
@@ -214,8 +217,10 @@ Views.loop = function (data) {
     const metrics = [
       ['all', hyp.total, '假设总数'],
       ['all', hyp.falsifiable, '可被实验判决'],
-      ['all', exp.total, '已设计实验'],
-      ['all', (exp.awaiting_evidence || []).length, '待核查'],
+      ['all', exp.total, '实验总数'],
+      // 「跑完没核查」与「跑不起来的空设计」分开数：前者是欠着的活，后者是走不通的路。
+      ['all', (exp.awaiting_evidence || []).length, '跑完没核查'],
+      ['all', (exp.undesignable || []).length, '设计跑不起来'],
     ]
       .map(
         ([, value, label]) =>
@@ -258,6 +263,16 @@ Views.loop = function (data) {
       UI.Card('最近的推进', jobs || UI.EmptyHint('还没有推进过。点「推进一步」让循环开始。'));
   } else if (section === 'hypotheses') {
     const hypotheses = data.hypotheses || [];
+    // 哪条假设上挂着"跑不起来"的设计。模型写下那段理由不容易，别只留在作业日志里；
+    // 更早的记录里没有这段理由（那时还没记它），所以也要给出没有理由时的说法，
+    // 否则页面上会出现"有 3 个跑不起来"却哪里都不解释的情况。
+    const undesignableIds = exp.undesignable || [];
+    const blocked = {};
+    (data.experiments || []).forEach((item) => {
+      if (undesignableIds.indexOf(item.experiment_id) < 0) return;
+      blocked[item.hypothesis_id] =
+        item.blocked || '这次设计没有对照也没有配置，跑不起来（生成它时还没有记下原因）。';
+    });
     body = UI.Card(
       '假设池',
       hypotheses.length
@@ -268,6 +283,9 @@ Views.loop = function (data) {
               const predictions = (item.predictions || []).map((line) => `<li>${UI.esc(line)}</li>`).join('');
               const falsifiers = (item.falsifiers || []).map((line) => `<li>${UI.esc(line)}</li>`).join('');
               const rationale = (item.rationale || []).map((line) => `<li>${UI.esc(line)}</li>`).join('');
+              const blocker = blocked[item.hypothesis_id]
+                ? UI.Notice(`这次设计跑不起来：${blocked[item.hypothesis_id]}`, 'warn')
+                : '';
               return (
                 `<div class="hypothesis-card${killed ? ' killed' : ''}">` +
                 '<div class="hypothesis-head">' +
@@ -279,6 +297,7 @@ Views.loop = function (data) {
                 (predictions ? `<div class="meta-line">预测</div><ul class="sub-list">${predictions}</ul>` : '') +
                 (falsifiers ? `<div class="meta-line">什么结果会否定它</div><ul class="sub-list">${falsifiers}</ul>` : '') +
                 (rationale ? `<div class="meta-line">依据</div><ul class="sub-list">${rationale}</ul>` : '') +
+                blocker +
                 (!predictions && !falsifiers
                   ? '<div class="meta-line">既没有预测也没有反证条件 —— 编排器会先要求把它补成可判决的，补不动就终止这条路线。</div>'
                   : '') +

@@ -400,13 +400,18 @@ class ResearchExecutor:
             metrics=_strings(payload.get("metrics")),
             success_condition=str(payload.get("success_condition") or "").strip(),
             config_path=str(payload.get("config_path") or "").strip(),
+            blocked=str(payload.get("blocker") or "").strip(),
         )
         branch = state.branch_of(hypothesis.hypothesis_id)
         state.add_experiment(experiment, branch_id=branch.branch_id if branch else None)
 
-        blocker = str(payload.get("blocker") or "").strip()
+        blocker = experiment.blocked
         detail = f"已设计实验 {experiment.experiment_id}"
-        if not experiment.is_controlled():
+        if blocker:
+            # 这一类设计是"空"的：没有对照、没有配置，跑不起来。如实说清楚，
+            # 否则界面上它和一次真能跑的实验长得一模一样。
+            detail += f"（这次设计是空的，跑不起来）；模型给出的阻碍：{blocker}"
+        elif not experiment.is_controlled():
             detail += "（缺对照或控制变量，编排器不会把它当成一次公平比较）"
         # 配置在不在，决定这次设计能不能被执行。检查一次是因为"写进 JSON 的路径"
         # 和"真的写了那个文件"是两件事，而只有后者能跑。
@@ -415,10 +420,8 @@ class ResearchExecutor:
                 detail += f"；配置已就位：{experiment.config_path}"
             else:
                 detail += f"；但配置 {experiment.config_path} 并不存在，这次设计跑不了"
-        else:
+        elif not blocker:
             detail += "；没有给出配置，无法执行"
-        if blocker:
-            detail += f"；模型指出的阻碍：{blocker}"
         return {"detail": detail}
 
     def _do_analyze_result(self, decision: Decision, state: ResearchState, workspace: Path) -> dict[str, Any]:

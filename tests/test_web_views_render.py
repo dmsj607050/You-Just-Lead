@@ -34,6 +34,9 @@ from schemas.research import (
 
 PROBE = Path(__file__).resolve().parent / "js" / "render_probe.js"
 
+#: 空设计的理由。放在常量里，断言和 fixture 用的是同一句话。
+BLOCKER_REASON = "要判决它得先实现三模态数据读取与模态计数，当前工作区没有这份代码。"
+
 #: 渲染结果里不该出现的东西。它们是"某个字段名拼错了 / 某个变量不存在"的典型痕迹：
 #: `undefined` 会原样印在页面上，`[object Object]` 是把对象塞进文本位。
 FORBIDDEN_FRAGMENTS = ("undefined", "NaN", "[object Object]")
@@ -90,6 +93,33 @@ def _real_snapshot(workspace: Path) -> dict:
             reason="实验干净但指标没有改善 —— 这是负结果。",
         )
     )
+    # 再放一个"跑不起来"的空设计：模型的这类判定必须能在界面上看见理由，
+    # 否则它只留在作业日志里，下次打开页面就没人知道这条路线为什么停着。
+    blank = service.add_hypothesis(
+        statement="三模态读取与同口径可比能否在同一次实验里同时验证",
+        predictions=["三模态读取样本数均大于 0"],
+        falsifiers=["任一模态样本数为 0"],
+    )
+    state.add_experiment(
+        Experiment(
+            experiment_id=state.new_id("experiment"),
+            hypothesis_id=blank["hypothesis_id"],
+            question="",
+            blocked=BLOCKER_REASON,
+        ),
+        branch_id=state.branch_of(blank["hypothesis_id"]).branch_id,
+    )
+    # 还有一类更早的空设计：状态里没有留下理由（那时还没记这个字段）。
+    # 它同样要能在页面上解释自己，否则"有 N 个跑不起来"就成了没头没尾的一句话。
+    older = service.add_hypothesis(
+        statement="三模态检测数据读取、训练与落盘这条链是否可复跑",
+        predictions=["重跑能落盘指标"],
+        falsifiers=["重跑没有落盘指标"],
+    )
+    state.add_experiment(
+        Experiment(experiment_id=state.new_id("experiment"), hypothesis_id=older["hypothesis_id"], question=""),
+        branch_id=state.branch_of(older["hypothesis_id"]).branch_id,
+    )
     return service.snapshot()
 
 
@@ -144,6 +174,19 @@ class LoopViewRenderTests(unittest.TestCase):
 
         statement = snapshot["hypotheses"][0]["statement"]
         self.assertIn(statement, rendered["hypotheses"])
+
+    def test_a_design_that_cannot_run_explains_itself_on_the_page(self) -> None:
+        """空设计的理由是模型认真写下的判断，不能只留在作业日志里。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            snapshot = _real_snapshot(Path(temporary))
+        rendered = self._render(snapshot)
+
+        self.assertIn(BLOCKER_REASON, rendered["hypotheses"])
+        self.assertIn("这次设计跑不起来", rendered["hypotheses"])
+        # 没有留下理由的那些也要能解释自己，否则"有 N 个跑不起来"是没头没尾的一句话。
+        self.assertIn("生成它时还没有记下原因", rendered["hypotheses"])
+        # 空设计不算"欠着核查"，但要在界面上单独数出来。
+        self.assertIn("设计跑不起来", rendered["now"])
 
     def test_the_evidence_section_uses_the_contract_wording(self) -> None:
         """九项核查的名称来自契约。界面自己抄一份的话，这里会因为名字对不上而红。"""

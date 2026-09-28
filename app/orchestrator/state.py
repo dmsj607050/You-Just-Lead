@@ -92,11 +92,34 @@ class ResearchState:
         return [item for item in self.active_hypotheses() if item.is_falsifiable()]
 
     def experiments_without_evidence(self) -> list[Experiment]:
-        """已经设计、但还没有证据核查过的实验。
+        """跑出了产物、但还没有经过证据核查的实验。
 
-        验证器卡在这里：证据没过关之前，结果不允许进入下一轮。
+        判据是**有产物**：验证器卡的正是"有结果、还没过闸"这件事。没跑起来的设计不欠核查
+        （那是 `undesignable_experiments`），而跑完了的必须被查、一个都不能漏。
+
+        这与 `policy._ran_without_evidence` 是同一个口径 —— 界面上的"还欠着核查"必须和
+        编排器实际在判断的东西一致，否则一边说没事、一边在核查，读的人不知道该信谁。
         """
-        return [item for item in self.experiments.values() if self.evidence_for(item.experiment_id) is None]
+        return [
+            item
+            for item in self.experiments.values()
+            if item.artifacts and self.evidence_for(item.experiment_id) is None
+        ]
+
+    def undesignable_experiments(self) -> list[Experiment]:
+        """永远不会产出结果的"空设计"：没有配置、没有产物，也没有证据。
+
+        判据用**结构**而不是"有没有写理由"（`blocked`），这样早于那个字段的历史状态也能被
+        正确归类。它们**不能**混进"待核查"：跑不起来的设计永远等不到证据，算进去会让界面上
+        "待核查 N"一直挂着几个没人推得动的条目。
+        """
+        return [
+            item
+            for item in self.experiments.values()
+            if not item.config_path.strip()
+            and not item.artifacts
+            and self.evidence_for(item.experiment_id) is None
+        ]
 
     def evidence_for(self, experiment_id: str) -> Evidence | None:
         for item in self.evidence.values():
@@ -245,7 +268,10 @@ class ResearchState:
             },
             "experiments": {
                 "total": len(self.experiments),
+                # 「还欠着核查」与「跑不起来的空设计」是两件事，分开报 ——
+                # 混在一起会让"待核查 N"一直挂着几个没人推得动的条目。
                 "awaiting_evidence": [item.experiment_id for item in self.experiments_without_evidence()],
+                "undesignable": sorted(item.experiment_id for item in self.undesignable_experiments()),
             },
             "branches": {"total": len(self.branches), "active": [item.branch_id for item in active]},
             "cursor": self.cursor,

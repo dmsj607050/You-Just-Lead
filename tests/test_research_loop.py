@@ -193,8 +193,13 @@ class StateTests(unittest.TestCase):
         )
 
     def test_awaiting_evidence_tracks_experiments_without_a_verdict(self) -> None:
+        """判据是"有产物"：没跑起来的设计不欠核查，跑完了的必须被查。"""
         state = ResearchState()
         state.add_experiment(Experiment(experiment_id="E0001", hypothesis_id="H0001", question="q"))
+        # 还没跑（没有产物）—— 不欠核查。
+        self.assertEqual(state.experiments_without_evidence(), [])
+
+        state.experiments["E0001"].artifacts = ["experiments/artifacts/E0001/history.json"]
         self.assertEqual([item.experiment_id for item in state.experiments_without_evidence()], ["E0001"])
 
         state.record_evidence(Evidence(evidence_id="V0001", experiment_id="E0001"))
@@ -321,12 +326,27 @@ class PersistenceTests(unittest.TestCase):
     def test_summary_reports_what_the_ui_needs(self) -> None:
         state = ResearchState()
         state.add_hypothesis(Hypothesis(hypothesis_id="H0001", statement="x", predictions=["p"], falsifiers=["f"]))
-        state.add_experiment(Experiment(experiment_id="E0001", hypothesis_id="H0001", question="q"))
+        # E0001 跑过（有产物）但还没核查过 —— 这是"欠着核查"的那一类。
+        state.add_experiment(
+            Experiment(
+                experiment_id="E0001",
+                hypothesis_id="H0001",
+                question="q",
+                baseline="b",
+                independent="i",
+                controlled=["c"],
+                config_path="configs/loop/x.yaml",
+                artifacts=["experiments/artifacts/E0001/history.json"],
+            )
+        )
+        # E0002 是空设计：没配置、没产物、没证据，永远不会跑 —— 它不该混进"待核查"。
+        state.add_experiment(Experiment(experiment_id="E0002", hypothesis_id="H0001", question="q"))
         summary = state.summary()
 
         self.assertEqual(summary["hypotheses"]["total"], 1)
         self.assertEqual(summary["hypotheses"]["falsifiable"], 1)
         self.assertEqual(summary["experiments"]["awaiting_evidence"], ["E0001"])
+        self.assertEqual(summary["experiments"]["undesignable"], ["E0002"])
         self.assertIsNone(summary["last_decision"])
 
 
@@ -735,6 +755,43 @@ class ExecutorTests(unittest.TestCase):
 
             self.assertEqual(len(state.experiments), 1)
             self.assertIn("不会把它当成一次公平比较", result["detail"])
+
+    def test_a_design_the_model_calls_undecidable_is_recorded_as_empty(self) -> None:
+        """模型说"这条假设没法在一次有对照的实验里判决"时，那次设计是**空的**。
+
+        它必须被如实记下来：界面要能说明为什么这条路线没有实验，而统计"待核查"时
+        不能把永远跑不起来的设计算进去 —— 否则"待核查 N"会一直挂着几个推不动的条目。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            state = ResearchState()
+            state.add_hypothesis(_falsifiable())
+            executor = ResearchExecutor(
+                chat=_chat_returning(
+                    {
+                        "question": "",
+                        "baseline": "",
+                        "independent": "",
+                        "controlled": [],
+                        "config_path": "",
+                        "blocker": "要判决它得先实现三模态数据读取与模态计数，当前工作区没有。",
+                    }
+                )
+            )
+            result = executor(
+                "DESIGN_EXPERIMENT",
+                Decision(decision_id="D0001", action="DESIGN_EXPERIMENT", target_id="H0001"),
+                state,
+                Path(temporary),
+            )
+
+            experiment = next(iter(state.experiments.values()))
+            self.assertTrue(experiment.blocked, "空设计没有被记下来")
+            self.assertIn("这次设计是空的", result["detail"])
+            self.assertIn("三模态数据读取", result["detail"])
+            # 待核查里只留"真的会有结果可查"的那些，空设计单独报。
+            summary = state.summary()["experiments"]
+            self.assertEqual(summary["awaiting_evidence"], [])
+            self.assertEqual(summary["undesignable"], [experiment.experiment_id])
 
     def test_recorded_facts_override_the_model_opinion(self) -> None:
         """记录里写着 failed，模型说跑成功了 —— 以记录为准。"""
