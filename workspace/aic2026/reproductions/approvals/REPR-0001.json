@@ -1,0 +1,17 @@
+{
+  "approved_at": "2026-09-27T08:49:08+00:00",
+  "command": "python scripts/train.py --data /data --epochs 1",
+  "command_id": "cmd-1",
+  "command_overridden": true,
+  "command_source": "README.md:99",
+  "image": "python:3.12-slim",
+  "note": "End-to-end acceptance run. Verified README.md:99 documents this command; rewrote --data data/ to the read-only dataset mount /data; reduced 15 epochs to 1 so the isolated two-phase chain is verified without a full training run.",
+  "plan_id": "REPRO-trimodal-uav-det",
+  "plan_sha256": "fd7a9e0769e9315f7d940255b0a772c8f712584fa52c1fa0dddcc80bfa793770",
+  "resources": {
+    "cpus": "4",
+    "memory": "8g",
+    "timeout_seconds": 3600
+  },
+  "run_id": "REPR-0001"
+}

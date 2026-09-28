@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import threading
@@ -24,8 +25,15 @@ from agents.reproduction_planner import (
     write_plan,
 )
 from app.api_server import CompetitionApiHandler
-from app.container_runner import BindMount, ContainerSpec, DockerRunner, RunOutcome, build_arguments
-from app.reproduction_service import ReproductionError, ReproductionService, plan_digest
+from app.container_runner import (
+    DOCKER_FALLBACK_PATHS,
+    BindMount,
+    ContainerSpec,
+    DockerRunner,
+    RunOutcome,
+    build_arguments,
+)
+from app.reproduction_service import ReproductionError, ReproductionService, _describe_outputs, plan_digest
 from tools.files import read_json, write_json_atomic
 
 
@@ -254,7 +262,7 @@ class ArgumentTests(unittest.TestCase):
             def remove(self, name: str) -> None:
                 removed.append(name)
 
-        runner = RecordingRunner()
+        runner = RecordingRunner(executable="docker")
         spec = ContainerSpec(name="yjl-1", image="img", command="sleep", mounts=(), timeout_seconds=1)
         with tempfile.TemporaryDirectory() as temporary:
             log_path = Path(temporary) / "run.log"
@@ -267,15 +275,47 @@ class ArgumentTests(unittest.TestCase):
 
     def test_missing_docker_is_reported_as_unavailable(self) -> None:
         with patch("app.container_runner.subprocess.run", side_effect=FileNotFoundError("docker")):
-            status = DockerRunner().availability()
+            status = DockerRunner(executable="docker").availability()
         self.assertFalse(status["available"])
         self.assertIn("not found", status["reason"])
+
+
+class DockerLocationTests(unittest.TestCase):
+    """docker 与它的凭据助手必须都能被子进程找到，否则连公开镜像都拉不下来。"""
+
+    def test_path_wins_when_docker_is_already_there(self) -> None:
+        with patch("app.container_runner.shutil.which", return_value="/usr/local/bin/docker"):
+            self.assertEqual(DockerRunner.locate(), "/usr/local/bin/docker")
+
+    def test_falls_back_to_the_default_install_location(self) -> None:
+        """刚装完 Docker Desktop 时 docker 还不在 PATH 里（要开新终端才有）。"""
+        with patch("app.container_runner.shutil.which", return_value=None):
+            with patch("app.container_runner.Path.is_file", return_value=True):
+                self.assertEqual(DockerRunner.locate(), DOCKER_FALLBACK_PATHS[0])
+
+    def test_environment_puts_the_docker_directory_first_on_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "docker.exe"
+            executable.write_text("", encoding="utf-8")
+            runner = DockerRunner(executable=str(executable))
+            with patch.dict(os.environ, {"PATH": "/usr/bin"}, clear=True):
+                env = runner.environment()
+
+            self.assertEqual(env["PATH"].split(os.pathsep)[0], str(executable.parent))
+            self.assertIn("/usr/bin", env["PATH"])
+
+    def test_the_resolved_executable_is_what_gets_run(self) -> None:
+        spec = ContainerSpec(name="t", image="img", command="c", mounts=())
+        self.assertEqual(build_arguments(spec, "C:/docker/docker.exe")[0], "C:/docker/docker.exe")
+        self.assertEqual(build_arguments(spec)[0], "docker")
 
 
 class FakeRunner(DockerRunner):
     """把容器调用换成可断言的假实现，其余编排逻辑照跑。"""
 
     def __init__(self, codes: list[int] | None = None, available: bool = True):
+        # 显式指定可执行文件：不要让测试结果取决于这台机器上装没装 docker。
+        super().__init__(executable="docker")
         self.codes = list(codes or [])
         self.specs: list[ContainerSpec] = []
         self.removed: list[str] = []
@@ -290,6 +330,12 @@ class FakeRunner(DockerRunner):
         self.specs.append(spec)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text("$ fake\nepoch 1\ndone\n", encoding="utf-8")
+        # 下载阶段真的会往挂载点里写出 wheel；不模拟这一点，缓存就永远命中不了。
+        for mount in spec.mounts:
+            if mount.target != "/work/wheels":
+                continue
+            mount.host.mkdir(parents=True, exist_ok=True)
+            (mount.host / "torch-2.4.0-py3-none-any.whl").write_bytes(b"wheel")
         code = self.codes.pop(0) if self.codes else 0
         return RunOutcome(returncode=code, timed_out=False, duration_seconds=0.01, log_path=str(log_path), command_line=[])
 
@@ -369,7 +415,10 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(run["status"], "succeeded")
             self.assertEqual([spec.network for spec in runner.specs], ["bridge", "none"])
             self.assertEqual(runner.specs[0].command, "pip download -r /src/requirements.txt -d /work/wheels")
-            self.assertIn("pip install --no-index --find-links /work/wheels", runner.specs[1].command)
+            self.assertIn("pip install --no-index --find-links /wheels", runner.specs[1].command)
+            # 缓存以只读挂进去：命令装得上依赖，但改不了那份 wheel。
+            wheels_mount = next(mount for mount in runner.specs[1].mounts if mount.target == "/wheels")
+            self.assertTrue(wheels_mount.read_only)
             self.assertIn("python train.py --data /data/aic2026", runner.specs[1].command)
             self.assertEqual([phase["phase"] for phase in run["phases"]], ["download_wheels", "install_and_run"])
 
@@ -464,6 +513,68 @@ class ServiceTests(unittest.TestCase):
             summaries = {item["file"]: item for item in run["outputs"]["summaries"]}
             self.assertEqual(summaries["output/metrics.json"]["keys"], ["mAP50_95"])
             self.assertEqual(summaries["output/results.csv"]["columns"], ["epoch", "loss", "mAP"])
+
+    def test_boilerplate_directories_do_not_crowd_out_the_real_outputs(self) -> None:
+        """`.git` 与依赖缓存不是产物，却按字母序排在前面，会把 60 条的清单占满。
+
+        这一条来自一次真实运行：命令在 `/work/src` 的副本里跑，`cp -a` 把 `.git`
+        一起带了过去，于是清单前 60 条全是 hooks 样例，命令真正写出来的文件一个都
+        没露出来。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "output"
+            work = root / "work"
+            output.mkdir()
+            (work / ".git" / "hooks").mkdir(parents=True)
+            (work / "wheels").mkdir(parents=True)
+            for index in range(70):
+                (work / ".git" / "hooks" / f"sample-{index:02d}.sample").write_text("x", encoding="utf-8")
+            (work / "wheels" / "torch-2.14.0.whl").write_bytes(b"0")
+            (work / "run.log").write_text("epoch 1\n", encoding="utf-8")
+            (output / "metrics.json").write_text('{"mAP50_95": 0.31}', encoding="utf-8")
+
+            described = _describe_outputs(output, work)
+
+            paths = [item["path"] for item in described["files"]]
+            self.assertIn("metrics.json", paths)
+            self.assertIn("run.log", paths)
+            self.assertFalse([item for item in paths if item.startswith(".git")])
+            self.assertFalse([item for item in paths if item.startswith("wheels")])
+            self.assertFalse(described["truncated"])
+
+    def test_second_run_reuses_the_cached_wheels(self) -> None:
+        """同一份依赖清单只下一次：torch 一套是几 GB、十几分钟，不该每次都重来。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            runner = FakeRunner()
+            service, workspace = self._service(Path(temporary), runner)
+            service.make_plan("arxiv:1")
+
+            first = self._wait(service, service.submit("REPRO-baseline", "cmd-1", "note")["run_id"])
+            self.assertFalse(first["wheel_cache"]["hit"])
+            self.assertEqual([item["phase"] for item in first["phases"]], ["download_wheels", "install_and_run"])
+            self.assertTrue(list((workspace / "reproductions" / "wheel_cache").glob("*/*.whl")))
+
+            second = self._wait(service, service.submit("REPRO-baseline", "cmd-1", "note")["run_id"])
+            self.assertTrue(second["wheel_cache"]["hit"])
+            # 只剩执行那一段 —— 没有下载阶段。
+            self.assertEqual([item["phase"] for item in second["phases"]], ["install_and_run"])
+            self.assertEqual(len(runner.specs), 3)
+            self.assertIn("/wheels", [mount.target for mount in runner.specs[-1].mounts])
+
+    def test_editing_the_manifest_invalidates_the_cache(self) -> None:
+        """清单内容一变，键就跟着变 —— 绝不悄悄复用旧 wheel。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            runner = FakeRunner()
+            service, _ = self._service(Path(temporary), runner)
+            plan = service.make_plan("arxiv:1")
+
+            first = self._wait(service, service.submit("REPRO-baseline", "cmd-1", "note")["run_id"])
+            (Path(plan["local_path"]) / "requirements.txt").write_text("torch==2.5.0\nnumpy\n", encoding="utf-8")
+            second = self._wait(service, service.submit("REPRO-baseline", "cmd-1", "note")["run_id"])
+
+            self.assertNotEqual(second["wheel_cache"]["key"], first["wheel_cache"]["key"])
+            self.assertFalse(second["wheel_cache"]["hit"])
 
     def test_approved_command_can_be_rewritten_before_running(self) -> None:
         """README 写的是仓库自己的相对路径，这里数据集挂在 /data，改写是常态。"""

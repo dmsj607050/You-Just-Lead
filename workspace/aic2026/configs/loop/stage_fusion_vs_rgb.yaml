@@ -1,0 +1,51 @@
+# 早融合消融：RGB 参考点 vs fusion（RGB+IR+Depth 早融合）。
+#
+# 与 EXP-0007（configs/loop/baseline_rerun.yaml，stage=rgb，val_map50_95=0.00234）
+# 保持除 external.stage 之外的所有功能键值一致，判决「把 stage 从 rgb 换成 fusion 后，
+# val_map50_95 是否高于 RGB 单模态参考点 0.00234」。
+# 不改数据版本、不改随机种子、不改 epochs/batch/image_size/workers/fraction，
+# 不改 pretrained_model、不改 train/val 列表、不改数据集根路径。
+
+experiment:
+  hypothesis: 把 external.stage 从 rgb 换成 fusion（早融合）后，val_map50_95 高于 RGB 单模态参考点 0.00234。
+  change_type: ablation
+  expected_improvement: val_map50_95 > 0.00234（RGB 参考点，来自 EXP-0007）。
+  estimated_gpu_hours: 0.2
+  rollback_plan: 若 val_map50_95 不高于 0.00234，则判定红外与深度早融合未带来提升，回退到 stage=rgb 基线。
+
+data:
+  version: 3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6
+  train_images_dir: B:\AIC\datasets\train\AIC2026_Train_2000
+
+model:
+  pretrained_model: yolo26n.pt
+
+external:
+  project_dir: B:\AIC
+  entry_script: train.py
+  source_inventory_sha256: f13e5de0d2d7b5ce64979c298db484e55d90798cbaa37d5c503d11f901d4a9c1
+  python_executable: A:\anaconda3\anaconda3_exe\envs\AIC\python.exe
+  stage: fusion
+  train_list: splits/train.txt
+  val_list: splits/val.txt
+  dataset_root: datasets/ultralytics_aic
+  device: '0'
+  epochs: 1
+  batch_size: 4
+  image_size: 640
+  workers: 0
+  seed: 20260713
+  fraction: 0.1
+  require_cuda: true
+  timeout_seconds: 3600
+
+training:
+  runner: external_detection
+  seed: 20260713
+  epochs: 1
+  batch_size: 4
+  device: cuda
+
+validation:
+  metric: map50_95
+  direction: maximize

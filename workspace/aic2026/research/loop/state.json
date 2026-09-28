@@ -1,0 +1,1909 @@
+{
+  "branches": [
+    {
+      "branch_id": "B0001",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [
+        "E0001"
+      ],
+      "hypothesis_id": "H0001",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0002",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [
+        "E0002"
+      ],
+      "hypothesis_id": "H0002",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0003",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [
+        "E0003"
+      ],
+      "hypothesis_id": "H0003",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0004",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [
+        "E0004"
+      ],
+      "hypothesis_id": "H0004",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0005",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [],
+      "hypothesis_id": "H0005",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0006",
+      "child_ids": [],
+      "conclusion": "实验干净但指标没有改善 —— 这是负结果，该终止这条路线而不是继续修它",
+      "created_at": "2026-09-28T01:49:26+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [],
+      "hypothesis_id": "H0006",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "killed"
+    },
+    {
+      "branch_id": "B0007",
+      "child_ids": [],
+      "conclusion": "实验干净但指标没有改善 —— 这是负结果，该终止这条路线而不是继续修它",
+      "created_at": "2026-09-28T02:03:10+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [
+        "E0005"
+      ],
+      "hypothesis_id": "H0007",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "killed"
+    },
+    {
+      "branch_id": "B0008",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [],
+      "hypothesis_id": "H0008",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0009",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [],
+      "hypothesis_id": "H0009",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    },
+    {
+      "branch_id": "B0010",
+      "child_ids": [],
+      "conclusion": "",
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "critiques": [],
+      "evidence_ids": [],
+      "experiments": [],
+      "hypothesis_id": "H0010",
+      "parent_id": null,
+      "score_empirical": null,
+      "score_reasoning": null,
+      "status": "active"
+    }
+  ],
+  "budget": {},
+  "cursor": "B0001",
+  "decisions": [
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:24:55+00:00",
+      "decision_id": "D0001",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0001"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:24:55+00:00",
+      "decision_id": "D0002",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:24:55+00:00",
+      "decision_id": "D0003",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:24:55+00:00",
+      "decision_id": "D0004",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:24:55+00:00",
+      "decision_id": "D0005",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0005"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:46:01+00:00",
+      "decision_id": "D0006",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0002"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:46:36+00:00",
+      "decision_id": "D0007",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0002"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:48:12+00:00",
+      "decision_id": "D0008",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:49:25+00:00",
+      "decision_id": "D0009",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、single_variable",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:51:47+00:00",
+      "decision_id": "D0010",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0003"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:52:39+00:00",
+      "decision_id": "D0011",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0003"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:52:55+00:00",
+      "decision_id": "D0012",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0003"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:55:47+00:00",
+      "decision_id": "D0013",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0001"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:56:29+00:00",
+      "decision_id": "D0014",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0001"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:57:26+00:00",
+      "decision_id": "D0015",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0001"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T14:59:43+00:00",
+      "decision_id": "D0016",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0004"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:01:38+00:00",
+      "decision_id": "D0017",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0002"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:02:30+00:00",
+      "decision_id": "D0018",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0003"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:03:23+00:00",
+      "decision_id": "D0019",
+      "reason": "证据判定为实现缺陷：实验没有成功运行",
+      "target_id": "EXP-0004"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:04:41+00:00",
+      "decision_id": "D0020",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "REPAIR_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:06:38+00:00",
+      "decision_id": "D0021",
+      "reason": "证据判定为实现缺陷：实现与假设不一致",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:27:24+00:00",
+      "decision_id": "D0022",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0005"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:29:16+00:00",
+      "decision_id": "D0023",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-27T15:32:11+00:00",
+      "decision_id": "D0024",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0006"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T00:46:15+00:00",
+      "decision_id": "D0025",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0001"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T01:43:09+00:00",
+      "decision_id": "D0026",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0002"
+    },
+    {
+      "action": "REFINE_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-28T01:49:35+00:00",
+      "decision_id": "D0027",
+      "reason": "这条假设没有可被实验判决的预测或反证条件",
+      "target_id": "H0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-28T01:50:37+00:00",
+      "decision_id": "D0028",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0007"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-28T01:53:38+00:00",
+      "decision_id": "D0029",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0007"
+    },
+    {
+      "action": "KILL_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-28T01:55:27+00:00",
+      "decision_id": "D0030",
+      "reason": "实验干净但指标没有改善 —— 这是负结果，该终止这条路线而不是继续修它",
+      "target_id": "H0006"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-28T02:03:19+00:00",
+      "decision_id": "D0031",
+      "reason": "八项核查还有没查过的：prediction_met、leakage_free",
+      "target_id": "EXP-0007"
+    },
+    {
+      "action": "REPLICATE_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T02:05:44+00:00",
+      "decision_id": "D0032",
+      "reason": "结论依赖单个随机种子，先跨种子复现",
+      "target_id": "EXP-0007"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T02:09:30+00:00",
+      "decision_id": "D0033",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0003"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:03:08+00:00",
+      "decision_id": "D0034",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0003"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:06:16+00:00",
+      "decision_id": "D0035",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0004"
+    },
+    {
+      "action": "DESIGN_EXPERIMENT",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:09:40+00:00",
+      "decision_id": "D0036",
+      "reason": "这条假设可证伪，但还没有对应的实验",
+      "target_id": "H0007"
+    },
+    {
+      "action": "ANALYZE_RESULT",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:17:07+00:00",
+      "decision_id": "D0037",
+      "reason": "八项核查还有没查过的：baseline_comparable、metric_improved、prediction_met、replicated_across_seeds、leakage_free、matches_hypothesis、single_variable、logs_consistent",
+      "target_id": "EXP-0008"
+    },
+    {
+      "action": "KILL_HYPOTHESIS",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:19:09+00:00",
+      "decision_id": "D0038",
+      "reason": "实验干净但指标没有改善 —— 这是负结果，该终止这条路线而不是继续修它",
+      "target_id": "H0007"
+    },
+    {
+      "action": "SYNTHESIZE",
+      "based_on": [],
+      "decided_at": "2026-09-28T03:19:09+00:00",
+      "decision_id": "D0039",
+      "reason": "当前假设都已有实验，先综合已有证据",
+      "target_id": "B0001"
+    }
+  ],
+  "edges": [
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0001",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0002",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0003",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0004",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0005",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0006",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0001",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0002",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0003",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0004",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0005",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0006",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0001",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0002",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0003",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0004",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0005",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0006",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0001",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0002",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0003",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0004",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0005",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0006",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0001",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0002",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0003",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0004",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0005",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0006",
+      "target_id": "H0005"
+    },
+    {
+      "created_at": "2026-09-28T00:47:58+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "E0001",
+      "target_id": "H0001"
+    },
+    {
+      "created_at": "2026-09-28T01:45:04+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "E0002",
+      "target_id": "H0002"
+    },
+    {
+      "created_at": "2026-09-28T01:49:26+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0007",
+      "target_id": "H0006"
+    },
+    {
+      "created_at": "2026-09-28T01:55:27+00:00",
+      "kind": "refutes",
+      "note": "",
+      "source_id": "V0040",
+      "target_id": "H0006"
+    },
+    {
+      "created_at": "2026-09-28T03:06:16+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "E0003",
+      "target_id": "H0003"
+    },
+    {
+      "created_at": "2026-09-28T03:09:40+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "E0004",
+      "target_id": "H0004"
+    },
+    {
+      "created_at": "2026-09-28T03:11:15+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "E0005",
+      "target_id": "H0007"
+    },
+    {
+      "created_at": "2026-09-28T03:17:07+00:00",
+      "kind": "tests",
+      "note": "",
+      "source_id": "EXP-0008",
+      "target_id": "H0007"
+    },
+    {
+      "created_at": "2026-09-28T03:19:09+00:00",
+      "kind": "refutes",
+      "note": "",
+      "source_id": "V0043",
+      "target_id": "H0007"
+    }
+  ],
+  "evidence": [
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0001",
+      "experiment_id": "EXP-0001",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0001.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0002",
+      "experiment_id": "EXP-0002",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0002.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0003",
+      "experiment_id": "EXP-0003",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0003.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0004",
+      "experiment_id": "EXP-0004",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0004.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0005",
+      "experiment_id": "EXP-0005",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0005.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0006",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0006.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0007",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0008",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0009",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:24:55+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0010",
+      "experiment_id": "EXP-0001",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0001.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0011",
+      "experiment_id": "EXP-0002",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0002.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0012",
+      "experiment_id": "EXP-0003",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0003.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0013",
+      "experiment_id": "EXP-0004",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0004.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0014",
+      "experiment_id": "EXP-0005",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0005.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0015",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0006.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:46:01+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0016",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": true,
+      "metric_improved": null,
+      "notes": "ran_successfully=true：EXP-0006 记录 status=completed，history 含 1 个 epoch（train/val loss 及 val_map50_95=0.00234），runtime 107.8s，best_epoch=1，与 ran_successfully=True 一致。baseline_comparable=null：这是首个完成的 baseline（EXP-0001~0005 均 failed、metric=null），不存在第二个同数据/同口径/同评测脚本的已完成对照运行，可比性尚未在真实对照中被验证；配置虽记录了 data_version/splits/seed/metric，但不足以据此判定对照可比。metric_improved=null：baseline 型实验，此前无可比 metric，提升无从判断。replicated_across_seeds=null：记录仅 seed=20260713，无多种子复现记录。leakage_free=null：未记录数据泄漏审计，仅有 train.txt/val.txt 划分，无法确认无泄漏。matches_hypothesis=true：change_type=baseline，配置走 external_detection 管线（entry_script=train.py、metric=map50_95、Held-out val 划分），与“三模态读取+Ultralytics 训练验证+mAP@50-95 落盘可复跑”的假设对应，不是改个参数冒充验证。single_variable=null：baseline 型实验无变量改动，该检查项不适用。logs_consistent=true：记录 validation_metric=0.00234 与 history[epoch1].val_map50_95=0.00234 完全一致，diagnosis.metric_name=val_map50_95 吻合；注：原始日志文件未能读取（工作区文件工具报 path escapes the workspace），此判定基于实验记录内嵌 history/diagnosis 的内部一致性。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:49:25+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0017",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "ran_successfully=true：EXP-0006 status=completed、runtime=107.8s、history 有 1 个 epoch 且 val_map50_95=0.00234。baseline_comparable=null：change_type=baseline、parent_id=null，EXP-0001~0005 均 failed 且无指标，无既有成功基线可对照，无法判断同数据/同口径/同评测脚本。metric_improved=null：无基线可比、无提升声明，0.00234 仅作参考点。replicated_across_seeds=false：manifest 仅 seed=20260713，list_experiments 显示其余实验均 failed，无跨种子成功复现。leakage_free=null：记录未含泄漏检查或 train/val 切分验证。matches_hypothesis=null：假设含'三模态检测数据读取'，但 manifest 仅见 external.stage='rgb' 与单一 train_images_dir，未见 IR/Depth 配置，无法确认三模态读取是否被验证。single_variable=null：change_type=baseline，无对照改动，单变量隔离不适用。logs_consistent=true：history[0].val_map50_95=0.00234 与 validation_metric、best_epoch=1 一致，diagnosis.metric_name=val_map50_95；注意 diagnosis.final_train_val_gap=-0.00234 与 loss 差值(约1.25)不符，疑似派生字段异常，但不影响核心结论一致性。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:51:08+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0018",
+      "experiment_id": "EXP-0001",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0001.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0019",
+      "experiment_id": "EXP-0002",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0002.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0020",
+      "experiment_id": "EXP-0003",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0003.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0021",
+      "experiment_id": "EXP-0004",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0004.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0022",
+      "experiment_id": "EXP-0005",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0005.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0023",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0006.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:51:46+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0024",
+      "experiment_id": "EXP-0001",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0001.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0025",
+      "experiment_id": "EXP-0002",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0002.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0026",
+      "experiment_id": "EXP-0003",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0003.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0027",
+      "experiment_id": "EXP-0004",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0004.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0028",
+      "experiment_id": "EXP-0005",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0005.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0029",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0006.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T14:59:43+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0030",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": false,
+      "metric_improved": null,
+      "notes": "EXP-0006 记录 status=completed、best_epoch=1、val_map50_95=0.00234，与 history 中唯一 epoch 的 val_map50_95 一致，runtime 107.8s，可判 ran_successfully=true。configs/aic_detection_external.yaml 的 manifest 显示 external.stage='rgb'、fraction=0.1、seed=20260713：本次只跑了 rgb stage，未验证假设中‘三模态检测数据读取’部分，故 matches_hypothesis=false；同时 change_type=baseline 且无前置可比指标，baseline_comparable 与 metric_improved 无对照对象，填 null。仅 1 个完成实验/单 seed，无跨随机种子复现，replicated_across_seeds=false。记录中无数据泄漏检查证据，leakage_free=null。baseline 无变量改动，single_variable=null。logs_consistent 基于记录内 history 与结论一致；原始日志文件未能独立读取。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T15:06:38+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": null,
+      "verdict": "implementation_bug"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0031",
+      "experiment_id": "EXP-0001",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0001.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0032",
+      "experiment_id": "EXP-0002",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0002.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0033",
+      "experiment_id": "EXP-0003",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0003.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0034",
+      "experiment_id": "EXP-0004",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0004.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0035",
+      "experiment_id": "EXP-0005",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0005.json (status=failed)",
+      "prediction_met": null,
+      "ran_successfully": false,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0036",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0006.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T15:27:24+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0037",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "来源：EXP-0006 记录（get_experiment）、其 manifest.config/history/diagnosis，以及 list_experiments 全量列表。(1) ran_successfully=true：顶层 status=completed、ran_successfully=True，history 有完整 1 个 epoch，val_map50_95=0.00234 落盘，runtime 107.8s，可指回。注意 EXP-0001..0005 同一 config_sha256(d96d5a…) 全部 failed 且未记录失败原因/修复，EXP-0006 是第 6 次才跑通，'可复跑'这一点有折扣。(2) baseline_comparable=null：train_list=splits/train.txt、val_list=splits/val.txt、metric=map50_95 与官方口径一致，但本会话 filesystem 工具对所有路径报 'path escapes the workspace'，无法读取 split 内容核验分割完整性与无重叠；且 config 写 stage=rgb、fraction=0.1、epochs=1，与'三模态/完整真实数据'的参考点口径存在字面冲突，无法确认是否'同数据'。(3) metric_improved=null：EXP-0001..0005 全部 failed 且 validation_metric=null，无任何先前成功基线可比较，假设本身也不是求提升。(4) replicated_across_seeds=false：全部实验 seed=20260713，且仅 EXP-0006 一次成功，无跨种子复现，可直接从记录读出。(5) leakage_free=null：仅能看到 train/val 分开的列表名，无法读取 splits 文件核验 train/val 无重叠、无测试集混入，也无任何泄漏审计记录。(6) matches_hypothesis=null：Ultralytics 训练/验证（runner=external_detection、pretrained_model=yolo26n.pt）与 mAP@50-95 落盘（validation.metric=map50_95、history 有值）两腿可确认，但 config 明确写 stage=rgb，与假设中'三模态检测数据读取'直接冲突；因无法读取 train.py 确认 stage=rgb 是否仍读取三模态，判 null 而非 false，但此处是明显疑点。(7) single_variable=null：change_type=baseline、parent_id=null，无对照基线、无'改动一个变量'可谈，属不适用。(8) logs_consistent=null：核心口径一致（history 的 val_map50_95=0.00234 与 validation_metric 一致、status=completed 与 ran_successfully 一致），但 diagnosis.final_train_val_gap=-0.00234 恰好等于 -validation_metric，与 history 的 train_loss=8.54/val_loss=7.29（loss 差约 +1.25）对不上，疑为诊断字段取错值，无法在无代码情况下判定为硬性不合格，故 null。另：val_map50_95=0.00234≈0，可能只是 1 epoch/10% 数据所致，也可能存在 label/class 映射问题，未能确认。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T15:32:11+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0038",
+      "experiment_id": "EXP-0006",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": false,
+      "metric_improved": null,
+      "notes": "EXP-0006 status=completed、runtime=107.8s、history 有 1 个 epoch 且 val_map50_95=0.00234，与记录 validation_metric=0.00234 一致（ran_successfully=true；logs_consistent=true）。该实验是 6 次基线尝试中唯一 completed 的（EXP-0001~0005 均 failed），没有可对照的已完成基线，因此 baseline_comparable 与 metric_improved 无法判断，填 null。manifest.external.seed=20260713 且只有单条 history 曲线，未做跨种子复现（replicated_across_seeds=false）。配置含 train.txt/val.txt 分开的 split，但记录中没有任何数据泄漏核查，填 null。假设声称验证'三模态检测数据读取'，但 manifest.external.stage='rgb'，实际只跑了 RGB 单模态，改动/运行没有覆盖三模态数据读取这一声称（matches_hypothesis=false）。single_variable 对 baseline 不适用，填 null。另注：diagnosis.final_train_val_gap=-0.00234 与 train_loss/val_loss 的差值（约 1.25）对不上，疑似用了验证指标而非损失差值，但不影响主结论的指标一致性。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-27T15:33:03+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": null,
+      "verdict": "implementation_bug"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0039",
+      "experiment_id": "EXP-0007",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0007.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-28T01:49:26+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": true,
+      "evidence_id": "V0040",
+      "experiment_id": "EXP-0007",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": true,
+      "metric_improved": false,
+      "notes": "EXP-0007 确实跑完：status=completed、runtime_seconds=84.1、history 含 1 个 epoch、validation_metric=0.00234，事件 60（JOB-0002）记录 training_job_finished(status=completed)。基线可比：configs/loop/baseline_rerun.yaml 与 EXP-0006 的 configs/aic_detection_external.yaml 功能键全同（data.version=3043a20b…、source_inventory_sha256=f13e5de0…、seed=20260713、model=yolo26n.pt、epochs=1、batch_size=4、metric=map50_95、train/val list 相同）；EXP-0007=0.00234 与 EXP-0006=0.00234 差值为 0，落在 ±0.001 内，复现性假设成立。metric_improved：两 run 指标相同，无提升（基线重跑，属预期，非缺陷）。replicated_across_seeds：两 run 均仅 seed=20260713，无跨种子记录。leakage_free：记录中无任何泄漏排查，error_analysis 为空。single_variable：训练相关配置键零改动（纯重跑）；注意编排仓库 git commit 84be80e0→d00ef544 且两 run 均 dirty=true，外部 B:\\AIC 训练代码无捕获哈希，无法 100% 确认外部代码逐字节相同（但两次 loss/mAP 完全一致支持确定性复现）。logs_consistent：validation_metric=0.00234 与 history[0].val_map50_95=0.00234、best_epoch=1 一致。",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-28T01:55:27+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": true,
+      "verdict": "hypothesis_falsified"
+    },
+    {
+      "baseline_comparable": true,
+      "evidence_id": "V0041",
+      "experiment_id": "EXP-0007",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": true,
+      "metric_improved": false,
+      "notes": "EXP-0007 由 get_experiment 证实：status=completed、runtime=84.1s、history 含 1 个 epoch 且 val_map50_95=0.00234，事件 60（JOB-0002）记录 training_job_finished(status=completed)，故 ran_successfully=true。对照 EXP-0006（val_map50_95=0.00234）：data.version=3043a20b…、external.source_inventory_sha256=f13e5de0…、seed=20260713、model=yolo26n.pt、epochs/batch_size/image_size/fraction/train_list/val_list/validation.metric=map50_95 全同，故 baseline_comparable=true。两次指标同为 0.00234、无变化，metric_improved=false（事实记录，非缺陷）。假设预测为'重跑与参考点 0.00234 的绝对差 ≤0.001 且 completed 非空'，实测差 0.0 ≤0.001，prediction_met=true。两 run 均仅 seed=20260713，无跨种子记录，replicated_across_seeds=false。记录中无任何泄漏排查、error_analysis 为空，leakage_free=null。configs/loop/baseline_rerun.yaml 的训练相关功能键与 EXP-0006 配置全同、仅执行实例不同，matches_hypothesis=true、single_variable=true。logs_consistent=true：history[0].val_map50_95=0.00234 与 validation_metric、best_epoch=1 一致；注：EXP-0007 与 EXP-0006 的 history 各字段逐位相同，且 diagnosis.final_train_val_gap=-0.00234 与 train_loss/val_loss 差值（约+1.25）对不上，属派生字段疑点，已在备注中保留但不推翻主结论一致性。",
+      "prediction_met": true,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-28T02:05:44+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": true,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": null,
+      "evidence_id": "V0042",
+      "experiment_id": "EXP-0008",
+      "leakage_free": null,
+      "logs_consistent": null,
+      "matches_hypothesis": null,
+      "metric_improved": null,
+      "notes": "backfilled from experiments/results/EXP-0008.json (status=completed)",
+      "prediction_met": null,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-28T03:17:07+00:00",
+      "replicated_across_seeds": null,
+      "single_variable": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "baseline_comparable": true,
+      "evidence_id": "V0043",
+      "experiment_id": "EXP-0008",
+      "leakage_free": null,
+      "logs_consistent": true,
+      "matches_hypothesis": true,
+      "metric_improved": true,
+      "notes": "EXP-0008 results.json status=completed、error=null，console.log 完整跑完 1 epoch 训练与验证，results.csv 记录 mAP50-95(B)=0.00211，与 validation_metric=0.00211 一致，故 ran_successfully=true。基线 EXP-0007 val_map50_95=0.00234，两者 data.version、train/val list、metric(map50_95)、entry_script(train.py) 均相同，日志均显示 Ultralytics dataset {'train':1700,'val':300}（fraction 0.1 后 170/300），仅 data 配置由 aic_rgb.yaml 变为 aic_fusion.yaml，故 baseline_comparable=true。指标从 0.00234 变为 0.00211（实际变化），metric_improved=true；假设预测为 val_map50_95>0.00234，0.00211 未满足，prediction_met=false。manifest 与 args.yaml 均显示单一 seed=20260713、deterministic=true，仅一次运行，无跨种子复现，replicated_across_seeds=false。记录中未做任何数据泄漏检查（train/val 是否重叠未验证），leakage_free=null。改动 external.stage rgb→fusion 直接对应早融合假设，matches_hypothesis=true；EXP-0007/EXP-0008 的 manifest 及 args.yaml 逐项比对，除 stage 及其派生的 data 配置文件外其余键值一致，single_variable=true。训练/验证日志的数值与记录结论一致，logs_consistent=true；备注：results.json 的 conclusion 文案写作 'Baseline completed' 系措辞瑕疵，不改变数值结论。",
+      "prediction_met": false,
+      "ran_successfully": true,
+      "recorded_at": "2026-09-28T03:19:09+00:00",
+      "replicated_across_seeds": false,
+      "single_variable": true,
+      "verdict": "hypothesis_falsified"
+    }
+  ],
+  "experiments": [
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0001",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0002",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0003",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0004",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0005",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\detection_train.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\detection_source_manifest.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\detection_run\\results.csv",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\detection_run\\console.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\history.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\config_snapshot.yaml",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0006\\runtime_config.yaml"
+      ],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "experiment_id": "EXP-0006",
+      "hypothesis_id": "H0005",
+      "independent": "baseline",
+      "metrics": [
+        "epochs_scored",
+        "learning_rate",
+        "train_box_loss",
+        "train_cls_loss",
+        "train_dfl_loss",
+        "train_loss",
+        "val_box_loss",
+        "val_cls_loss",
+        "val_dfl_loss",
+        "val_loss",
+        "val_map50",
+        "val_map50_95",
+        "val_precision",
+        "val_recall"
+      ],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [],
+      "created_at": "2026-09-28T00:47:58+00:00",
+      "experiment_id": "E0001",
+      "hypothesis_id": "H0001",
+      "independent": "",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "EXP-0006（唯一 completed 基线，val_map50_95=0.00234）",
+      "config_path": "configs/loop/baseline_rerun.yaml",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713",
+        "epochs=1",
+        "fraction=0.1",
+        "image_size=640",
+        "batch_size=4",
+        "pretrained_model=yolo26n.pt",
+        "external entry_script=train.py 与评测脚本保持不变"
+      ],
+      "created_at": "2026-09-28T01:45:04+00:00",
+      "experiment_id": "E0002",
+      "hypothesis_id": "H0002",
+      "independent": "同一固定配置的独立第二次执行（复现运行，不改任何超参数、数据路径、代码入口或随机种子）",
+      "metrics": [
+        "val_map50_95"
+      ],
+      "question": "重跑 EXP-0006 同配置链路，判断 val_map50_95=0.00234 的参考点是否能在 ±0.001 容差内复现，从而判决该链路在真实数据上可复跑且参考点可比。",
+      "run_id": "JOB-0002",
+      "success_condition": "重跑正常结束并落盘有限 val_map50_95，且 |val_map50_95 - 0.00234| ≤ 0.001；若运行记录/日志包含三模态样本统计，则 visible_rgb、infrared、depth 各模态读取样本数均 > 0，否则三模态点按记录缺失待查，不以猜测判定。"
+    },
+    {
+      "artifacts": [
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\detection_train.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\detection_source_manifest.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\detection_run\\results.csv",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\detection_run\\console.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\history.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\config_snapshot.yaml",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0007\\runtime_config.yaml"
+      ],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-28T01:49:26+00:00",
+      "experiment_id": "EXP-0007",
+      "hypothesis_id": "H0006",
+      "independent": "baseline",
+      "metrics": [
+        "epochs_scored",
+        "learning_rate",
+        "train_box_loss",
+        "train_cls_loss",
+        "train_dfl_loss",
+        "train_loss",
+        "val_box_loss",
+        "val_cls_loss",
+        "val_dfl_loss",
+        "val_loss",
+        "val_map50",
+        "val_map50_95",
+        "val_precision",
+        "val_recall"
+      ],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [],
+      "created_at": "2026-09-28T03:06:16+00:00",
+      "experiment_id": "E0003",
+      "hypothesis_id": "H0003",
+      "independent": "",
+      "metrics": [],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    },
+    {
+      "artifacts": [],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data.version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "external.seed=20260713",
+        "epochs=1",
+        "batch_size=4",
+        "image_size=640",
+        "fraction=0.1",
+        "model.pretrained_model=yolo26n.pt",
+        "validation.metric=map50_95"
+      ],
+      "created_at": "2026-09-28T03:09:40+00:00",
+      "experiment_id": "E0004",
+      "hypothesis_id": "H0004",
+      "independent": "外部检测阶段从已验证的 stage=rgb 切换为真实三模态（fusion）读取及对应三模态数据清单",
+      "metrics": [
+        "val_map50_95",
+        "train_rgb_count",
+        "val_rgb_count",
+        "train_infrared_count",
+        "val_infrared_count",
+        "train_depth_count",
+        "val_depth_count",
+        "modality_pairing_success"
+      ],
+      "question": "本次实验在区分：当前 configs/aic_detection_external.yaml 对应的外部检测链是 RGB-only 还是 RGB+Infrared+Depth 三模态读取，并且它能否在固定数据版本与种子下复现 EXP-0006 的 val_map50_95=0.00234 参考点。",
+      "run_id": "",
+      "success_condition": "训练与验证进程正常结束，val_map50_95 为有限实数且 0≤val_map50_95≤1，|val_map50_95−0.00234|≤0.005，且数据读取阶段生成的 train_list/val_list 中 RGB、Infrared、Depth 三模态样本计数均>0、同一图像 stem 配对成功。"
+    },
+    {
+      "artifacts": [],
+      "baseline": "EXP-0007（configs/loop/baseline_rerun.yaml，external.stage=rgb，val_map50_95=0.00234）",
+      "config_path": "configs/loop/stage_fusion_vs_rgb.yaml",
+      "controlled": [
+        "数据版本 3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6 与 train_images_dir B:\\AIC\\datasets\\train\\AIC2026_Train_2000",
+        "随机种子 20260713（external.seed 与 training.seed 一致）",
+        "训练步数与计算预算 epochs=1 / batch_size=4 / fraction=0.1 / image_size=640 / workers=0 / device=cuda",
+        "模型与评测链 pretrained_model=yolo26n.pt、runner=external_detection、validation.metric=map50_95（maximize）",
+        "数据划分 train_list=splits/train.txt、val_list=splits/val.txt、dataset_root=datasets/ultralytics_aic"
+      ],
+      "created_at": "2026-09-28T03:11:15+00:00",
+      "experiment_id": "E0005",
+      "hypothesis_id": "H0007",
+      "independent": "external.stage：rgb → fusion（早融合）",
+      "metrics": [
+        "val_map50_95"
+      ],
+      "question": "在 EXP-0007 同配置下，仅把输入模态从 RGB 单模态改为 RGB+IR+Depth 早融合（external.stage: rgb→fusion），判决 val_map50_95 是否高于 RGB 参考点 0.00234。",
+      "run_id": "JOB-0003",
+      "success_condition": "本次 fusion 实验的 val_map50_95 严格高于 EXP-0007 的 RGB 参考点 0.00234；若 val_map50_95 ≤ 0.00234 则不支持该假设。"
+    },
+    {
+      "artifacts": [
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\detection_train.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\detection_source_manifest.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\detection_run\\results.csv",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\detection_run\\console.log",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\history.json",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\config_snapshot.yaml",
+        "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\experiments\\artifacts\\EXP-0008\\runtime_config.yaml"
+      ],
+      "baseline": "",
+      "config_path": "",
+      "controlled": [
+        "data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+        "seed=20260713"
+      ],
+      "created_at": "2026-09-28T03:17:07+00:00",
+      "experiment_id": "EXP-0008",
+      "hypothesis_id": "H0007",
+      "independent": "ablation",
+      "metrics": [
+        "epochs_scored",
+        "learning_rate",
+        "train_box_loss",
+        "train_cls_loss",
+        "train_dfl_loss",
+        "train_loss",
+        "val_box_loss",
+        "val_cls_loss",
+        "val_dfl_loss",
+        "val_loss",
+        "val_map50",
+        "val_map50_95",
+        "val_precision",
+        "val_recall"
+      ],
+      "question": "",
+      "run_id": "",
+      "success_condition": ""
+    }
+  ],
+  "hypotheses": [
+    {
+      "created_at": "2026-09-27T14:24:55+00:00",
+      "falsifiers": [
+        "ball AP50 不涨"
+      ],
+      "hypothesis_id": "H0001",
+      "parent_id": null,
+      "predictions": [
+        "ball AP50 +0.005"
+      ],
+      "rationale": [],
+      "statement": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "status": "active",
+      "uncertainty": 0.5
+    },
+    {
+      "created_at": "2026-09-27T14:46:01+00:00",
+      "falsifiers": [
+        "重跑后 val_map50_95 未落盘、为 NaN/空，或与参考点 0.00234 的绝对差 > 0.001（参考点不可复现）。",
+        "重跑在训练或验证阶段崩溃、异常或超时，未产出任何 val_map50_95（链不能在真实数据上跑通）。",
+        "任一模态（visible_rgb/infrared/depth）读取样本数为 0 或解析失败（三模态读取链不成立）。"
+      ],
+      "hypothesis_id": "H0002",
+      "parent_id": null,
+      "predictions": [
+        "以固定配置（seed=20260713、epochs=1、fraction=0.1、image_size=640、batch_size=4）在真实训练数据（AIC2026_Train_2000）上重跑该链路，训练与验证正常结束，落盘的 val_map50_95 与参考点 0.00234 的绝对差 ≤ 0.001（参考点可复现，参考值来自 EXP-0006 唯一 completed 基线的 val_map50_95=0.00234）。",
+        "重跑完成后 val_map50_95 ≥ 0.001 且为有限值（参考点存在且非空，链路确实产出可比的 held-out mAP@50-95）。",
+        "数据读取阶段成功解析 visible_rgb、infrared、depth 三个模态，且各模态读取样本数 > 0（依据 competition_spec.data.modalities）。"
+      ],
+      "rationale": [],
+      "statement": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "status": "active",
+      "uncertainty": 0.9
+    },
+    {
+      "created_at": "2026-09-27T14:51:46+00:00",
+      "falsifiers": [
+        "RGB/Infrared/Depth 任一模态读取报错或中断；或生成的数据清单未覆盖 12 个类别 ID 0–11；或验证集样本数为 0。",
+        "重跑在超时/报错中终止（exit ≠ 0）或未产出 val mAP@50-95 记录；或产出值为 NaN/None/空/无法解析。",
+        "在 seed/数据/代码均未改变的情况下，重跑 val mAP@50-95 与 0.00234 的绝对差 > 0.001。"
+      ],
+      "hypothesis_id": "H0003",
+      "parent_id": null,
+      "predictions": [
+        "真实数据（AIC2026_Train_2000）上重跑参考配置时，数据读取阶段能成功读取 RGB/Infrared/Depth 三模态并生成 Ultralytics 数据清单，清单中 12 个类别 ID 0–11 全部出现、验证集样本数 > 0。",
+        "该重跑正常结束（exit 0）并写入 val mAP@50-95 结果记录，且该值为 [0,1] 内的有限数值（非 NaN、非 None、非空、可解析）。",
+        "固定 seed=20260713、data_version 与代码提交不变时，重跑得到的 val mAP@50-95 与已记录参考点 0.00234（EXP-0006）的绝对差 ≤ 0.001。"
+      ],
+      "rationale": [],
+      "statement": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "status": "active",
+      "uncertainty": 0.0
+    },
+    {
+      "created_at": "2026-09-27T14:59:43+00:00",
+      "falsifiers": [
+        "重跑 crash/超时，或 val_map50_95 未落盘、为 NaN/Inf、或超出 [0,1] —— 否定'链可复跑 + mAP@50-95 落盘'",
+        "重跑 val_map50_95 与参考点 0.00234 的绝对差 > 0.005 —— 否定'给出可复现的参考点'（链存在未固定的随机性或数据版本漂移）",
+        "RGB/Infrared/Depth 任一模态样本计数为 0，或三模态无法按同一图像 stem 配对（含当前配置 stage=rgb 实际只读 RGB 的情形）—— 否定'三模态数据读取'"
+      ],
+      "hypothesis_id": "H0004",
+      "parent_id": null,
+      "predictions": [
+        "重跑（configs/aic_detection_external.yaml，data_version=3043a20b…，seed=20260713）训练与验证进程正常结束，且落盘的 val_map50_95 为有限实数：0 <= val_map50_95 <= 1（非 NaN/Inf）",
+        "重跑所得 val_map50_95 与参考点 EXP-0006=0.00234 的绝对差 |Δval_map50_95| <= 0.005（同一数据版本与种子下参考点可复现）",
+        "数据读取阶段生成的 train_list/val_list 中，RGB、Infrared、Depth 三模态样本计数均 > 0（三模态数据读取成功）"
+      ],
+      "rationale": [],
+      "statement": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "status": "active",
+      "uncertainty": 0.5
+    },
+    {
+      "created_at": "2026-09-27T15:27:24+00:00",
+      "falsifiers": [
+        "同配置同 seed 重跑后 val_map50_95 未能落盘（三模态数据读取、Ultralytics 训练或验证任一步骤报错），或落盘值与 0.00234 的绝对偏差 > 0.001 —— 否定'可复跑'。",
+        "参考点不可比：0.00234 不是来自与后续实验相同的 Held-out 验证集划分，或不是 [0,1] 内有限值（训练集自评/指标未落盘/非有限），导致无法用它做方向性差值比较 —— 否定'可比的参考点'。"
+      ],
+      "hypothesis_id": "H0005",
+      "parent_id": null,
+      "predictions": [
+        "以 EXP-0006 相同配置与随机种子（configs/aic_detection_external.yaml，seed=20260713，data_version=3043a20b...）重跑，验证集 mAP@50-95（val_map50_95）能再次落盘，且与参考点 0.00234 的绝对偏差 ≤ 0.001（即落在 [0.00134, 0.00334]）。",
+        "参考点 val_map50_95=0.00234 是可比基线：它来自 Held-out 验证集（splits/val.txt）且为 [0,1] 内有限值；在同一验证集上，后续实验的 val_map50_95 相对 0.00234 的差值能给出确定方向（Δ>0 为提升、Δ<0 为下降）。"
+      ],
+      "rationale": [],
+      "statement": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "status": "active",
+      "uncertainty": 0.0
+    },
+    {
+      "created_at": "2026-09-28T01:49:26+00:00",
+      "falsifiers": [
+        "重跑产出的 val_map50_95 偏离参考点 0.00234 超过 0.001（即 <0.00134 或 >0.00334），说明参考点未在 ±0.001 容差内复现，'参考点可比'这一结论被否定。",
+        "重跑未完成（status=failed/timeout）或 val_map50_95 为 null，说明同配置链路在真实数据上无法复跑，'该链路可复跑'这一结论被否定。"
+      ],
+      "hypothesis_id": "H0006",
+      "parent_id": null,
+      "predictions": [
+        "重跑与 EXP-0006 相同的配置链路（同 seed=20260713、同 data_version=3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6、同 Ultralytics 训练/验证入口）时，重跑的 val_map50_95 与参考点 0.00234 的绝对偏差 <= 0.001，即 val_map50_95 落在 [0.00134, 0.00334]。",
+        "该重跑以 status=completed 结束，且 val_map50_95 为有限非空数值（validation_metric 非 null），即同配置链路在真实数据上可复跑。"
+      ],
+      "rationale": [],
+      "statement": "重跑 EXP-0006 同配置链路，判断 val_map50_95=0.00234 的参考点是否能在 ±0.001 容差内复现，从而判决该链路在真实数据上可复跑且参考点可比。",
+      "status": "killed",
+      "uncertainty": 0.0
+    },
+    {
+      "created_at": "2026-09-28T02:03:10+00:00",
+      "falsifiers": [
+        "val_map50_95 不高于 0.00234，即引入红外与深度没有带来提升"
+      ],
+      "hypothesis_id": "H0007",
+      "parent_id": null,
+      "predictions": [
+        "EXP-0007 同配置、只把 external.stage 改为 fusion，val_map50_95 高于 0.00234"
+      ],
+      "rationale": [
+        "规则九（一）要求算法读取 RGB、IR、Depth 三模态，而当前配置 external.stage=rgb 只读 RGB",
+        "EXP-0007 已在 rgb 下取得可复现的 0.00234，构成同数据同口径的可比对照"
+      ],
+      "statement": "把 external.stage 从 rgb 换成 fusion（早融合）后，val_map50_95 会高于 RGB 单模态参考点 0.00234",
+      "status": "killed",
+      "uncertainty": null
+    },
+    {
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "falsifiers": [],
+      "hypothesis_id": "H0008",
+      "parent_id": null,
+      "predictions": [],
+      "rationale": [],
+      "statement": "fusion 配置下 RGB/IR/Depth 各模态实际读取样本数是多少，同一图像 stem 的三模态配对是否正确，train/val 划分是否存在重叠泄漏？",
+      "status": "active",
+      "uncertainty": null
+    },
+    {
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "falsifiers": [],
+      "hypothesis_id": "H0009",
+      "parent_id": null,
+      "predictions": [],
+      "rationale": [],
+      "statement": "当前 val_map50_95≈0.002 是否主要由 1 epoch、fraction=0.1 或类别/标签映射问题造成，正常训练预算（更多 epoch、全量数据）下的真实基线是多少？",
+      "status": "active",
+      "uncertainty": null
+    },
+    {
+      "created_at": "2026-09-28T03:21:24+00:00",
+      "falsifiers": [],
+      "hypothesis_id": "H0010",
+      "parent_id": null,
+      "predictions": [],
+      "rationale": [],
+      "statement": "更换随机种子后，RGB 参考点 0.00234 与 fusion 的 0.00211 是否仍成立，早融合与 RGB 之间的微小差距是否在噪声范围内？",
+      "status": "active",
+      "uncertainty": null
+    }
+  ],
+  "updated_at": "2026-09-28T03:21:24+00:00"
+}

@@ -19,6 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+from agents.reproduction_planner import audited_dataset, data_contract_fit, local_repository
 from agents.research_agent import query_terms, search_github
 from tools.files import read_json, write_json_atomic
 from tools.provenance import utc_now
@@ -183,6 +184,37 @@ def _license_signals(record: dict[str, Any], lookup: dict[str, Any]) -> list[dic
     return [_signal("license_declared", "ok", str(license_name))]
 
 
+def _data_contract(workspace: Path, record: dict[str, Any], lookup: dict[str, Any]) -> dict[str, Any]:
+    """这个候选的代码能不能吃本地这份数据。
+
+    仓库还没 clone 进来就问不出答案，那时返回 `unknown` —— 不能拿「还没 clone」
+    冒充「不兼容」，否则每一条没 clone 的候选都会被误判成不能复现。
+    """
+    urls = [str(record.get("code_url") or "")]
+    urls.extend(str(candidate.get("clone_url") or "") for candidate in lookup.get("candidates") or [])
+    source = local_repository(workspace, urls)
+    if source is None:
+        return {
+            "status": "unknown",
+            "reason": "the repository has not been cloned into this workspace yet",
+            "declared": None,
+            "offered": None,
+        }
+    dataset = audited_dataset(workspace)
+    return data_contract_fit(source, Path(str(dataset["host_path"])) if dataset else None)
+
+
+def _contract_signals(contract: dict[str, Any]) -> list[dict[str, str]]:
+    """数据契约这一项的结论与证据。"""
+    status = contract.get("status")
+    if status == "incompatible":
+        return [_signal("data_contract_incompatible", "danger", str(contract.get("reason") or ""))]
+    if status == "compatible":
+        declared = contract.get("declared") or {}
+        return [_signal("data_contract_compatible", "ok", str(declared.get("readme") or "README"))]
+    return [_signal("data_contract_unknown", "muted", str(contract.get("reason") or ""))]
+
+
 def _task_signals(record: dict[str, Any]) -> list[dict[str, str]]:
     """任务匹配度：来自打分的 `relevance_parts.task`，不是另算一套。"""
     parts = record.get("relevance_parts") if isinstance(record.get("relevance_parts"), dict) else {}
@@ -212,17 +244,19 @@ def _evidence_signals(record: dict[str, Any]) -> list[dict[str, str]]:
     return signals
 
 
-def decide_verdict(task_fit: float | None, has_code: bool) -> str:
+def decide_verdict(task_fit: float | None, has_code: bool, data_contract: str = "unknown") -> str:
     """把证据折成一个结论。规则写在一处，界面只负责翻译这个枚举。
 
     * `reproduce` -- 有代码、任务也吻合：值得按它的方法跑一遍。
     * `adapt_component` -- 有代码但不是同一件事：只借鉴其中可复用的部分。
-    * `reference_only` -- 没代码但任务高度吻合：值得读，实现得自己写。
+    * `reference_only` -- 值得读，但别指望直接跑它：要么没代码（实现得自己写），
+      要么本地数据喂不进它声明的输入契约。
     * `skip` -- 既没代码任务也不吻合：不投入。
     """
     fit = float(task_fit) if task_fit is not None else 0.0
     if has_code and fit >= TASK_FIT_REPRODUCE:
-        return "reproduce"
+        # 输入契约对不上时，喂进去的是别的数据，跑出什么数字都不能算复现。
+        return "reference_only" if data_contract == "incompatible" else "reproduce"
     if has_code:
         return "adapt_component"
     if fit >= TASK_FIT_REFERENCE:
@@ -244,9 +278,16 @@ def assess_candidate(
         else {"status": "skipped", "candidates": [], "reason": "record already carries a code URL"}
     )
     code_signals, has_code = _code_signals(record, lookup)
-    signals = code_signals + _license_signals(record, lookup) + _task_signals(record) + _evidence_signals(record)
+    contract = _data_contract(workspace, record, lookup)
+    signals = (
+        code_signals
+        + _license_signals(record, lookup)
+        + _contract_signals(contract)
+        + _task_signals(record)
+        + _evidence_signals(record)
+    )
     parts = record.get("relevance_parts") if isinstance(record.get("relevance_parts"), dict) else {}
-    verdict = decide_verdict(parts.get("task"), has_code)
+    verdict = decide_verdict(parts.get("task"), has_code, str(contract.get("status")))
 
     assessment = {
         "paper_id": record.get("paper_id"),
@@ -259,6 +300,7 @@ def assess_candidate(
         "has_official_code": bool(record.get("official_code")),
         "code_lookup": lookup["status"],
         "code_candidates": lookup["candidates"],
+        "data_contract": contract,
         "task_fit": parts.get("task"),
         "relevance_score": record.get("relevance_score"),
         "signals": signals,

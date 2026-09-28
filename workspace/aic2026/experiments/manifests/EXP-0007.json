@@ -1,0 +1,78 @@
+{
+  "change_type": "baseline",
+  "command": "python main.py run --config configs\\loop\\baseline_rerun.yaml",
+  "config": {
+    "data": {
+      "train_images_dir": "B:\\AIC\\datasets\\train\\AIC2026_Train_2000",
+      "version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6"
+    },
+    "experiment": {
+      "change_type": "baseline",
+      "estimated_gpu_hours": 0.2,
+      "expected_improvement": "验证 EXP-0006 的 val_map50_95=0.00234 参考点可复现；本配置的目标是判决链路可复跑，不是榜单分数。",
+      "hypothesis": "三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。",
+      "rollback_plan": "重跑仅用于复现性判决，不进入冲榜结论；若容差外再排查数据指纹与外部工程。"
+    },
+    "external": {
+      "batch_size": 4,
+      "dataset_root": "datasets/ultralytics_aic",
+      "device": "0",
+      "entry_script": "train.py",
+      "epochs": 1,
+      "fraction": 0.1,
+      "image_size": 640,
+      "project_dir": "B:\\AIC",
+      "python_executable": "A:\\anaconda3\\anaconda3_exe\\envs\\AIC\\python.exe",
+      "require_cuda": true,
+      "seed": 20260713,
+      "source_inventory_sha256": "f13e5de0d2d7b5ce64979c298db484e55d90798cbaa37d5c503d11f901d4a9c1",
+      "stage": "rgb",
+      "timeout_seconds": 3600,
+      "train_list": "splits/train.txt",
+      "val_list": "splits/val.txt",
+      "workers": 0
+    },
+    "model": {
+      "pretrained_model": "yolo26n.pt"
+    },
+    "training": {
+      "batch_size": 4,
+      "device": "cuda",
+      "epochs": 1,
+      "runner": "external_detection",
+      "seed": 20260713
+    },
+    "validation": {
+      "direction": "maximize",
+      "metric": "map50_95"
+    }
+  },
+  "config_path": "configs\\loop\\baseline_rerun.yaml",
+  "config_sha256": "ba8f216cdc4ad438c7cf76d05340d3541f98e061911566d1c073d32373b473dd",
+  "created_at": "2026-09-28T01:47:43+00:00",
+  "data_version": "3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6",
+  "environment": {
+    "captured_at": "2026-09-28T01:47:38+00:00",
+    "cuda_available": true,
+    "cuda_version": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.10.20",
+    "torch": "2.5.1+cu121"
+  },
+  "estimated_gpu_hours": 0.2,
+  "expected_improvement": "验证 EXP-0006 的 val_map50_95=0.00234 参考点可复现；本配置的目标是判决链路可复跑，不是榜单分数。",
+  "experiment_id": "EXP-0007",
+  "git": {
+    "available": true,
+    "branch": "master",
+    "commit": "d00ef544d82d63e472b085d215d9ef4f6aa8a47c",
+    "dirty": true,
+    "repository_root": "B:/You Just Lead/competition-agent"
+  },
+  "hypothesis": "重跑 EXP-0006 同配置链路，判断 val_map50_95=0.00234 的参考点是否能在 ±0.001 容差内复现，从而判决该链路在真实数据上可复跑且参考点可比。",
+  "parent_id": null,
+  "rollback_plan": "重跑仅用于复现性判决，不进入冲榜结论；若容差外再排查数据指纹与外部工程。",
+  "seed": 20260713,
+  "status": "planned"
+}

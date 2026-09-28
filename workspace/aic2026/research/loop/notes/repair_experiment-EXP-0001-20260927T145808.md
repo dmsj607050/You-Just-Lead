@@ -1,0 +1,3 @@
+# REPAIR_EXPERIMENT EXP-0001
+
+建议终止对 EXP-0001 的修复。依据：EXP-0006 使用同一份配置（config_sha256 d96d5a826eefd9fde0f39a2dcd3d496e92ab4abe50e36c661021c2b5b2e0783e）已成功完成，validation_metric (val_map50_95) = 0.00234，且判定为 keep_as_candidate，直接给出了 EXP-0001 假设所要求的可复跑参考点。EXP-0001 的错误信息指向 B:\You Just Lead\competition-agent\workspace\aic2026\experiments\artifacts\EXP-0001\detection_train.log，但当前工具链无法读取该日志：read_file 报 path escapes the workspace，Docker 不可用（failed to connect to docker daemon），因此具体 exit code 1 原因属于'没查到'，不是'日志不存在'。在拿不到日志的情况下，无法有依据地指定要改的配置项或逻辑，任何进一步修改都是猜测。继续修 EXP-0001 没有证据支撑，建议 abandon，并把参考点记录为 EXP-0006 的结果。

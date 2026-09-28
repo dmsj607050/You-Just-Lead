@@ -67,9 +67,16 @@ class AgentToolsSchemaTests(unittest.TestCase):
         forbidden = names & HIGH_RISK_TOOL_NAMES
         self.assertFalse(forbidden, f"High-risk tools must not be exposed to the Agent: {forbidden}")
 
-    def test_create_experiment_draft_is_the_only_write_tool(self) -> None:
+    def test_write_capable_tools_are_exactly_the_bounded_ones(self) -> None:
+        """能落盘的只有这两个，而且各自带边界。
+
+        `create_experiment_draft` 只建草稿、不启动训练；`write_file` 只能写工作区，
+        碰不到官方规则原件（`input/`）与 `.git/`。`run_command` 名字里没有 write/create
+        所以不落在这个集合里，但它同样受约束：不在宿主上跑，而是开一个无网、限资源、
+        工作区只读挂载的容器（边界见 `tests/test_research_loop.py::CodeToolTests`）。
+        """
         write_tools = {name for name in available_tool_names() if "create" in name or "write" in name}
-        self.assertEqual(write_tools, {"create_experiment_draft"})
+        self.assertEqual(write_tools, {"create_experiment_draft", "write_file"})
 
 
 class AgentToolExecutionTests(unittest.TestCase):

@@ -16,7 +16,9 @@ Two properties matter and are enforced here rather than promised by callers:
 
 from __future__ import annotations
 
+import os
 import shlex
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -26,6 +28,16 @@ from typing import Any
 
 class ContainerError(RuntimeError):
     """Raised when a container cannot be started or cleaned up."""
+
+
+# docker 装完不一定立刻在 PATH 里（Windows 上要开新终端才有），而 Docker Desktop
+# 的安装目录里除了 docker.exe 还有凭据助手 docker-credential-desktop.exe —— 后者
+# 找不到时，连拉公开镜像都会报 "error getting credentials"。
+DOCKER_FALLBACK_PATHS = (
+    r"C:\Program Files\Docker\Docker\resources\bin\docker.exe",
+    "/usr/bin/docker",
+    "/usr/local/bin/docker",
+)
 
 
 @dataclass(frozen=True)
@@ -71,14 +83,14 @@ class RunOutcome:
         return self.returncode == 0 and not self.timed_out
 
 
-def build_arguments(spec: ContainerSpec) -> list[str]:
+def build_arguments(spec: ContainerSpec, executable: str = "docker") -> list[str]:
     """把规格翻成 `docker run` 参数表。
 
     挂载用 `--mount` 而不是 `-v`：Windows 上宿主路径形如 `B:\\data`，
     `-v B:\\data:/data` 里的冒号会让人一眼读不出哪段是路径哪段是容器目录。
     """
     arguments: list[str] = [
-        "docker",
+        executable,
         "run",
         "--rm",
         "--name",
@@ -110,17 +122,49 @@ def build_arguments(spec: ContainerSpec) -> list[str]:
 class DockerRunner:
     """薄薄一层 subprocess 包装；测试里可以换成假的 runner。"""
 
+    def __init__(self, executable: str | None = None):
+        self.executable = executable or self.locate()
+
+    @staticmethod
+    def locate() -> str:
+        """找 docker 可执行文件：先看 PATH，再退回各平台的默认安装位置。
+
+        退回一步查找是必要的：刚装完 Docker Desktop 时 `docker` 还不在当前进程的
+        PATH 里（要开新终端才有），而此时后端已经在跑了。
+        """
+        found = shutil.which("docker")
+        if found:
+            return found
+        for candidate in DOCKER_FALLBACK_PATHS:
+            if Path(candidate).is_file():
+                return candidate
+        return "docker"
+
+    def environment(self) -> dict[str, str]:
+        """给子进程的 PATH 里补上 docker 所在目录。
+
+        补 PATH 不只是为了找到 docker 本身：模块里还有 docker-credential-desktop，
+        docker CLI 会把它当子进程调用，找不到就连公开镜像都拉不下来。
+        """
+        env = dict(os.environ)
+        directory = str(Path(self.executable).parent)
+        current = env.get("PATH", "")
+        if directory and Path(directory).is_dir() and directory not in current.split(os.pathsep):
+            env["PATH"] = f"{directory}{os.pathsep}{current}" if current else directory
+        return env
+
     def availability(self) -> dict[str, Any]:
         """docker 客户端与守护进程是否都在。"""
         try:
             completed = subprocess.run(
-                ["docker", "version", "--format", "{{.Server.Version}}"],
+                [self.executable, "version", "--format", "{{.Server.Version}}"],
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=self.environment(),
             )
         except FileNotFoundError:
-            return {"available": False, "version": None, "reason": "docker executable not found on PATH"}
+            return {"available": False, "version": None, "reason": f"docker executable not found ({self.executable})"}
         except subprocess.TimeoutExpired:
             return {"available": False, "version": None, "reason": "docker daemon did not answer within 30s"}
         if completed.returncode != 0:
@@ -131,7 +175,7 @@ class DockerRunner:
 
     def run(self, spec: ContainerSpec, *, log_path: Path) -> RunOutcome:
         """跑一次容器，输出写进日志文件（长训练的输出不适合全留在内存里）。"""
-        arguments = build_arguments(spec)
+        arguments = build_arguments(spec, self.executable)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
         timed_out = False
@@ -145,6 +189,7 @@ class DockerRunner:
                     stderr=subprocess.STDOUT,
                     text=True,
                     timeout=spec.timeout_seconds,
+                    env=self.environment(),
                 )
                 returncode = completed.returncode
             except subprocess.TimeoutExpired:
@@ -164,7 +209,13 @@ class DockerRunner:
     def remove(self, name: str) -> None:
         """强制删掉一个可能还在跑的容器。删不掉也不该盖住原本的错误。"""
         try:
-            subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True, timeout=60)
+            subprocess.run(
+                [self.executable, "rm", "-f", name],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=self.environment(),
+            )
         except (OSError, subprocess.TimeoutExpired):
             pass
 

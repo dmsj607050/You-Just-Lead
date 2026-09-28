@@ -119,6 +119,16 @@ def _default_artifacts(project_root: Path, device_root: Path | None) -> list[Art
             kind="windows-executable",
             root=Path(project_root),
             relative="dist/competition-agent-api.exe",
+            # 无界面的本地服务：给没有 Python 环境的机器用，鸿蒙端在电脑上连的就是它。
+            required_for_release=True,
+        ),
+        ArtifactSpec(
+            name="desktop-app",
+            kind="windows-desktop-app",
+            root=Path(project_root),
+            relative="dist/YouJustLead.exe",
+            # 用户双击就能用的完整应用（自带界面）。它和服务那个 exe 是两个交付物：
+            # 一个给端侧当执行器，一个给人当工具，混起来会让"少了哪个"说不清。
             required_for_release=True,
         ),
     ]

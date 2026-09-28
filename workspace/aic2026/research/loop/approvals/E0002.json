@@ -1,0 +1,9 @@
+{
+  "approved_at": "2026-09-28T01:46:56+00:00",
+  "config_path": "configs/loop/baseline_rerun.yaml",
+  "config_sha256": "ba8f216cdc4ad438c7cf76d05340d3541f98e061911566d1c073d32373b473dd",
+  "experiment_id": "E0002",
+  "hypothesis_id": "H0002",
+  "note": "核对过配置与数据指纹；对 EXP-0006 参考点的独立重跑，用于判决可复现性。预算 0.2 GPU 小时，单卡 RTX 4060。",
+  "run_id": "JOB-0002"
+}

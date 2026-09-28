@@ -8,6 +8,8 @@ approves:
 * candidate commands, each carrying where it came from (a README line, or a
   bare entrypoint), so a person can judge them instead of trusting them,
 * which audited local dataset directory to mount, and at which path,
+* whether that dataset can actually feed the repository, given the input layout
+  the repository documents,
 * whether the code appears to want a GPU.
 
 Nothing here executes anything, and no command is invented: every candidate is
@@ -51,6 +53,14 @@ DATASET_TARGET = "/data"
 SOURCE_TARGET = "/src"
 WORK_TARGET = "/work"
 OUTPUT_TARGET = "/output"
+
+# 仓库 README 描述输入数据时会写的子目录名。只认这两个：README 里的 `data/images/`
+# 是数据契约，而 `train/`、`val/` 更像划分方式，把划分方式当成契约会误判。
+CONTRACT_DIRECTORIES = ("images", "labels")
+
+# 只比「输入图像」的格式，不把 `.txt` 这类标注格式算进去 —— 否则一个要求 5 通道 npy
+# 的仓库会因为「数据集里也有 .txt」被判成兼容。
+IMAGE_EXTENSIONS = (".npy", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp")
 
 
 def _read_text(path: Path) -> str:
@@ -176,6 +186,7 @@ def reproduce_plan(
         [_read_text(source / name) for name in ([manifest] if manifest else []) + ([readme] if readme else [])]
     )
     dataset = audited_dataset(workspace)
+    contract = data_contract_fit(source, Path(str(dataset["host_path"])) if dataset else None)
     return {
         "created_at": utc_now(),
         "repository": record.get("repository"),
@@ -189,6 +200,7 @@ def reproduce_plan(
         "entrypoints": entrypoints,
         "commands": commands,
         "dataset": dataset,
+        "data_contract": contract,
         "mounts": {
             "source": {"target": SOURCE_TARGET, "read_only": True},
             "work": {"target": WORK_TARGET, "read_only": False},
@@ -219,6 +231,112 @@ def audited_dataset(workspace: Path) -> dict[str, Any] | None:
         "inventory_sha256": payload.get("inventory_sha256"),
         "file_count": payload.get("file_count"),
     }
+
+
+def declared_input_contract(source: Path) -> dict[str, Any]:
+    """仓库自己声明的输入数据长什么样。
+
+    只从 README 里明说的内容提取：它要求哪些子目录、哪种图像格式。没写到就返回
+    `unknown` —— 猜出来的契约比没有契约更坏，人会以为已经核对过了。
+    """
+    readme = readme_name(source)
+    if readme is None:
+        return {"status": "unknown", "readme": None, "directories": [], "extensions": [], "reason": "no README to read a contract from"}
+    lowered = _read_text(source / readme).lower()
+    directories = [name for name in CONTRACT_DIRECTORIES if f"{name}/" in lowered]
+    extensions = [ext for ext in IMAGE_EXTENSIONS if ext in lowered]
+    if not directories and not extensions:
+        return {
+            "status": "unknown",
+            "readme": readme,
+            "directories": [],
+            "extensions": [],
+            "reason": f"{readme} does not describe its input layout",
+        }
+    return {"status": "declared", "readme": readme, "directories": directories, "extensions": extensions, "reason": ""}
+
+
+def dataset_layout(data_dir: Path, scan_limit: int = 5000) -> dict[str, Any]:
+    """本地已审计数据集实际提供什么：顶层目录名与见过的图像扩展名。"""
+    directories: set[str] = set()
+    extensions: set[str] = set()
+    scanned = 0
+    for path in data_dir.rglob("*"):
+        scanned += 1
+        if scanned > scan_limit:
+            break
+        relative = path.relative_to(data_dir)
+        if len(relative.parts) > 1:
+            directories.add(relative.parts[0])
+        if path.is_file():
+            suffix = path.suffix.lower()
+            if suffix in IMAGE_EXTENSIONS:
+                extensions.add(suffix)
+    return {"directories": sorted(directories), "extensions": sorted(extensions), "scanned": scanned}
+
+
+def data_contract_fit(source: Path, data_dir: Path | None) -> dict[str, Any]:
+    """仓库要的数据 vs 本地已审计数据实际给的东西。
+
+    对不上的时候必须明说 —— 数据喂不进去，跑出来的任何数字都不能算复现。
+
+    返回 `compatible` / `incompatible` / `unknown`。第三种同样要讲清楚：对一条候选
+    说「没核对出来」和「核对过、不兼容」是两件完全不同的事。
+    """
+    declared = declared_input_contract(source)
+    if declared["status"] != "declared":
+        return {"status": "unknown", "reason": declared["reason"], "declared": declared, "offered": None}
+    if data_dir is None or not Path(data_dir).is_dir():
+        return {
+            "status": "unknown",
+            "reason": "no audited dataset to compare the contract against",
+            "declared": declared,
+            "offered": None,
+        }
+
+    offered = dataset_layout(Path(data_dir))
+    expected = declared["readme"] or "README"
+    missing = [name for name in declared["directories"] if name not in offered["directories"]]
+    if missing:
+        return {
+            "status": "incompatible",
+            "reason": f"{expected} expects {'/'.join(missing)}/ but the audited dataset has no {missing[0]}/ directory",
+            "declared": declared,
+            "offered": offered,
+        }
+    shared = [ext for ext in declared["extensions"] if ext in offered["extensions"]]
+    if declared["extensions"] and not shared:
+        held = ", ".join(offered["extensions"]) or "no image files"
+        return {
+            "status": "incompatible",
+            "reason": f"{expected} expects {'/'.join(declared['extensions'])} inputs but the audited dataset holds {held}",
+            "declared": declared,
+            "offered": offered,
+        }
+    return {"status": "compatible", "reason": "", "declared": declared, "offered": offered}
+
+
+def local_repository(workspace: Path, clone_urls: list[str]) -> Path | None:
+    """在这些地址里，找一个本地已经 clone 过的仓库。
+
+    评判候选时仓库往往还没 clone —— 那就返回 None，让契约检查写成 `unknown`。
+    绝不能用「还没 clone」冒充「不兼容」。
+    """
+    wanted = {url.rstrip("/").removesuffix(".git") for url in clone_urls if url}
+    if not wanted:
+        return None
+    records = workspace / "reproductions"
+    if not records.is_dir():
+        return None
+    for path in sorted(records.glob("*.json")):
+        record = read_json(path)
+        repository = str(record.get("repository") or "").rstrip("/").removesuffix(".git")
+        if repository not in wanted:
+            continue
+        local_path = Path(str(record.get("local_path") or ""))
+        if local_path.is_dir():
+            return local_path
+    return None
 
 
 def plan_id(slug: str) -> str:

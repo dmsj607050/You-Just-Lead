@@ -257,6 +257,31 @@ CONTRACTS: dict[str, Contract] = {
             "项目 id 就是工作区目录名（workspace/<id>），账本的 project_id 也是它",
         ),
     ),
+    "research_loop_snapshot": Contract(
+        name="research_loop_snapshot",
+        purpose="研究循环的一屏全貌：GET /api/research/loop 的返回，两个前端都读它",
+        python_producer="app/research_loop_service.py::ResearchLoopService.snapshot_locked",
+        python_consumer="app/api_server.py::CompetitionApiHandler.do_GET",
+        fields={
+            "summary": "dict",
+            "hypotheses": "list",
+            "experiments": "list",
+            "evidence": "list",
+            "branches": "list",
+            "decisions": "list",
+            "edges": "list",
+            "next_action": "dict",
+            "running": "any",
+            "jobs": "list",
+        },
+        invariants=(
+            "evidence 只给每个实验最新的一条（`ResearchState.latest_evidence`）；完整历史留在 "
+            "证据集合与账本里。界面要显示的是「现在怎么看」，不是每一条核查记录",
+            "next_action 是**预测**：`decide_next_action` 只读状态，取快照不会推进任何东西",
+            "jobs 里的 pending_approvals 必须如实列出等人批准的动作；"
+            "把它们藏起来会让「循环停了」看起来像「没事可做」",
+        ),
+    ),
 }
 
 

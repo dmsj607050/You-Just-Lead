@@ -1,0 +1,15 @@
+{
+  "command": "python main.py run --config configs\\loop\\baseline_rerun.yaml",
+  "config_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\configs\\loop\\baseline_rerun.yaml",
+  "created_at": "2026-09-28T01:45:24+00:00",
+  "error": "PermissionError: GPU training requires a human approval for this exact configuration. Run approve-run after reviewing the budget.",
+  "experiment_id": null,
+  "finished_at": "2026-09-28T01:46:06+00:00",
+  "hypothesis": "重跑 EXP-0006 同配置链路，判断 val_map50_95=0.00234 的参考点是否能在 ±0.001 容差内复现，从而判决该链路在真实数据上可复跑且参考点可比。",
+  "job_id": "JOB-0001",
+  "parent_id": null,
+  "safety_note": "Job execution honours the same approval and rule gates as `python main.py run`.",
+  "started_at": "2026-09-28T01:45:24+00:00",
+  "status": "failed",
+  "validation_metric": null
+}

@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import shutil
 import threading
 from pathlib import Path
 from typing import Any
@@ -50,11 +52,30 @@ OUTPUT_LISTING_LIMIT = 60
 # 遍历产物的上界：/work 里是整份仓库副本，走完全树没有意义。
 OUTPUT_SCAN_LIMIT = 5000
 
+# 扫描产物时不下钻的目录。`.git` 是 `cp -a` 从仓库原样复制过来的，里面全是没产出过的
+# hooks 样例；`wheels` 是阶段一下载的依赖缓存。它们按字母序排在最前面，会把 60 条的
+# 清单上限占满，命令真正写出来的结果一个都露不出来。
+SKIP_DIRECTORIES = frozenset({".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "node_modules", "wheels"})
+
 
 def plan_digest(plan: dict[str, Any]) -> str:
     """计划内容的指纹。批准时记下它，执行前再算一次比对。"""
     canonical = json.dumps(plan, ensure_ascii=False, sort_keys=True).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def wheel_cache_key(source: Path, manifest: str, image: str) -> str:
+    """依赖缓存的键：清单内容 + 镜像。
+
+    清单内容一变（多装一个包、改一个版本）键就变，不会悄悄复用旧 wheel。镜像也算进来，
+    因为不同镜像里的 Python 版本不同，wheel 彼此装不上。
+    """
+    text = ""
+    path = Path(source) / manifest
+    if path.is_file():
+        text = path.read_text(encoding="utf-8", errors="replace")
+    canonical = "\n".join([image, manifest, text]).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()[:16]
 
 
 def _describe_outputs(output_dir: Path, work_dir: Path) -> dict[str, Any]:
@@ -64,28 +85,35 @@ def _describe_outputs(output_dir: Path, work_dir: Path) -> dict[str, Any]:
     文件摆出来，人对一眼就知道 mAP 在哪个文件里。
 
     `/work` 里是仓库的整份副本（几千个文件），所以先扫 `/output`，再扫 `/work`，
-    并且给遍历设一个上界 —— 清单只列前若干条，不必走完全树。
+    并且给遍历设一个上界 —— 清单只列前若干条，不必走完全树。`.git` 与依赖缓存目录
+    整个跳过：它们不是命令的产物，却会因为字母序靠前把清单占满。
     """
     listing: list[dict[str, Any]] = []
     summaries: list[dict[str, Any]] = []
     visited: int = 0
     for root in (output_dir, work_dir):
-        if not root.is_dir() or len(listing) >= OUTPUT_LISTING_LIMIT:
+        if not root.is_dir():
             continue
-        for path in sorted(root.rglob("*")):
-            visited += 1
+        for current, dirnames, filenames in os.walk(root):
             if visited > OUTPUT_SCAN_LIMIT or len(listing) >= OUTPUT_LISTING_LIMIT:
                 break
-            if not path.is_file():
-                continue
-            relative = path.relative_to(root).as_posix()
-            listing.append({"root": root.name, "path": relative, "bytes": path.stat().st_size})
-            if len(summaries) >= 6:
-                continue
-            if path.suffix == ".json":
-                summaries.append({"file": f"{root.name}/{relative}", "kind": "json", "keys": _json_keys(path)})
-            elif path.suffix == ".csv":
-                summaries.append({"file": f"{root.name}/{relative}", "kind": "csv", "columns": _csv_columns(path)})
+            # 原地裁剪目录名，os.walk 才不会往下钻进被跳过的子树。
+            dirnames[:] = sorted(name for name in dirnames if name not in SKIP_DIRECTORIES)
+            for name in sorted(filenames):
+                visited += 1
+                if visited > OUTPUT_SCAN_LIMIT or len(listing) >= OUTPUT_LISTING_LIMIT:
+                    break
+                path = Path(current) / name
+                if not path.is_file():
+                    continue
+                relative = path.relative_to(root).as_posix()
+                listing.append({"root": root.name, "path": relative, "bytes": path.stat().st_size})
+                if len(summaries) >= 6:
+                    continue
+                if path.suffix == ".json":
+                    summaries.append({"file": f"{root.name}/{relative}", "kind": "json", "keys": _json_keys(path)})
+                elif path.suffix == ".csv":
+                    summaries.append({"file": f"{root.name}/{relative}", "kind": "csv", "columns": _csv_columns(path)})
     return {"files": listing, "summaries": summaries, "truncated": len(listing) >= OUTPUT_LISTING_LIMIT}
 
 
@@ -122,6 +150,9 @@ class ReproductionService:
         self.runs_dir = self.workspace / "reproductions" / "runs"
         self.approvals_dir = self.workspace / "reproductions" / "approvals"
         self.plans_dir = self.workspace / "reproductions" / "plans"
+        # 下载下来的 wheel 按清单内容分目录留着：torch 这类依赖一次几 GB、十几分钟，
+        # 容器 `--rm` 之后缓存全丢的话，重跑同一份清单就得从头再下一遍。
+        self.wheel_cache = self.workspace / "reproductions" / "wheel_cache"
         self.ledger = ledger_for_workspace(self.project_root, self.workspace)
         self._lock = threading.Lock()
 
@@ -344,17 +375,31 @@ class ReproductionService:
             image = str(plan.get("image") or DEFAULT_IMAGE)
             manifest = plan.get("dependency_manifest")
 
+            # 依赖缓存：键由清单内容与镜像决定，所以同一份清单只下一次。
+            cache_key = wheel_cache_key(source, manifest, image) if manifest else None
+            cache_dir = (self.wheel_cache / cache_key) if cache_key else None
+            cache_hit = bool(cache_dir and cache_dir.is_dir() and any(cache_dir.glob("*.whl")))
+            if cache_key:
+                run["wheel_cache"] = {"key": cache_key, "hit": cache_hit, "directory": str(cache_dir)}
+                self._save_run(run)
+
             # 阶段一：只有这一步联网，而且只下载 wheel，不执行仓库代码。
-            if manifest:
+            # 命中缓存就整段跳过 —— 省掉的是一次几 GB、十几分钟的下载。
+            if manifest and not cache_hit:
+                # 直接下到缓存目录的暂存名，下完再改名转正。中途挂掉时缓存里不会留下
+                # 一个「看起来能用」的半份目录，重跑还会老老实实重下。
+                staging = cache_dir.parent / f"{cache_dir.name}.partial"
+                shutil.rmtree(staging, ignore_errors=True)
+                staging.mkdir(parents=True, exist_ok=True)
                 download = ContainerSpec(
                     name=f"{run_id}-dl",
                     image=image,
                     command=f"pip download -r /src/{manifest} -d /work/wheels",
-                    mounts=(BindMount(source, "/src", True), BindMount(work_dir, "/work", False)),
+                    mounts=(BindMount(source, "/src", True), BindMount(staging, "/work/wheels", False)),
                     network="bridge",
                     cpus=cpus,
                     memory=memory,
-                    workdir="/work",
+                    workdir="/work/wheels",
                     timeout_seconds=min(timeout, 1800),
                 )
                 outcome = self.runner.run(download, log_path=run_dir / "download.log")
@@ -371,13 +416,17 @@ class ReproductionService:
                 )
                 self._save_run(run)
                 if not outcome.succeeded:
+                    shutil.rmtree(staging, ignore_errors=True)
                     raise ReproductionError("Downloading dependencies failed; see download.log")
+                if cache_dir.exists():
+                    shutil.rmtree(cache_dir, ignore_errors=True)
+                staging.rename(cache_dir)
 
             # 阶段二：无网。仓库以只读挂在 /src，命令在可写副本 /work/src 里跑 ——
             # 训练要往仓库目录里写权重和日志，只读挂载会让它直接失败。
             install = ""
             if manifest:
-                install = f"pip install --no-index --find-links /work/wheels -r /src/{manifest} && "
+                install = f"pip install --no-index --find-links /wheels -r /src/{manifest} && "
             script = "\n".join(
                 [
                     "set -e",
@@ -388,6 +437,9 @@ class ReproductionService:
                 ]
             )
             mounts = [BindMount(source, "/src", True), BindMount(work_dir, "/work", False), BindMount(output_dir, "/output", False)]
+            if manifest:
+                # wheel 从缓存只读挂进 /wheels：命令装得上依赖，但改不了那份 wheel。
+                mounts.append(BindMount(cache_dir, "/wheels", True))
             dataset = plan.get("dataset") or {}
             if dataset.get("host_path"):
                 mounts.append(BindMount(Path(str(dataset["host_path"])), "/data", True))

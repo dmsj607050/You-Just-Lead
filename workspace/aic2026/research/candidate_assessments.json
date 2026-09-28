@@ -1,7 +1,7 @@
 {
   "assessments": {
     "arxiv:2604.16630v1": {
-      "assessed_at": "2026-09-24T12:05:29+00:00",
+      "assessed_at": "2026-09-27T09:20:50+00:00",
       "code_candidates": [
         {
           "clone_url": "https://github.com/radlab-sketch/trimodal-uav-det.git",
@@ -13,6 +13,35 @@
         }
       ],
       "code_lookup": "found",
+      "data_contract": {
+        "declared": {
+          "directories": [
+            "images",
+            "labels"
+          ],
+          "extensions": [
+            ".npy",
+            ".png"
+          ],
+          "readme": "README.md",
+          "reason": "",
+          "status": "declared"
+        },
+        "offered": {
+          "directories": [
+            "depth",
+            "infrared",
+            "labels"
+          ],
+          "extensions": [
+            ".jpg",
+            ".png"
+          ],
+          "scanned": 5001
+        },
+        "reason": "README.md expects images/ but the audited dataset has no images/ directory",
+        "status": "incompatible"
+      },
       "has_official_code": false,
       "has_public_code": true,
       "paper_id": "arxiv:2604.16630v1",
@@ -27,6 +56,11 @@
           "detail": "no licence declared in the record",
           "key": "license_unknown",
           "tone": "warn"
+        },
+        {
+          "detail": "README.md expects images/ but the audited dataset has no images/ directory",
+          "key": "data_contract_incompatible",
+          "tone": "danger"
         },
         {
           "detail": "0.70",
@@ -52,9 +86,9 @@
       "source": "arxiv",
       "task_fit": 0.7,
       "title": "Tri-Modal Fusion Transformers for UAV-based Object Detection",
-      "verdict": "reproduce",
-      "worth_reproducing": true
+      "verdict": "reference_only",
+      "worth_reproducing": false
     }
   },
-  "updated_at": "2026-09-24T12:05:29+00:00"
+  "updated_at": "2026-09-27T09:20:50+00:00"
 }

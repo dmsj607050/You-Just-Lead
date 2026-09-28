@@ -1,0 +1,50 @@
+# 复现性重跑（对 EXP-0006 参考点的独立第二次执行）。
+#
+# 本配置与 configs/aic_detection_external.yaml 的功能键值完全一致，唯一变化是执行实例本身：
+# 用同一份固定配置在真实数据 AIC2026_Train_2000 上再跑一次，判决
+# val_map50_95 是否可复现到参考点 0.00234 的 ±0.001 容差内。
+# 不改任何超参数、不改数据路径、不改随机种子。
+
+experiment:
+  hypothesis: 三模态检测数据读取、Ultralytics 训练与验证、mAP@50-95 落盘这条链在真实数据上可复跑，并给出一个可比的参考点。
+  change_type: baseline
+  expected_improvement: 验证 EXP-0006 的 val_map50_95=0.00234 参考点可复现；本配置的目标是判决链路可复跑，不是榜单分数。
+  estimated_gpu_hours: 0.2
+  rollback_plan: 重跑仅用于复现性判决，不进入冲榜结论；若容差外再排查数据指纹与外部工程。
+
+data:
+  version: 3043a20b5b88cfcd354d80c1d450f4f8566d25a2da5783df2d3e5c9b973f53d6
+  train_images_dir: B:\AIC\datasets\train\AIC2026_Train_2000
+
+model:
+  pretrained_model: yolo26n.pt
+
+external:
+  project_dir: B:\AIC
+  entry_script: train.py
+  source_inventory_sha256: f13e5de0d2d7b5ce64979c298db484e55d90798cbaa37d5c503d11f901d4a9c1
+  python_executable: A:\anaconda3\anaconda3_exe\envs\AIC\python.exe
+  stage: rgb
+  train_list: splits/train.txt
+  val_list: splits/val.txt
+  dataset_root: datasets/ultralytics_aic
+  device: '0'
+  epochs: 1
+  batch_size: 4
+  image_size: 640
+  workers: 0
+  seed: 20260713
+  fraction: 0.1
+  require_cuda: true
+  timeout_seconds: 3600
+
+training:
+  runner: external_detection
+  seed: 20260713
+  epochs: 1
+  batch_size: 4
+  device: cuda
+
+validation:
+  metric: map50_95
+  direction: maximize

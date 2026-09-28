@@ -14,6 +14,8 @@ cannot start training, submit predictions, or delete artefacts.
 from __future__ import annotations
 
 import json
+import time
+from http.client import IncompleteRead
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -25,6 +27,16 @@ from app.settings_service import DEFAULT_DEEPSEEK_MODEL, SettingsError, deepseek
 
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 AGENT_MAX_TURNS = 10
+# 单轮问答 45 秒够用；行动循环的一轮会带上整套工具 schema 和深度推理，真实网络下
+# 用同一个口径会偶发读超时（实测撞过一次）。给循环单独放宽，但仍设上界 ——
+# 一次请求挂死不能把整条循环拖住。
+CHAT_REQUEST_TIMEOUT = 45
+AGENT_REQUEST_TIMEOUT = 180
+
+# 网络层重试次数。模型 API 会偶发返回不完整响应（实测撞到过 `IncompleteRead(0 bytes read)`），
+# 那是链路抖动、不是请求有问题，退避重试一次就能过去。但**状态码类错误不重试** ——
+# 那说明请求本身或额度/权限有问题，重试只是把同一个错误再犯一遍。
+REQUEST_ATTEMPTS = 3
 AGENT_SYSTEM_PROMPT = (
     "你是竞赛模型训练 Agent。你可以调用工具读取当前比赛工作区的真实状态（实验记录、工作流阶段、规则就绪度、"
     "数据审计、下一步建议、最佳实验等），也可以创建实验草稿。"
@@ -39,7 +51,7 @@ class DeepSeekError(RuntimeError):
     """Raised when DeepSeek cannot complete a local Agent request."""
 
 
-def _request(payload: dict[str, Any]) -> dict[str, Any]:
+def _request(payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT) -> dict[str, Any]:
     api_key, _ = get_deepseek_api_key()
     if not api_key:
         raise DeepSeekError("尚未配置 DeepSeek API Key。请在桌面端模型设置中配置，或设置 DEEPSEEK_API_KEY。")
@@ -49,21 +61,31 @@ def _request(payload: dict[str, Any]) -> dict[str, Any]:
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    try:
-        with urlopen(request, timeout=45) as response:  # noqa: S310 - fixed official API origin
-            body = response.read().decode("utf-8")
-    except HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:600]
-        raise DeepSeekError(f"DeepSeek 请求失败（HTTP {exc.code}）：{detail}") from exc
-    except URLError as exc:
-        raise DeepSeekError("无法连接 DeepSeek API，请检查网络、代理或 API Key。") from exc
-    try:
-        parsed = json.loads(body)
-    except json.JSONDecodeError as exc:
-        raise DeepSeekError("DeepSeek 返回了无法解析的内容。") from exc
-    if not isinstance(parsed, dict):
-        raise DeepSeekError("DeepSeek 返回格式无效。")
-    return parsed
+    last_error: Exception | None = None
+    for attempt in range(REQUEST_ATTEMPTS):
+        try:
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed official API origin
+                parsed = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            # 状态码类错误不重试：那是请求本身或额度/权限的问题，重试只是再犯一遍。
+            detail = exc.read().decode("utf-8", errors="replace")[:600]
+            raise DeepSeekError(f"DeepSeek 请求失败（HTTP {exc.code}）：{detail}") from exc
+        except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            last_error = exc
+            if attempt + 1 < REQUEST_ATTEMPTS:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+        else:
+            if not isinstance(parsed, dict):
+                raise DeepSeekError("DeepSeek 返回格式无效。")
+            return parsed
+
+    if isinstance(last_error, TimeoutError):
+        # "这一轮慢"和"连不上"要分开说 —— 处置方式不一样。
+        raise DeepSeekError(
+            f"DeepSeek 在 {timeout} 秒内没有返回，重试 {REQUEST_ATTEMPTS} 次仍未成功，可稍后重试。"
+        ) from last_error
+    raise DeepSeekError(f"与 DeepSeek 的连接不稳定（重试 {REQUEST_ATTEMPTS} 次仍失败）：{last_error}") from last_error
 
 
 def chat_completion(system_prompt: str, user_prompt: str, *, model: str | None = None, thinking: bool = True) -> dict[str, Any]:
@@ -145,8 +167,13 @@ def run_agent(
     model: str | None = None,
     max_turns: int = AGENT_MAX_TURNS,
     thinking: bool = True,
+    system_prompt: str | None = None,
+    tools: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """Run a multi-turn tool-calling Agent loop grounded in the local workspace.
+
+    `system_prompt` 与 `tools` 让调用方按角色收窄权限：只做推理判断的动作不必
+    同时握着写文件和跑命令的手。默认仍是通用纪律与全部工具。
 
     Returns a dict with: model, content (final answer), reasoning (if any),
     trace (per-turn record of tool calls and results), and turns (count).
@@ -158,10 +185,10 @@ def run_agent(
 
     status = deepseek_settings_status()
     selected_model = model or str(status["model"])
-    tools_schema = agent_tools_schema()
+    tools_schema = agent_tools_schema(tools)
 
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt or AGENT_SYSTEM_PROMPT},
         {"role": "user", "content": f"当前阶段：{stage}\n\n用户请求：{user_prompt}"},
     ]
     trace: list[dict[str, Any]] = []
@@ -178,7 +205,7 @@ def run_agent(
             payload["thinking"] = {"type": "enabled"}
             payload["reasoning_effort"] = "high"
 
-        response = _request(payload)
+        response = _request(payload, timeout=AGENT_REQUEST_TIMEOUT)
         message = _extract_message(response)
         tool_calls = _parse_tool_calls(message)
         reasoning = str(message.get("reasoning_content") or "").strip()
@@ -245,7 +272,7 @@ def run_agent(
         "model": selected_model,
         "messages": messages + [{"role": "user", "content": "已达到工具调用轮数上限。请基于已收集的信息直接给出最终回答，不要再调用工具。"}],
         "stream": False,
-    })
+    }, timeout=AGENT_REQUEST_TIMEOUT)
     final_message = _extract_message(final_attempt)
     final_content = str(final_message.get("content") or "").strip()
     final_reasoning = str(final_message.get("reasoning_content") or "").strip()

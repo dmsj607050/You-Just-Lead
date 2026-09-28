@@ -25,10 +25,12 @@ from agents.rules_agent import (
     build_rule_evidence_record,
 )
 from app.project_registry import create_project
+from app.research_loop_service import ResearchLoopService
 from database.ledger import ExperimentLedger, ledger_path
 from paper.generator import generate_paper_package
 from schemas.contracts import CONTRACTS, Contract, resolve, type_matches
 from schemas.experiment import ExperimentManifest, ExperimentResult
+from schemas.research import RESEARCH_ACTIONS
 from tools.configuration import load_yaml, write_yaml
 from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
 from tools.files import read_json, write_json_atomic
@@ -539,6 +541,31 @@ class ContractPayloadTests(unittest.TestCase):
         self.assertSatisfies(contract, registry)
         self.assertNoUndeclaredTopLevelFields(contract, registry)
         self.assertTrue(registry["projects"])
+
+    def test_research_loop_snapshot_matches_the_declared_shape(self) -> None:
+        """研究循环快照是**真跑出来**的那一份，不是手写的样例。
+
+        它同时钉住两件事：字段集合与类型，以及"证据只给每个实验最新的一条"
+        —— 界面按这个口径显示，接口改口径而不改契约就会在这里红。
+        """
+        contract = CONTRACTS["research_loop_snapshot"]
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            service = ResearchLoopService(workspace, workspace)
+            service.add_hypothesis(
+                statement="契约探针：这条假设必须可被判决",
+                predictions=["某个指标提升"],
+                falsifiers=["某个指标没有提升"],
+            )
+            snapshot = service.snapshot()
+
+        self.assertSatisfies(contract, snapshot)
+        self.assertNoUndeclaredTopLevelFields(contract, snapshot)
+        self.assertEqual(len(snapshot["hypotheses"]), 1)
+        self.assertIn(snapshot["next_action"]["action"], RESEARCH_ACTIONS)
+        # 每个实验最多一条证据 —— 核查会反复写证据，但"当前结论"只有一个。
+        seen = [item["experiment_id"] for item in snapshot["evidence"]]
+        self.assertEqual(len(seen), len(set(seen)), "快照里同一个实验出现了多条证据")
 
     def test_a_producer_that_gains_a_field_would_fail(self) -> None:
         """证明这套检查不是摆设：多一个未声明的顶层字段就必须失败。"""

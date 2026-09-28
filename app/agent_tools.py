@@ -1,8 +1,14 @@
 """Tool layer exposed to the local DeepSeek Agent runtime.
 
-Every tool here is either read-only or a low-risk draft creator. None of them
-can start training, upload submissions, delete artefacts, or download third-party
-code. High-risk operations still require an explicit human CLI action.
+两类工具，边界不同：
+
+* **科研只读/草稿类**：读工作区状态、创建实验草稿。都不能启动训练、提交结果、
+  删除产物或下载第三方代码。
+* **代码类**（`app/code_tools.py`）：读、搜、列，加上两个有写能力的。
+  `write_file` 碰不到官方规则原件（`input/`）与 `.git/`；`run_command` **不在宿主上跑**，
+  而是开一个无网、限资源、限时间的容器，工作区只读挂载，唯一可写的是 `/scratch`。
+
+真正烧算力的训练、提交、删除仍然必须由人显式执行 —— 这条边界没有因为加了代码工具而放松。
 """
 
 from __future__ import annotations
@@ -12,6 +18,7 @@ from typing import Any, Callable
 
 from agents.rules_agent import rule_confirmation_readiness_for_workspace
 from agents.strategy_agent import recommend_next_actions
+from app.code_tools import CODE_TOOL_DEFINITIONS, CODE_TOOL_HANDLERS
 from app.orchestrator.workflow import workflow_state
 from database.ledger import ledger_for_workspace
 from tools.configuration import load_yaml
@@ -287,6 +294,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    *CODE_TOOL_DEFINITIONS,
 ]
 
 
@@ -302,12 +310,20 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "get_best_run": _get_best_run,
     "get_recent_events": _get_recent_events,
     "create_experiment_draft": _create_experiment_draft,
+    **CODE_TOOL_HANDLERS,
 }
 
 
-def agent_tools_schema() -> list[dict[str, Any]]:
-    """Return the OpenAI-compatible tool schema list sent to DeepSeek."""
-    return TOOL_DEFINITIONS
+def agent_tools_schema(only: tuple[str, ...] | None = None) -> list[dict[str, Any]]:
+    """Return the OpenAI-compatible tool schema list sent to DeepSeek.
+
+    传 `only` 就只给这些工具。不同角色该拿到的手不一样：只做推理判断的动作
+    不该同时握着写文件和跑命令的能力。
+    """
+    if only is None:
+        return TOOL_DEFINITIONS
+    allowed = set(only)
+    return [entry for entry in TOOL_DEFINITIONS if entry["function"]["name"] in allowed]
 
 
 def execute_tool(project_root: Path, workspace: Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:

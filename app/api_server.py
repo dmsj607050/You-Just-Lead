@@ -15,6 +15,7 @@ import json
 import os
 import secrets
 import socket
+import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -38,6 +39,7 @@ from agents.candidate_agent import (
     record_decision,
 )
 from agents.materials_agent import MaterialIntakeError
+from app.approval_service import approve_training_config
 from app.data_audit_scheduler import DataAuditScheduler, DataAuditSchedulerError
 from app.dashboard_service import dashboard_snapshot
 from app.deepseek_service import DeepSeekError, run_agent, verify_connection
@@ -52,6 +54,7 @@ from app.reproduction_service import (
     ReproductionService,
     recover_interrupted_runs,
 )
+from app.research_loop_service import ResearchLoopError, ResearchLoopService
 from app.project_registry import (
     ProjectError,
     ProjectNotSelected,
@@ -66,6 +69,7 @@ from app.project_registry import (
 )
 from app.training_scheduler import SchedulerError, TrainingScheduler
 from database.ledger import ledger_for_workspace
+from schemas.research import research_contract
 from tools.files import read_json, write_json_atomic
 from tools.configuration import load_yaml, write_yaml
 from tools.provenance import utc_now
@@ -73,10 +77,35 @@ from training.catalog import supported_runners
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def web_root() -> Path:
+    """内置界面的位置。
+
+    PyInstaller 打成单文件后，源码路径不再存在，数据文件被解到 `sys._MEIPASS`。
+    """
+    bundled = getattr(sys, "_MEIPASS", None)
+    if bundled:
+        return Path(bundled) / "web"
+    return PROJECT_ROOT / "web"
+
+
+WEB_ROOT = web_root()
 DESKTOP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "http://127.0.0.1:1420", "http://localhost:1420"}
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 ACCESS_TOKEN_HEADER = "X-YJL-Token"
 MAX_REQUEST_BODY_BYTES = 17 * 1024 * 1024
+
+# 内置的 Windows 端界面就放在这些路径上。白名单而不是动态解析，
+# 是为了让"能不能读这个文件"变成一个可以一眼看完的清单，不给路径穿越留口子。
+STATIC_ASSETS = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/styles.css": ("styles.css", "text/css; charset=utf-8"),
+    "/ui.js": ("ui.js", "application/javascript; charset=utf-8"),
+    "/views.js": ("views.js", "application/javascript; charset=utf-8"),
+    "/app.js": ("app.js", "application/javascript; charset=utf-8"),
+}
 SENSITIVE_LOCAL_ENDPOINTS = {
     "/api/settings/deepseek",
     "/api/rules/import",
@@ -95,6 +124,10 @@ SENSITIVE_LOCAL_ENDPOINTS = {
     "/api/agent/deepseek",
     "/api/experiments/execute",
     "/api/decisions/approve",
+    "/api/research/loop/step",
+    "/api/research/loop/backfill",
+    "/api/research/loop/run",
+    "/api/research/loop/hypotheses",
 }
 
 
@@ -106,6 +139,21 @@ def allowed_origins() -> set[str]:
     """
     configured = os.environ.get("YJL_ALLOWED_ORIGINS", "")
     return DESKTOP_ORIGINS | {item.strip() for item in configured.split(",") if item.strip()}
+
+
+def same_local_origin(origin: str, host_header: str) -> bool:
+    """浏览器发来的 Origin 是不是本服务自己。
+
+    内置界面就是本服务 serve 出去的静态文件，它发请求时带的 Origin 必然等于本机地址。
+    不认这一条，界面一调敏感端点就是 403（同源却不在桌面白名单里）。
+    放行它不额外开放任何能力：能拿到这个来源的人，本来就已经能访问回环端口。
+    """
+    parsed = urlparse(origin)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    if parsed.hostname not in LOOPBACK_HOSTS:
+        return False
+    return parsed.netloc == host_header
 
 
 def reachable_addresses(port: int) -> list[str]:
@@ -226,6 +274,22 @@ def _workspace_display(project_root: Path) -> str:
 _SCHEDULER_CACHE: dict[str, tuple[TrainingScheduler, MaterialScheduler, DataAuditScheduler]] = {}
 _SCHEDULER_LOCK = threading.Lock()
 _REPRODUCTION_CACHE: dict[str, ReproductionService] = {}
+_RESEARCH_LOOP_CACHE: dict[str, ResearchLoopService] = {}
+
+
+def research_loop_for(project_root: Path, workspace: Path) -> ResearchLoopService:
+    """按工作区取一份研究循环服务。
+
+    它持有内存里的研究状态，重建就等于把模型刚推出来的假设与证据丢掉，所以必须缓存。
+    缓存与调度器共用同一把锁，`forget_schedulers` 一次就能全部清掉。
+    """
+    key = str(workspace.resolve())
+    with _SCHEDULER_LOCK:
+        cached = _RESEARCH_LOOP_CACHE.get(key)
+        if cached is None:
+            cached = ResearchLoopService(project_root.resolve(), workspace.resolve())
+            _RESEARCH_LOOP_CACHE[key] = cached
+        return cached
 
 
 def reproduction_service_for(project_root: Path, workspace: Path) -> ReproductionService:
@@ -271,6 +335,7 @@ def forget_schedulers(workspace: Path) -> None:
     with _SCHEDULER_LOCK:
         _SCHEDULER_CACHE.pop(str(workspace.resolve()), None)
         _REPRODUCTION_CACHE.pop(str(workspace.resolve()), None)
+        _RESEARCH_LOOP_CACHE.pop(str(workspace.resolve()), None)
 
 
 class CompetitionApiHandler(BaseHTTPRequestHandler):
@@ -345,7 +410,27 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             supplied = self.headers.get(ACCESS_TOKEN_HEADER, "")
             return bool(self.access_token) and secrets.compare_digest(supplied, self.access_token)
         origin = self.headers.get("Origin")
-        return origin is None or origin in allowed_origins()
+        if origin is None or origin in allowed_origins():
+            return True
+        return same_local_origin(origin, self.headers.get("Host", ""))
+
+    def _send_static(self, name: str, content_type: str) -> None:
+        """把内置界面里的一个文件发出去。
+
+        文件名来自 `STATIC_ASSETS` 白名单，不是从请求路径拼出来的，所以这里不做路径检查。
+        `no-store` 是因为界面就在本机：缓存住旧 CSS 会让人以为改动没生效。
+        """
+        path = WEB_ROOT / name
+        if not path.is_file():
+            self._error(HTTPStatus.NOT_FOUND, f"Missing built-in asset: {name}")
+            return
+        body = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
@@ -361,6 +446,11 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
         try:
+            if path in STATIC_ASSETS:
+                # 内置界面：同源的静态文件，不经 API 校验，也不做任何目录解析。
+                name, content_type = STATIC_ASSETS[path]
+                self._send_static(name, content_type)
+                return
             if path == "/health":
                 self._send(HTTPStatus.OK, {"status": "ok", "workspace": _workspace_display(self.project_root)})
             elif path == "/api/projects":
@@ -448,6 +538,18 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     self._send(HTTPStatus.OK, {"actions": snapshot["next_actions"]})
                 elif path == "/api/workflow":
                     self._send(HTTPStatus.OK, snapshot["workflow"])
+                elif path == "/api/research/loop":
+                    self._send(HTTPStatus.OK, research_loop_for(self.project_root, self.workspace).snapshot())
+                elif path == "/api/research/contract":
+                    # 动作名、核查项、判定值的中文与色调：定义只有 `schemas/research.py` 一份，
+                    # 界面（Windows 端与鸿蒙端）都从这里取。抄一份到前端就是静默漂移的开始。
+                    self._send(HTTPStatus.OK, research_contract())
+                elif path == "/api/research/loop/jobs":
+                    self._send(HTTPStatus.OK, {"jobs": research_loop_for(self.project_root, self.workspace).jobs()})
+                elif path.startswith("/api/research/loop/jobs/"):
+                    job_id = path.rsplit("/", 1)[-1]
+                    job = research_loop_for(self.project_root, self.workspace).job(job_id)
+                    self._send(HTTPStatus.OK, job) if job else self._error(HTTPStatus.NOT_FOUND, "Loop job not found")
                 else:
                     self._error(HTTPStatus.NOT_FOUND, "Unknown endpoint")
         except ProjectNotSelected as exc:
@@ -715,6 +817,89 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     command=str(body.get("command", "")).strip(),
                 )
                 self._send(HTTPStatus.ACCEPTED, job)
+            elif path == "/api/research/loop/step":
+                # 走作业模式：一步可能跑满多轮模型调用，同步返回必然读超时。
+                loop_job = research_loop_for(self.project_root, self.workspace).submit_step(
+                    max_steps=body.get("max_steps", 1)
+                )
+                ledger.record_event(
+                    "research_loop_step_submitted",
+                    {"job_id": loop_job.job_id, "max_steps": loop_job.max_steps},
+                )
+                self._send(HTTPStatus.ACCEPTED, loop_job.to_dict())
+            elif path == "/api/research/loop/backfill":
+                state = research_loop_for(self.project_root, self.workspace).backfill(
+                    rebuild=bool(body.get("rebuild"))
+                )
+                ledger.record_event("research_loop_backfilled", {"summary": state["summary"]})
+                self._send(HTTPStatus.OK, state)
+            elif path == "/api/research/loop/run":
+                # 人批准之后，这次设计才真的变成一次训练。科研决策交给机器，
+                # 烧机器的事留给人 —— 这条边界在这里落地。
+                experiment_id = str(body.get("experiment_id", "")).strip()
+                note = str(body.get("note", "")).strip()
+                if not experiment_id:
+                    raise ValueError("experiment_id is required")
+                # 批准必须写明理由：这条记录以后要能回答"当时凭什么批的"。
+                if not note:
+                    raise ValueError("note is required")
+                loop = research_loop_for(self.project_root, self.workspace)
+                runnable, reason = loop.executable(experiment_id)
+                if not runnable:
+                    raise ValueError(reason)
+                experiment = loop.state().experiments[experiment_id]
+                config_path = self.workspace / experiment.config_path
+                # 第二道门是 GPU 预算。研究层的批准说的是"这次设计该跑"，预算批准说的是
+                # "这次运行可以花这些算力" —— 两件事，但人只点一次，所以这里一并记录。
+                # 预算数字会随响应回给界面：批了多少是要看得见的，不能悄悄代签。
+                budget = approve_training_config(self.workspace, config_path, note)
+                job = self.scheduler.submit(
+                    config_path,
+                    hypothesis=experiment.question or None,
+                )
+                approval = loop.mark_running(
+                    experiment_id,
+                    run_id=str(job.get("job_id") or ""),
+                    note=note,
+                )
+                ledger.record_event(
+                    "research_loop_run_approved",
+                    {
+                        "experiment_id": experiment_id,
+                        "run_id": approval["run_id"],
+                        "config_path": approval["config_path"],
+                        "estimated_gpu_hours": budget["estimated_gpu_hours"],
+                        "requested_device": budget["requested_device"],
+                    },
+                )
+                self._send(
+                    HTTPStatus.ACCEPTED,
+                    {
+                        "experiment_id": experiment_id,
+                        "approval": approval,
+                        "budget_approval": {
+                            "estimated_gpu_hours": budget["estimated_gpu_hours"],
+                            "requested_device": budget["requested_device"],
+                            "approval_path": budget["approval_path"],
+                        },
+                        "job": job,
+                    },
+                )
+            elif path == "/api/research/loop/hypotheses":
+                # 人可以直接提出假设。它进去之后与模型提的假设走同一套判据 ——
+                # "是人写的"不是免检章，缺预测与反证条件一样会被编排器打回补全。
+                loop = research_loop_for(self.project_root, self.workspace)
+                hypothesis = loop.add_hypothesis(
+                    statement=str(body.get("statement", "")),
+                    predictions=body.get("predictions") if isinstance(body.get("predictions"), list) else [],
+                    falsifiers=body.get("falsifiers") if isinstance(body.get("falsifiers"), list) else [],
+                    rationale=body.get("rationale") if isinstance(body.get("rationale"), list) else [],
+                )
+                ledger.record_event(
+                    "research_loop_hypothesis_added",
+                    {"hypothesis_id": hypothesis["hypothesis_id"], "by": "human"},
+                )
+                self._send(HTTPStatus.CREATED, hypothesis)
             else:
                 self._error(HTTPStatus.NOT_FOUND, "Unknown endpoint")
         except ProjectNotSelected as exc:
@@ -723,7 +908,7 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except (ValueError, RuleImportError, MaterialIntakeError, RuntimeProbeError, TrainingScaffoldError, SettingsError, ReproductionError, json.JSONDecodeError) as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
-        except (SchedulerError, MaterialSchedulerError, DataAuditSchedulerError) as exc:
+        except (SchedulerError, MaterialSchedulerError, DataAuditSchedulerError, ResearchLoopError) as exc:
             self._error(HTTPStatus.CONFLICT, str(exc))
         except DeepSeekError as exc:
             self._error(HTTPStatus.BAD_GATEWAY, str(exc))

@@ -23,8 +23,10 @@ workspace/*/experiments/tracking/*
 # sources/ 里是别人的代码（外层仓库把它当嵌套仓库收录会得到一个取不到内容的 gitlink，
 # 而且它本来就不该由我们分发）；runs/ 里是容器跑出来的权重、日志与产物，几十 MB 起步。
 # 计划（plans/）与批准记录（approvals/）都很小，而且是人做的决定的证据，照常进版本库。
+# wheel_cache/ 是按依赖清单缓存下来的 wheel，torch 一套就是几 GB，更不能进版本库。
 workspace/*/reproductions/sources/
 workspace/*/reproductions/runs/
+workspace/*/reproductions/wheel_cache/
 database/*.db
 database/*.sqlite
 .env

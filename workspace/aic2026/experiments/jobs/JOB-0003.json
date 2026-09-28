@@ -1,0 +1,15 @@
+{
+  "command": "python main.py run --config configs\\loop\\stage_fusion_vs_rgb.yaml",
+  "config_path": "B:\\You Just Lead\\competition-agent\\workspace\\aic2026\\configs\\loop\\stage_fusion_vs_rgb.yaml",
+  "created_at": "2026-09-28T03:11:45+00:00",
+  "error": null,
+  "experiment_id": "EXP-0008",
+  "finished_at": "2026-09-28T03:16:03+00:00",
+  "hypothesis": "在 EXP-0007 同配置下，仅把输入模态从 RGB 单模态改为 RGB+IR+Depth 早融合（external.stage: rgb→fusion），判决 val_map50_95 是否高于 RGB 参考点 0.00234。",
+  "job_id": "JOB-0003",
+  "parent_id": null,
+  "safety_note": "Job execution honours the same approval and rule gates as `python main.py run`.",
+  "started_at": "2026-09-28T03:11:45+00:00",
+  "status": "completed",
+  "validation_metric": 0.00211
+}

@@ -1,0 +1,17 @@
+{
+  "approved_at": "2026-09-27T09:37:27+00:00",
+  "command": "python scripts/train.py --data /data --epochs 1",
+  "command_id": "cmd-1",
+  "command_overridden": true,
+  "command_source": "README.md:99",
+  "image": "python:3.12-slim",
+  "note": "Cache hit acceptance run: the same manifest should reuse the cached wheels and skip the download phase entirely.",
+  "plan_id": "REPRO-trimodal-uav-det",
+  "plan_sha256": "6e4a30e3ccbfec83285d54588d6c4ff615a458df5048715c5fea84a4e29a6d30",
+  "resources": {
+    "cpus": "4",
+    "memory": "8g",
+    "timeout_seconds": 3600
+  },
+  "run_id": "REPR-0003"
+}

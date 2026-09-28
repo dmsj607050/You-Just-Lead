@@ -226,6 +226,12 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(decide_verdict(None, True), "adapt_component")
         self.assertEqual(decide_verdict(None, False), "skip")
 
+    def test_incompatible_input_contract_downgrades_reproduce(self) -> None:
+        """数据喂不进去时，有代码也不能说「值得跑一遍」。"""
+        self.assertEqual(decide_verdict(0.8, True, "incompatible"), "reference_only")
+        self.assertEqual(decide_verdict(0.8, True, "compatible"), "reproduce")
+        self.assertEqual(decide_verdict(0.8, True, "unknown"), "reproduce")
+
 
 class AssessmentTests(unittest.TestCase):
     def test_code_found_by_title_becomes_public_code(self) -> None:
@@ -313,6 +319,64 @@ class AssessmentTests(unittest.TestCase):
             merged = candidates_for_workspace(workspace)
             self.assertEqual(merged["counts"]["assessed"], 1)
             self.assertEqual(merged["records"][0]["assessment"]["paper_id"], "arxiv:1")
+
+    def test_cloned_repository_that_cannot_eat_the_dataset_is_reference_only(self) -> None:
+        """仓库已 clone 时用它的 README 核对输入契约：喂不进去就不该说「值得跑一遍」。
+
+        这一条来自一次真实运行：一个要 5 通道 npy 的检测仓库，被挂上一份
+        visible/infrared/depth 的本地数据集，命令在数据加载处就断了。
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = _workspace_with_records(
+                root,
+                [_record("arxiv:1", "RGB infrared depth fusion object detection", code_url="https://github.com/example/trimodal.git")],
+            )
+            source = workspace / "reproductions" / "sources" / "trimodal"
+            source.mkdir(parents=True)
+            (source / "README.md").write_text(
+                "Images must be 5-channel NumPy arrays saved as .npy files.\n"
+                "np.save('data/images/frame_001.npy', image)\n",
+                encoding="utf-8",
+            )
+            write_json_atomic(
+                workspace / "reproductions" / "trimodal.json",
+                {
+                    "repository": "https://github.com/example/trimodal.git",
+                    "commit": "abc1234",
+                    "status": "static_inspection_complete",
+                    "local_path": str(source),
+                },
+            )
+            dataset = root / "data" / "aic2026"
+            (dataset / "visible").mkdir(parents=True)
+            (dataset / "visible" / "a.png").write_bytes(b"0")
+            write_json_atomic(
+                workspace / "reports" / "data_statistics.json",
+                {"data_dir": str(dataset), "inventory_sha256": "b" * 64, "file_count": 1},
+            )
+
+            record = candidates_for_workspace(workspace)["records"][0]
+            assessment = assess_candidate(workspace, record, lookup_code=False)
+
+            self.assertEqual(assessment["data_contract"]["status"], "incompatible")
+            self.assertEqual(assessment["verdict"], "reference_only")
+            self.assertFalse(assessment["worth_reproducing"])
+            self.assertIn("data_contract_incompatible", [signal["key"] for signal in assessment["signals"]])
+
+    def test_missing_clone_is_unknown_not_incompatible(self) -> None:
+        """还没 clone 就问不出契约 —— 不能拿它当「不兼容」，否则每条候选都会被误降级。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = _workspace_with_records(Path(temporary), [_record("arxiv:1", "RGB depth fusion")])
+            record = candidates_for_workspace(workspace)["records"][0]
+            assessment = assess_candidate(
+                workspace,
+                record,
+                fetcher=lambda query, limit: [_repo("example/fusion", "rgb depth fusion")],
+            )
+
+            self.assertEqual(assessment["data_contract"]["status"], "unknown")
+            self.assertEqual(assessment["verdict"], "reproduce")
 
 
 class ResearchApiTests(unittest.TestCase):

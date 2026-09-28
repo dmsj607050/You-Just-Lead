@@ -78,7 +78,7 @@
 `tests/test_canonical_contracts.py` 拿**真实产出**核对：字段集合、类型、以及"没有未声明的字段"，
 并检查端侧读/写那段源码里声明的字段名是否还在。
 
-- 依据：`schemas/contracts.py`（7 份契约）、`tests/test_canonical_contracts.py`（15 项）。
+- 依据：`schemas/contracts.py`（8 份契约）、`tests/test_canonical_contracts.py`（20 项）。
 - **能力边界**：端侧那半是**源码级检查**，不是运行时校验（ArkTS 没有 JSON Schema 校验库，
   也不在 Python 进程里）。端侧运行时的一致性由装机验收负责，别把这两件事混为一谈。
 
@@ -128,6 +128,25 @@ v1 的交付形态：**鸿蒙端应用 + 本地 Python 执行器**。
   纪律靠人记就会退化，所以改成工具会拦住的条件。
 - 未被这条决定覆盖的：Release 签名（`.app`）、AGC、备案、隐私政策、AI 声明都要用户侧账号或资质，
   见 `docs/versioning.md` 第 6 节。
+
+### D9 科研词汇只有一处定义，两个前端从接口取
+
+D5 管的是**字段**（一份 JSON 长什么样）。这一条管的是**词汇**：动作名、九项核查、
+判定值、假设/分支状态、图边类型，以及它们的中文名与色调。
+
+它只在 `schemas/research.py` 定义一次，后端发在 `GET /api/research/contract`，
+Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_research_contract.py`
+两头都守：契约自洽（每个动作都有中文名、待批准与动作空间对得上、要动算力的动作
+**不允许**出现在自由选择集合里），以及两个前端的源码里**搜不到**这些名字的第二份。
+
+- 针对的真问题：Windows 界面原来自己抄了一份动作中文名表。抄的代价不是"多写几行"，
+  而是**静默漂移** —— 后端删掉一个动作，界面还显示着它的中文名，谁都不会发现。
+- 依据：`schemas/research.py::research_contract`、`tests/test_research_contract.py`（16 项）、
+  `tests/test_web_views_render.py`（5 项，用真实脚本渲染真实快照，拦住"视图引用了不存在的变量"）。
+- **能力边界（缺口，如实写）**：鸿蒙端目前**没有**研究循环页，也没有调用这个接口。
+  它现有的页面把判定值当不透明字符串显示，所以不会和契约冲突，但"共用"只到
+  "不产生第二份副本"这一层 —— 端侧真正消费契约要等它有了研究循环页。ArkTS 的改动
+  本机无法编译（没有 DevEco 构建链），所以这一段没有动。
 
 ---
 

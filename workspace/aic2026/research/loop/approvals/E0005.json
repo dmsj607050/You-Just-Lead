@@ -1,0 +1,9 @@
+{
+  "approved_at": "2026-09-28T03:11:45+00:00",
+  "config_path": "configs/loop/stage_fusion_vs_rgb.yaml",
+  "config_sha256": "f1d7ac9e7ebdc1acd3c9d24add2b21c307c57be5d9d1edb01689e72fe4006368",
+  "experiment_id": "E0005",
+  "hypothesis_id": "H0007",
+  "note": "?????(? external.stage: rgb?fusion),?? EXP-0007 ? 0.00234;??? GPU ??????",
+  "run_id": "JOB-0003"
+}
