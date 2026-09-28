@@ -17,7 +17,7 @@ import {
 import AppTheme from '../common/AppTheme';
 import { formatTimestamp } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
+import { CardPanel, EmptyHint, MetricCard, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
 
 /**
  * 研究循环页：这套编排框架的正面。
@@ -427,41 +427,41 @@ export struct ResearchLoopPage {
     .borderRadius(AppTheme.RADIUS)
   }
 
-  /** 一个数字块：上面是大数字，下面是它是什么。 */
-  @Builder
-  Metric(label: string, value: string, tone: string) {
-    Column() {
-      Text(value)
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(tone === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY)
-      Text(label)
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 6 })
-        .maxLines(2)
-    }
-    .alignItems(HorizontalAlign.Start)
-    .layoutWeight(1)
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(AppTheme.SURFACE)
-    .borderRadius(AppTheme.RADIUS_LG)
-    .border({ width: 1, color: AppTheme.BORDER })
-  }
-
   /** 当前段：五个数字 + 下一步 + 操作 + 最近的推进。 */
   @Builder
   NowSection() {
     Column({ space: 20 }) {
       // 五个数字。后两个分开数：一个是欠着的活，一个是走不通的路。
+      //
+      // 这里用 `MetricCard`（@Prop）而不是给 @Builder 传参：@Builder 的参数按值取，
+      // 参数变了不会刷新 UI —— 真机上就是这五个数字一直停在初始的 0，而同一批状态算出来的
+      // 现状行是对的。`layoutWeight` 必须写在调用处，组件内部加权重管不到父容器。
       Row({ space: 12 }) {
-        this.Metric(this.tr('loop.metric.hypotheses'), `${this.hypothesisTotal}`, 'ok')
-        this.Metric(this.tr('loop.metric.falsifiable'), `${this.falsifiableTotal}`, 'ok')
-        this.Metric(this.tr('loop.metric.experiments'), `${this.experimentTotal}`, 'ok')
-        this.Metric(this.tr('loop.metric.awaiting'), `${this.awaitingEvidence}`,
-          this.awaitingEvidence > 0 ? 'warn' : 'ok')
-        this.Metric(this.tr('loop.metric.undesignable'), `${this.undesignableTotal}`,
-          this.undesignableTotal > 0 ? 'warn' : 'ok')
+        MetricCard({
+          label: this.tr('loop.metric.hypotheses'),
+          value: `${this.hypothesisTotal}`,
+          tone: 'ok'
+        }).layoutWeight(1)
+        MetricCard({
+          label: this.tr('loop.metric.falsifiable'),
+          value: `${this.falsifiableTotal}`,
+          tone: 'ok'
+        }).layoutWeight(1)
+        MetricCard({
+          label: this.tr('loop.metric.experiments'),
+          value: `${this.experimentTotal}`,
+          tone: 'ok'
+        }).layoutWeight(1)
+        MetricCard({
+          label: this.tr('loop.metric.awaiting'),
+          value: `${this.awaitingEvidence}`,
+          tone: this.awaitingEvidence > 0 ? 'warn' : 'ok'
+        }).layoutWeight(1)
+        MetricCard({
+          label: this.tr('loop.metric.undesignable'),
+          value: `${this.undesignableTotal}`,
+          tone: this.undesignableTotal > 0 ? 'warn' : 'ok'
+        }).layoutWeight(1)
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
@@ -687,7 +687,7 @@ export struct ResearchLoopPage {
         Column({ space: 16 }) {
           ForEach(this.hypotheses, (item: ResearchHypothesis) => {
             this.HypothesisBlock(item)
-          }, (item: ResearchHypothesis) => `${item.hypothesis_id}-${item.status}-${item.predictions.length}-${item.falsifiers.length}-${this.lang}`)
+          }, (item: ResearchHypothesis) => `${item.hypothesis_id}-${item.status}-${item.statement}-${item.predictions.join('|')}-${item.falsifiers.join('|')}-${this.lang}`)
         }
         .width('100%')
       }

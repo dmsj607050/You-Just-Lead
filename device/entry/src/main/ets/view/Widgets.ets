@@ -172,6 +172,40 @@ export struct StatusBadge {
   }
 }
 
+/**
+ * 一个数字块：上面是大数字，下面是它是什么。
+ *
+ * 这里刻意用 `@Prop` 而不是给 `@Builder` 传参：**`@Builder` 的参数按值取，参数变了不会刷新 UI**。
+ * 真机上正是这么暴露的 —— 同一批状态算出来的现状行是对的，这五个数字却一直停在初始的 0。
+ * 展开占位由调用方给（`MetricCard({...}).layoutWeight(1)`）：组件内部加权重管不到父容器。
+ */
+@Component
+export struct MetricCard {
+  @Prop label: string = '';
+  @Prop value: string = '';
+  @Prop tone: string = 'muted';
+
+  build() {
+    Column() {
+      Text(this.value)
+        .fontSize(26)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.tone === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY)
+      Text(this.label)
+        .fontSize(12)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .margin({ top: 6 })
+        .maxLines(2)
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .backgroundColor(AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS_LG)
+    .border({ width: 1, color: AppTheme.BORDER })
+  }
+}
+
 /** 空态提示。 */
 @Component
 export struct EmptyHint {
