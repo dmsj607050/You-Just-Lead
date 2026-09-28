@@ -15,9 +15,12 @@
 from __future__ import annotations
 
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
+from app.research_loop_service import ResearchLoopService
+from schemas.research import research_contract
 from tools.device_repo import DEVICE_REPO_ENV, device_repo_root
 
 
@@ -43,6 +46,8 @@ _STRING = re.compile(r"'[^'\n]*'|\"[^\"\n]*\"|`[^`]*`")
 _LINE_COMMENT = re.compile(r"//[^\n]*")
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _IMPORT = re.compile(r"import\s*\{([^}]*)\}\s*from\s*'([^']+)'")
+_INTERFACE = re.compile(r"export\s+interface\s+(\w+)\s*\{([^}]*)\}", re.S)
+_INTERFACE_FIELD = re.compile(r"^\s{2}(\w+)\s*[?:]", re.M)
 _MEMBER_CALL = re.compile(r"this\.([A-Za-z_][A-Za-z0-9_]*)\s*\(")
 _MEMBER_FIELD = re.compile(r"this\.([A-Za-z_][A-Za-z0-9_]*)")
 
@@ -159,6 +164,52 @@ class MemberTests(unittest.TestCase):
 
         self.assertIn("real", declared)
         self.assertEqual(sorted(set(_MEMBER_CALL.findall(code)) - declared), ["reel"])
+
+
+class ContractShapeTests(unittest.TestCase):
+    """端侧接口声明的东西，必须与后端**实际在发**的一致 —— 这条不依赖编译器。
+
+    它盯的是一个真实发生过的错：后端给契约加了 `job_statuses` / `step_statuses` 之后，
+    端侧的 `ResearchContract` 没跟上，于是那两个循环解析成 `any`、属性不存在，编译报 8 个错。
+    在有构建链的机器上编译器会拦；这里让没有构建链的机器也拦得住。
+    """
+
+    #: 快照里端侧暂时不渲染的顶层键。例外必须显式写出来 —— 漏字段是编译期才会炸的错，
+    #: 而"多声明一个没人看的字段"是另一回事。
+    IGNORED_SNAPSHOT_KEYS = ("edges",)
+
+    def _client_source(self) -> str:
+        root = _device_root()
+        if root is None:
+            self.skipTest(f"端侧仓库不在这台机器上；设 {DEVICE_REPO_ENV} 指向它即可一并检查")
+        return (root / "entry/src/main/ets/common/BackendClient.ets").read_text(encoding="utf-8")
+
+    def _declared(self, interface: str) -> set[str]:
+        source = self._client_source()
+        for match in _INTERFACE.finditer(source):
+            if match.group(1) == interface:
+                return set(_INTERFACE_FIELD.findall(match.group(2)))
+        return set()
+
+    def test_the_contract_interface_declares_exactly_what_the_backend_sends(self) -> None:
+        declared = self._declared("ResearchContract")
+        self.assertTrue(declared, "没有解析出 ResearchContract 的字段，正则可能失效了")
+
+        served = set(research_contract())
+        self.assertEqual(sorted(served - declared), [], "后端在发、端侧接口没声明 —— 这种漏项要到编译时才炸")
+        self.assertEqual(sorted(declared - served), [], "端侧声明了后端不发的字段")
+
+    def test_the_snapshot_interface_declares_exactly_what_the_backend_sends(self) -> None:
+        declared = self._declared("ResearchLoopSnapshot")
+        self.assertTrue(declared, "没有解析出 ResearchLoopSnapshot 的字段，正则可能失效了")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            served = set(ResearchLoopService(workspace, workspace).snapshot())
+
+        missing = served - declared - set(self.IGNORED_SNAPSHOT_KEYS)
+        self.assertEqual(sorted(missing), [], "后端在发、端侧接口没声明 —— 这种漏项要到编译时才炸")
+        self.assertEqual(sorted(declared - served), [], "端侧声明了后端不发的字段")
 
 
 if __name__ == "__main__":
