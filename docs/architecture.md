@@ -150,12 +150,22 @@ Windows 端的 `web/` 与鸿蒙端的 ArkTS 都从那里取。`tests/test_resear
 - **端侧编译过一次，但不是每次改动都编**：用 DevEco 自带的 hvigor（`hvigorw clean assembleHap --no-daemon`，
   见 `docs/versioning.md`）全量重编是 BUILD SUCCESSFUL，并且 `hvigor-config.json5` 的 `typeCheck` 已打开 ——
   就是它抓出 `ResearchContract` 漏声明了后端早在发的 `job_statuses` / `step_statuses`。另外
-  `tests/test_arkts_sources.py`（8 项）在没有构建链的环境里守着括号配平、import 的符号真的导出过、
+  `tests/test_arkts_sources.py`（10 项）在没有构建链的环境里守着括号配平、import 的符号真的导出过、
   页面上的 `this.xxx` 真的存在，以及**页面声明的字段与后端实际在发的一致**。
 - **这一层在模拟器上真的跑起来过**：现编的 HAP 装进模拟器启 `EntryAbility`，四段
   （当前 / 假设 / 证据 / 决策轨迹）逐一核对 —— 五个数字 10 / 5 / 13 / 0 / 3、EXP-0008 的九项核查
   逐条显示、动作名显示中文。顺带在装机时抓到 `@Builder` 按值传参导致数值不刷新的缺陷，
   改成 `@Component` + `@Prop` 才对。
+- **`@Builder` 的刷新边界（2026-09-29 补记，比上面那句更准确）**：`@Builder` 体内读到的状态变了
+  **不会**重建它那棵子树。实测过的三种写法：把表单写进 `@Builder`、写进 `build()` 里嵌在分段
+  `if` 内的 `if`、以及同一处的提示行 —— 条件明明为真（`probeForm` 的日志坐实 `open=true`、
+  `AceTextField` 日志坐实输入框真的被创建），节点却一个都不进布局树。
+  所以「随状态出现/收起的块」必须靠 `ForEach` 的 key 强制重建 —— 工程里早有先例
+  （`view/ReproductionPage.ets::PlanBlock`，注释写着"不要依赖 `@Builder` 的刷新时机"）；
+  `view/SettingsPage.ets::modelKeys` 是第二处。key 里只放**结构性**状态，不放输入框草稿，
+  否则每敲一个字都重建、光标会丢。
+- **`console.log` 不能写在 `@Builder` 里**：编译期直接报 `does not meet UI component syntax`。
+  调试探针要包成一个普通方法，在 UI 表达式的位置调用（`if (this.probe(...))`）。
 - **剩下的边界（如实写）**：模拟器不等于真机 —— 窄屏布局、深色模式、字体放大、轮询定时器
   是否真的随页面销毁而停，都还没验。`test_arkts_sources.py` 是**源码级**扫描，它拦的是
   "名字对不上"，拦不住"渲染出来不对"，后者只有装机看。
@@ -186,6 +196,37 @@ Python 一行都不共用。配色就是一处例子：`device/entry/src/main/et
 - 依据：`app/release_service.py`、`tools/device_project.py`、`docs/versioning.md`、
   `tests/test_release_manifest.py::test_the_hap_is_always_a_required_artifact`、
   `tests/test_arkts_sources.py::DeviceCheckoutTests`。
+
+### D11 模型来源是可编辑的外部配置，密钥与它分开放（2026-09-29）
+
+起因是一个真实缺口：两个前端的「模型」区原来**只是只读展示**，密钥只能靠环境变量进去，
+而 README 那句"在「设置 → 模型」里填 DeepSeek API Key"描述的是一个**不存在的表单**。
+
+**做法**：
+
+- **一套「来源」= 任意 OpenAI 兼容服务**（`POST {base_url}/chat/completions` + `Authorization: Bearer`）。
+  `app/llm_service.py`（原名 `deepseek_service.py`，改名是因为它已经不只服务 DeepSeek）是唯一发请求的地方，
+  地址、密钥、模型都从**当前使用**的那套取 —— 换一家就是换个地址，不需要写适配器。
+- **可以同时存多套，选一套当前使用。** 预设（DeepSeek / OpenAI / 月之暗面 / 阿里百炼 / 本地 Ollama / 自定义）
+  只做**预填**，地址可改；接一家没预置的服务也不用动代码。预设清单由后端发在
+  `GET /api/settings/providers` 的 `presets` 里，两个前端都不自己抄一份 —— 与 D9 是同一条原则。
+- **密钥只进系统凭据库**：`settings.json` 只存名称/地址/模型，所以那个文件可以拿给别人看；
+  每套一条凭据记录（`provider:<id>`），界面只回 `has_key`，不回密钥本身。
+- **旧配置一次性迁移**：把原来的单供应商设置与那把密钥搬成一套 DeepSeek 来源，不用手动重填；
+  旧凭据记录**不删** —— 那是用户自己存进去的东西，删掉不可逆。
+- **环境变量改名** `DEEPSEEK_API_KEY` → `YJL_LLM_API_KEY`：多供应商之后旧名字只对得上其中一家。
+  旧名字仍然认，但**只在当前这套的预设是 DeepSeek 时**生效。
+- 接口：`GET/POST /api/settings/providers`、`.../active`、`.../delete`、`.../test`；
+  `/api/agent/deepseek` 改名 `/api/agent/ask`。旧的 `/api/settings/deepseek` 已下线。
+
+**验收依据**：`tests/test_model_providers.py`（13 项，用 `_FakeKeyring` + 临时 `APPDATA`，
+**不碰这台机器真实的凭据库与设置文件**）；`tests/test_arkts_sources.py::ContractShapeTests`
+新增一条，比对端侧 `ProviderSettings` 与后端 `providers_status()` 逐字段一致；
+Windows 端 `web/views.js` 与鸿蒙端 `device/entry/src/main/ets/view/SettingsPage.ets` 各自接上。
+
+**真机验收（模拟器）**：预设预填、新增并保存、设为当前、删除（两步确认）、测试连接逐项走过；
+「测试」是真的发了一次请求，回来显示「连接正常（deepseek-v4-pro）」。测试连接**指定某一套**
+（不需要先切过去）也验过 —— 后端为此单开了 `verify_connection(provider_id)`。
 
 ---
 
