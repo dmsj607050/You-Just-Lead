@@ -53,7 +53,7 @@ export struct UserMenu {
 
   /** 一行入口：图标 + 文案 + 右侧说明 + 尖角，整行可点。 */
   @Builder
-  EntryRow(commands: string, labelKey: string, valueKey: string, valueColor: string, onTap: () => void) {
+  EntryRow(commands: string, labelKey: string, valueKey: string, valueColor: ResourceColor, onTap: () => void) {
     Row() {
       AppIcon({ commands: commands, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 })
       Text(this.tr(labelKey))

@@ -136,7 +136,7 @@ export struct StatusBadge {
   @Prop text: string = '';
   @Prop tone: string = 'muted';
 
-  private badgeTextColor(): string {
+  private badgeTextColor(): ResourceColor {
     if (this.tone === 'ok') {
       return AppTheme.PRIMARY_DARK;
     }
@@ -149,7 +149,7 @@ export struct StatusBadge {
     return AppTheme.TEXT_SECONDARY;
   }
 
-  private badgeBackgroundColor(): string {
+  private badgeBackgroundColor(): ResourceColor {
     if (this.tone === 'ok') {
       return AppTheme.PRIMARY_SOFT;
     }
@@ -230,7 +230,7 @@ export interface RailItemSpec {
 }
 
 /** 健康度 -> 色点颜色。 */
-function railToneColor(tone: string): string {
+function railToneColor(tone: string): ResourceColor {
   if (tone === 'ok') {
     return AppTheme.PRIMARY;
   }
@@ -299,7 +299,7 @@ export interface ChoiceSpec {
 }
 
 /** 选中态的底色。 */
-function choiceBackground(tone: string): string {
+function choiceBackground(tone: string): ResourceColor {
   if (tone === 'ok') {
     return AppTheme.PRIMARY_SOFT;
   }
@@ -313,7 +313,7 @@ function choiceBackground(tone: string): string {
 }
 
 /** 选中态的文字色。 */
-function choiceTextColor(tone: string): string {
+function choiceTextColor(tone: string): ResourceColor {
   if (tone === 'ok') {
     return AppTheme.PRIMARY_DARK;
   }
@@ -405,7 +405,7 @@ export struct BarList {
     return Math.max(3, Math.round((value / max) * 100));
   }
 
-  private barColor(): string {
+  private barColor(): ResourceColor {
     if (this.tone === 'warn') {
       return AppTheme.WARN_TEXT;
     }
@@ -479,7 +479,7 @@ export struct ProgressBar {
     return Math.max(this.current > 0 ? 3 : 0, Math.min(100, Math.round(ratio * 100)));
   }
 
-  private barColor(): string {
+  private barColor(): ResourceColor {
     if (this.tone === 'warn') {
       return AppTheme.WARN_TEXT;
     }

@@ -10,7 +10,7 @@ import AppTheme from '../common/AppTheme';
 export struct AppIcon {
   /** 与坐标系一致的路径指令。 */
   @Prop commands: string = '';
-  @Prop color: string = AppTheme.TEXT_PRIMARY;
+  @Prop color: ResourceColor = AppTheme.TEXT_PRIMARY;
   /** true 表示填充绘制，false 表示描边绘制。 */
   @Prop filled: boolean = false;
   @Prop iconSize: number = 24;

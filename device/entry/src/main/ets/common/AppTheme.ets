@@ -1,32 +1,32 @@
 /**
- * 全局视觉常量。
+ * 全局视觉资源。
  *
- * 与设计稿保持一致：浅灰绿底、白色卡片、绿色主色。
- * 调整外观只改这里，页面代码不需要动。
+ * 颜色通过系统资源解析：浅色值放在 base，深色值放在 dark；其余尺寸仍是固定设计值。
+ * 页面只引用语义令牌，不自行判断系统主题。
  */
 export default class AppTheme {
   /** 主色：用于主按钮、激活态、进度。 */
-  static readonly PRIMARY: string = '#12805C';
-  static readonly PRIMARY_DARK: string = '#0E6A4C';
-  static readonly PRIMARY_SOFT: string = '#E8F5EE';
-  static readonly PRIMARY_SOFT_ALT: string = '#F1F8F4';
+  static readonly PRIMARY = $r('app.color.primary');
+  static readonly PRIMARY_DARK = $r('app.color.primary_dark');
+  static readonly PRIMARY_SOFT = $r('app.color.primary_soft');
+  static readonly PRIMARY_SOFT_ALT = $r('app.color.primary_soft_alt');
 
   /** 页面与卡片。 */
-  static readonly PAGE_BG: string = '#F6F8F7';
-  static readonly SURFACE: string = '#FFFFFF';
-  static readonly BORDER: string = '#E8ECEA';
-  static readonly BORDER_SOFT: string = '#F0F3F1';
+  static readonly PAGE_BG = $r('app.color.page_bg');
+  static readonly SURFACE = $r('app.color.surface');
+  static readonly BORDER = $r('app.color.border');
+  static readonly BORDER_SOFT = $r('app.color.border_soft');
 
   /** 文字层级。 */
-  static readonly TEXT_PRIMARY: string = '#1A1F1C';
-  static readonly TEXT_SECONDARY: string = '#5C6660';
-  static readonly TEXT_TERTIARY: string = '#9AA5A0';
+  static readonly TEXT_PRIMARY = $r('app.color.text_primary');
+  static readonly TEXT_SECONDARY = $r('app.color.text_secondary');
+  static readonly TEXT_TERTIARY = $r('app.color.text_tertiary');
 
   /** 状态色。 */
-  static readonly DANGER: string = '#C0392B';
-  static readonly DANGER_SOFT: string = '#FDF1EF';
-  static readonly WARN_TEXT: string = '#B25E09';
-  static readonly WARN_SOFT: string = '#FFF3E4';
+  static readonly DANGER = $r('app.color.danger');
+  static readonly DANGER_SOFT = $r('app.color.danger_soft');
+  static readonly WARN_TEXT = $r('app.color.warn_text');
+  static readonly WARN_SOFT = $r('app.color.warn_soft');
 
   /** 顶栏与侧栏尺寸。 */
   static readonly TOPBAR_HEIGHT: number = 64;

@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import tempfile
@@ -117,6 +118,24 @@ class DeviceCheckoutTests(unittest.TestCase):
         **静默跳过**，`Ran 403 tests` 照样是绿的。现在缺了它，这里直接红。
         """
         self.assertTrue(device_source_present(_repo_root()))
+
+
+class ThemeResourceTests(unittest.TestCase):
+    """浅色与深色主题提供完全相同的语义颜色令牌。"""
+
+    def test_base_and_dark_themes_declare_every_app_theme_token(self) -> None:
+        root = _device_root() / "entry/src/main/resources"
+        theme = (root.parent / "ets/common/AppTheme.ets").read_text(encoding="utf-8")
+        names = set(re.findall(r"\$r\('app\.color\.([a-z_]+)'\)", theme))
+        self.assertTrue(names, "AppTheme 没有引用系统颜色资源")
+
+        resources: dict[str, set[str]] = {}
+        for mode in ("base", "dark"):
+            payload = json.loads((root / mode / "element/color.json").read_text(encoding="utf-8"))
+            resources[mode] = {item["name"] for item in payload["color"]}
+
+        self.assertEqual(names, resources["base"] - {"start_window_background"})
+        self.assertEqual(names, resources["dark"] - {"start_window_background"})
 
 
 class BalanceTests(unittest.TestCase):
