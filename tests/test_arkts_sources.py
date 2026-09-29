@@ -14,11 +14,14 @@
 
 from __future__ import annotations
 
+import os
 import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from app import settings_service
 from app.research_loop_service import ResearchLoopService
 from schemas.research import research_contract
 from tools.device_project import device_project_root, device_source_present
@@ -42,6 +45,7 @@ def _device_root() -> Path:
 #: 要检查的文件（相对端侧工程根）。
 CHECKED_FILES = (
     "entry/src/main/ets/view/ResearchLoopPage.ets",
+    "entry/src/main/ets/view/SettingsPage.ets",
     "entry/src/main/ets/common/BackendClient.ets",
     "entry/src/main/ets/common/I18n.ets",
     "entry/src/main/ets/common/ViewTypes.ets",
@@ -49,9 +53,6 @@ CHECKED_FILES = (
     "entry/src/main/ets/pages/Index.ets",
 )
 
-_STRING = re.compile(r"'[^'\n]*'|\"[^\"\n]*\"|`[^`]*`")
-_LINE_COMMENT = re.compile(r"//[^\n]*")
-_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _IMPORT = re.compile(r"import\s*\{([^}]*)\}\s*from\s*'([^']+)'")
 _INTERFACE = re.compile(r"export\s+interface\s+(\w+)\s*\{([^}]*)\}", re.S)
 _INTERFACE_FIELD = re.compile(r"^\s{2}(\w+)\s*[?:]", re.M)
@@ -73,10 +74,39 @@ _DECLARATIONS = (
 
 
 def _strip_noise(source: str) -> str:
-    """去掉注释与字符串字面量：括号配平要在"只剩代码"的文本上做。"""
-    without_blocks = _BLOCK_COMMENT.sub(" ", source)
-    without_lines = _LINE_COMMENT.sub(" ", without_blocks)
-    return _STRING.sub('""', without_lines)
+    """去掉注释与字符串字面量：括号配平要在"只剩代码"的文本上做。
+
+    单趟扫描，而不是连着跑三个正则 —— 正则之间会互相咬，两种顺序都有假的失败：
+    先删行注释，`'https://api.deepseek.com'` 里的 `//` 会把这一行连收尾的 `}` 一起吃掉
+    （真的发生过：加了一条带地址的文案，配平就红了）；先删字符串，注释里一个
+    `don't` 的单引号又会把后半行当字符串。
+    """
+    out: list[str] = []
+    index = 0
+    length = len(source)
+    while index < length:
+        char = source[index]
+        if char == '/' and source.startswith('//', index):
+            newline = source.find('\n', index)
+            if newline == -1:
+                break
+            index = newline
+            continue
+        if char == '/' and source.startswith('/*', index):
+            end = source.find('*/', index + 2)
+            index = length if end == -1 else end + 2
+            out.append(' ')
+            continue
+        if char == "'" or char == '"' or char == '`':
+            index += 1
+            while index < length and source[index] != char:
+                index += 2 if source[index] == '\\' else 1
+            index += 1
+            out.append('""')
+            continue
+        out.append(char)
+        index += 1
+    return ''.join(out)
 
 
 class DeviceCheckoutTests(unittest.TestCase):
@@ -102,9 +132,13 @@ class BalanceTests(unittest.TestCase):
     def test_the_stripper_actually_removes_strings_and_comments(self) -> None:
         """自检：抽取失败时上面的配平检查会**空着通过**，那等于没有保护。"""
         stripped = _strip_noise("const a = '}{'; // }}\n/* { */ const b = 1;")
-
         self.assertEqual(stripped.count("{"), stripped.count("}"))
         self.assertNotIn("}{", stripped)
+
+        # 字符串里带 `//` 的（地址文案就有）不能被当成行注释，否则整行的收尾 `}` 会被吃掉。
+        with_url = _strip_noise("const u = { doc: 'https://a.b/v1' };")
+        self.assertEqual(with_url.count("{"), with_url.count("}"))
+        self.assertIn("doc", with_url)
 
 
 class ImportTests(unittest.TestCase):
@@ -216,6 +250,26 @@ class ContractShapeTests(unittest.TestCase):
 
         missing = served - declared - set(self.IGNORED_SNAPSHOT_KEYS)
         self.assertEqual(sorted(missing), [], "后端在发、端侧接口没声明 —— 这种漏项要到编译时才炸")
+        self.assertEqual(sorted(declared - served), [], "端侧声明了后端不发的字段")
+
+    def test_the_provider_interface_declares_exactly_what_the_backend_sends(self) -> None:
+        """模型来源接口与后端 `providers_status()` 逐字段对齐。
+
+        端侧「设置 → 模型」这一段是可以改配置的，字段对不齐的表现是设置页整段读不出来。
+        这一条同时钉住密钥那一侧：后端只回 `has_key` / `key_source` 这种「有没有」，
+        端侧接口里**不该出现任何能拿到密钥本身的字段**。
+
+        不碰这台机器真实的东西：`APPDATA` 指向临时目录，凭据库换成「不可用」。
+        """
+        declared = self._declared("ProviderSettings")
+        self.assertTrue(declared, "没有解析出 ProviderSettings 的字段，正则可能失效了")
+
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.dict(os.environ, {"APPDATA": temporary}, clear=False), \
+                patch.object(settings_service, "_keyring", return_value=None):
+            served = set(settings_service.providers_status())
+
+        self.assertEqual(sorted(served - declared), [], "后端在发、端侧接口没声明 —— 这种漏项要到编译时才炸")
         self.assertEqual(sorted(declared - served), [], "端侧声明了后端不发的字段")
 
 
