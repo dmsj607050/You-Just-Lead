@@ -32,7 +32,9 @@
 
 - Python 全量回归实跑：431 项通过（49.176 秒）；主题资源契约与 HTTP 错误边界均包含在内。
 - 鸿蒙 HAP 使用 DevEco 全局 Hvigor 清理并重建成功，安装至 `127.0.0.1:5555` 模拟器；浅色与深色主界面均已实际查看。
-- Windows EXE 仍是上一候选版的产物，需在本版源代码提交后重建；当前尚未生成本版发布清单或发布产物摘要。
+- 两个 Windows EXE 均按提交 `3037283` 重建；`--help` 实跑退出码均为 0，隔离目录启动的本地 API 实测 `/health` 返回 `ok`。
+- `release-manifest --print` 在干净工作区报告 `release_ready: true`；三个必需产物已暂存到 `build/release-rc4-candidate/`，复制件 SHA-256 与清单逐个匹配。
+- 该清单只代表版本、产物和仓库状态门槛通过。没有发布 GitHub Release：D12 的远程接入/多用户隔离尚未验收，当前 GitHub CLI 登录令牌也已失效。
 
 `rc.4` 仍是验证候选，不代表云端分发形态或六个 Gate 已完成。
 
