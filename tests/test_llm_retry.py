@@ -12,8 +12,8 @@ from http.client import IncompleteRead
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from app import deepseek_service
-from app.deepseek_service import REQUEST_ATTEMPTS, DeepSeekError
+from app import llm_service
+from app.llm_service import REQUEST_ATTEMPTS, LLMError
 
 
 class _Response:
@@ -36,11 +36,16 @@ def _payload() -> dict:
 
 class RequestRetryTests(unittest.TestCase):
     def setUp(self) -> None:
-        key = patch.object(deepseek_service, "get_deepseek_api_key", return_value=("test-key", "env"))
+        # 这几条用例只测网络层，「凭据从哪来」不是重点，直接给一套假的。
+        key = patch.object(
+            llm_service,
+            "resolve_credentials",
+            return_value=("test-key", "https://example.invalid", "test-model"),
+        )
         key.start()
         self.addCleanup(key.stop)
         # 退避等待在测试里没有意义，只让用例变慢。
-        sleeper = patch.object(deepseek_service.time, "sleep", return_value=None)
+        sleeper = patch.object(llm_service.time, "sleep", return_value=None)
         sleeper.start()
         self.addCleanup(sleeper.stop)
 
@@ -53,8 +58,8 @@ class RequestRetryTests(unittest.TestCase):
                 raise IncompleteRead(b"")
             return _Response(_payload())
 
-        with patch.object(deepseek_service, "urlopen", side_effect=flaky):
-            result = deepseek_service._request({})
+        with patch.object(llm_service, "urlopen", side_effect=flaky):
+            result = llm_service._request({})
 
         self.assertEqual(len(calls), 2)
         self.assertIn("choices", result)
@@ -67,9 +72,9 @@ class RequestRetryTests(unittest.TestCase):
             calls.append(1)
             raise HTTPError("http://example.invalid", 400, "bad request", {}, None)  # type: ignore[arg-type]
 
-        with patch.object(deepseek_service, "urlopen", side_effect=failing):
-            with self.assertRaises(DeepSeekError):
-                deepseek_service._request({})
+        with patch.object(llm_service, "urlopen", side_effect=failing):
+            with self.assertRaises(LLMError):
+                llm_service._request({})
 
         self.assertEqual(len(calls), 1)
 
@@ -80,9 +85,9 @@ class RequestRetryTests(unittest.TestCase):
             calls.append(1)
             raise IncompleteRead(b"")
 
-        with patch.object(deepseek_service, "urlopen", side_effect=always):
-            with self.assertRaises(DeepSeekError) as caught:
-                deepseek_service._request({})
+        with patch.object(llm_service, "urlopen", side_effect=always):
+            with self.assertRaises(LLMError) as caught:
+                llm_service._request({})
 
         self.assertEqual(len(calls), REQUEST_ATTEMPTS)
         # 错误信息要说清"重试过了"，否则看到的人会以为是第一次就失败。

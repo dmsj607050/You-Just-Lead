@@ -1,14 +1,15 @@
-"""Small DeepSeek client used by the local competition Agent.
+"""模型客户端与工具调用循环。
 
-The client only talks to DeepSeek after an explicit user action. It never starts
-training, uploads competition data, or sends local files without a separate
-reviewed tool call.
+**只讲 OpenAI 兼容协议**（`POST {base_url}/chat/completions`，`Authorization: Bearer`），
+地址与密钥来自「当前使用」的那套来源（`app/settings_service.py`）。所以它对供应商是无感的：
+DeepSeek、OpenAI、Kimi、百炼、本地 Ollama 走的是同一段代码。
 
-`chat_completion` is the original single-turn entry point kept for backward
-compatibility. `run_agent` is the multi-turn tool-calling loop that turns the
-DeepSeek client into an actual Agent: it can read persisted workspace state,
-create experiment drafts, and reason across multiple turns — but it still
-cannot start training, submit predictions, or delete artefacts.
+只在用户显式动作之后才发请求。它不会自己启动训练、上传比赛数据，也不会在没有一次单独
+工具调用的情况下把本地文件发出去。
+
+`chat_completion` 是单轮入口。`run_agent` 是多轮工具调用循环 —— 它让这个客户端成为
+真正的 Agent：能读工作区里已落盘的状态、建实验草稿、跨多轮推理；但**仍然**不能启动训练、
+提交预测或删除产物。
 """
 
 from __future__ import annotations
@@ -22,10 +23,9 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from app.agent_tools import agent_tools_schema, execute_tool
-from app.settings_service import DEFAULT_DEEPSEEK_MODEL, SettingsError, deepseek_settings_status, get_deepseek_api_key
+from app.settings_service import SettingsError, resolve_credentials
 
 
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 AGENT_MAX_TURNS = 10
 # 单轮问答 45 秒够用；行动循环的一轮会带上整套工具 schema 和深度推理，真实网络下
 # 用同一个口径会偶发读超时（实测撞过一次）。给循环单独放宽，但仍设上界 ——
@@ -47,16 +47,18 @@ AGENT_SYSTEM_PROMPT = (
 )
 
 
-class DeepSeekError(RuntimeError):
-    """Raised when DeepSeek cannot complete a local Agent request."""
+class LLMError(RuntimeError):
+    """Raised when the configured model source cannot complete a local Agent request."""
 
 
-def _request(payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT) -> dict[str, Any]:
-    api_key, _ = get_deepseek_api_key()
+def _request(
+    payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT, provider_id: str | None = None
+) -> dict[str, Any]:
+    api_key, base_url, _ = resolve_credentials(provider_id)
     if not api_key:
-        raise DeepSeekError("尚未配置 DeepSeek API Key。请在桌面端模型设置中配置，或设置 DEEPSEEK_API_KEY。")
+        raise LLMError("当前模型来源还没有密钥。请在「设置 → 模型」里填，或设置 YJL_LLM_API_KEY 环境变量。")
     request = Request(
-        f"{DEEPSEEK_BASE_URL}/chat/completions",
+        f"{base_url}/chat/completions",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
@@ -69,7 +71,7 @@ def _request(payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT) ->
         except HTTPError as exc:
             # 状态码类错误不重试：那是请求本身或额度/权限的问题，重试只是再犯一遍。
             detail = exc.read().decode("utf-8", errors="replace")[:600]
-            raise DeepSeekError(f"DeepSeek 请求失败（HTTP {exc.code}）：{detail}") from exc
+            raise LLMError(f"模型服务返回 HTTP {exc.code}：{detail}") from exc
         except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError) as exc:
             last_error = exc
             if attempt + 1 < REQUEST_ATTEMPTS:
@@ -77,20 +79,20 @@ def _request(payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT) ->
                 continue
         else:
             if not isinstance(parsed, dict):
-                raise DeepSeekError("DeepSeek 返回格式无效。")
+                raise LLMError("模型服务返回格式无效。")
             return parsed
 
     if isinstance(last_error, TimeoutError):
         # "这一轮慢"和"连不上"要分开说 —— 处置方式不一样。
-        raise DeepSeekError(
-            f"DeepSeek 在 {timeout} 秒内没有返回，重试 {REQUEST_ATTEMPTS} 次仍未成功，可稍后重试。"
+        raise LLMError(
+            f"模型服务在 {timeout} 秒内没有返回，重试 {REQUEST_ATTEMPTS} 次仍未成功，可稍后重试。"
         ) from last_error
-    raise DeepSeekError(f"与 DeepSeek 的连接不稳定（重试 {REQUEST_ATTEMPTS} 次仍失败）：{last_error}") from last_error
+    raise LLMError(f"与模型服务的连接不稳定（重试 {REQUEST_ATTEMPTS} 次仍失败）：{last_error}") from last_error
 
 
 def chat_completion(system_prompt: str, user_prompt: str, *, model: str | None = None, thinking: bool = True) -> dict[str, Any]:
-    status = deepseek_settings_status()
-    selected_model = model or str(status["model"])
+    _, _, configured_model = resolve_credentials()
+    selected_model = model or configured_model
     payload: dict[str, Any] = {
         "model": selected_model,
         "messages": [
@@ -107,30 +109,52 @@ def chat_completion(system_prompt: str, user_prompt: str, *, model: str | None =
         message = result["choices"][0]["message"]
         content = str(message.get("content") or "").strip()
     except (KeyError, IndexError, TypeError) as exc:
-        raise DeepSeekError("DeepSeek 响应中没有可用答案。") from exc
+        raise LLMError("模型响应中没有可用答案。") from exc
     if not content:
-        raise DeepSeekError("DeepSeek 未返回最终答案。")
+        raise LLMError("模型没有返回最终答案。")
     reasoning = str(message.get("reasoning_content") or "").strip()
     return {"model": selected_model, "content": content, "reasoning": reasoning}
 
 
-def verify_connection() -> dict[str, Any]:
+def verify_connection(provider_id: str | None = None) -> dict[str, Any]:
+    """发一次最小请求验证配置。`provider_id` 给了就验那一套（还没切过去也能先试）。"""
     try:
-        response = chat_completion(
-            "You are a connection check for a local competition-training Agent. Reply in Chinese with exactly: 连接正常。",
-            "验证当前 DeepSeek 配置。",
-            thinking=False,
-        )
-    except (DeepSeekError, SettingsError) as exc:
+        if provider_id is None:
+            response = chat_completion(
+                "You are a connection check for a local competition-training Agent. Reply in Chinese with exactly: 连接正常。",
+                "验证当前模型配置。",
+                thinking=False,
+            )
+        else:
+            # 显式指定那一套：绕开「当前使用」，直接用它的地址与密钥发一次最小请求。
+            # 这里只看它**有没有抛错** —— 抛了就说明这套配不通，返回内容不重要。
+            _, _, configured_model = resolve_credentials(provider_id)
+            _request(
+                {
+                    "model": configured_model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a connection check for a local competition-training Agent. Reply in Chinese with exactly: 连接正常。",
+                        },
+                        {"role": "user", "content": "验证这套模型配置。"},
+                    ],
+                    "stream": False,
+                },
+                timeout=CHAT_REQUEST_TIMEOUT,
+                provider_id=provider_id,
+            )
+            response = {"model": configured_model}
+    except (LLMError, SettingsError) as exc:
         return {"ok": False, "message": str(exc)}
-    return {"ok": True, "message": "DeepSeek 连接正常。", "model": response["model"]}
+    return {"ok": True, "message": "连接正常。", "model": response["model"]}
 
 
 def _extract_message(response: dict[str, Any]) -> dict[str, Any]:
     try:
         return response["choices"][0]["message"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise DeepSeekError("DeepSeek 响应中没有可用消息。") from exc
+        raise LLMError("模型响应中没有可用消息。") from exc
 
 
 def _parse_tool_calls(message: dict[str, Any]) -> list[dict[str, Any]]:
@@ -179,12 +203,12 @@ def run_agent(
     trace (per-turn record of tool calls and results), and turns (count).
     """
     if not 1 <= len(user_prompt) <= 8_000:
-        raise DeepSeekError("prompt must contain 1 to 8000 characters")
+        raise LLMError("prompt must contain 1 to 8000 characters")
     if max_turns < 1 or max_turns > 20:
         max_turns = AGENT_MAX_TURNS
 
-    status = deepseek_settings_status()
-    selected_model = model or str(status["model"])
+    _, _, configured_model = resolve_credentials()
+    selected_model = model or configured_model
     tools_schema = agent_tools_schema(tools)
 
     messages: list[dict[str, Any]] = [
@@ -219,7 +243,7 @@ def run_agent(
                 "reasoning": reasoning,
             })
             if not content:
-                raise DeepSeekError("DeepSeek 未返回最终答案。")
+                raise LLMError("模型没有返回最终答案。")
             return {
                 "model": selected_model,
                 "content": content,
@@ -283,7 +307,7 @@ def run_agent(
         "reasoning": final_reasoning,
     })
     if not final_content:
-        raise DeepSeekError(f"Agent 在 {max_turns} 轮工具调用后仍未给出最终答案。")
+        raise LLMError(f"Agent 在 {max_turns} 轮工具调用后仍未给出最终答案。")
     return {
         "model": selected_model,
         "content": final_content,

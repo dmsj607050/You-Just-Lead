@@ -733,12 +733,12 @@ Views.reproduction = function (data) {
 Views.settings = function (data) {
   if (!data) return '';
   const health = data.health || {};
-  const deepseek = data.deepseek || {};
+  const models = data.providers || {};
   const runtime = data.runtime || {};
   const sections = [
     { key: 'workspace', label: '工作区', tone: health.workspace ? 'ok' : 'warn' },
     { key: 'backend', label: '后端', tone: health.status === 'ok' ? 'ok' : 'danger' },
-    { key: 'model', label: '模型', tone: deepseek.configured ? 'ok' : 'warn' },
+    { key: 'model', label: '模型', tone: models.configured ? 'ok' : 'warn' },
     { key: 'runtime', label: '运行时', tone: 'muted' },
   ];
   const section = State.sections.settings;
@@ -753,13 +753,7 @@ Views.settings = function (data) {
           UI.KeyValueRow('健康状态', health.status) +
           UI.KeyValueRow('工作区', health.workspace, { mono: true })
       ),
-    model: () =>
-      UI.Card(
-        '模型',
-        UI.KeyValueRow('已配置', deepseek.configured ? '是' : '否') +
-          UI.KeyValueRow('当前模型', deepseek.model, { mono: true }) +
-          UI.KeyValueRow('密钥来源', deepseek.key_source)
-      ),
+    model: () => Views._modelSection(data.providers || {}),
     runtime: () =>
       UI.Card(
         '运行时',
@@ -769,4 +763,257 @@ Views.settings = function (data) {
       ),
   };
   return UI.PageHeader('设置', status) + UI.Rail(sections, section) + (bodies[section] || (() => ''))();
+};
+
+/**
+ * 「设置 → 模型」：模型来源可以同时存多套，选一套当前使用。
+ *
+ * 「来源」是任意 **OpenAI 兼容**服务，DeepSeek 只是预设之一 —— 所以这里没有
+ * "某家供应商"的专门代码，换一家就是换个地址。
+ *
+ * 预设清单来自后端 `GET /api/settings/providers`，**界面不自己抄一份**：
+ * 后端加一家、界面自动出现。这和科研契约是同一条原则（见 docs/architecture.md D9）。
+ */
+Views._modelSection = function (models) {
+  const providers = models.providers || [];
+  const presets = models.presets || [];
+  const active = providers.find((item) => item.id === models.active) || null;
+
+  const keyText = (item) => {
+    if (item.has_key) return '密钥已存';
+    return item.key_required ? '密钥未填' : '不需要密钥';
+  };
+
+  const currentCard = UI.Card(
+    '当前使用',
+    active
+      ? UI.KeyValueRow('名称', active.name) +
+        UI.KeyValueRow('模型', active.model, { mono: true }) +
+        UI.KeyValueRow('服务地址', active.base_url, { mono: true }) +
+        UI.KeyValueRow('密钥', keyText(active)) +
+        UI.KeyValueRow('密钥来源', models.key_source || '—') +
+        '<div class="btn-row spaced"><button class="btn ghost" data-action="provider-test" data-key="' +
+        UI.esc(active.id) +
+        '">测试连接</button></div>'
+      : UI.Notice(
+          '还没有配置任何模型来源。从下面的预设里挑一家，填一次就能用了；之后想换别家，再添一套。',
+          'warn'
+        )
+  );
+
+  const rows = providers
+    .map((item) => {
+      const badge = item.id === models.active ? ' ' + UI.Badge('使用中', 'ok') : '';
+      const actions =
+        (item.id === models.active
+          ? ''
+          : '<button class="btn ghost" data-action="provider-activate" data-key="' + UI.esc(item.id) + '">设为当前</button>') +
+        '<button class="btn ghost" data-action="provider-test" data-key="' + UI.esc(item.id) + '">测试</button>' +
+        '<button class="btn ghost" data-action="provider-edit" data-key="' + UI.esc(item.id) + '">编辑</button>' +
+        '<button class="btn ghost" data-action="provider-delete" data-key="' + UI.esc(item.id) + '">删除</button>';
+      return (
+        '<div class="list-row">' +
+        '<div class="list-main">' +
+        '<div class="list-title">' +
+        UI.esc(item.name) +
+        badge +
+        '</div>' +
+        '<div class="list-sub">' +
+        UI.esc(item.model || '（没有模型名）') +
+        ' · ' +
+        UI.esc(item.base_url) +
+        ' · ' +
+        keyText(item) +
+        (item.docs_url ? ' · ' + UI.esc(item.docs_url) : '') +
+        '</div>' +
+        '</div>' +
+        '<div class="list-side btn-row">' +
+        actions +
+        '</div>' +
+        '</div>'
+      );
+    })
+    .join('');
+
+  const listCard = UI.Card(
+    '所有来源',
+    (rows || UI.EmptyHint('还没有任何来源。')) +
+      '<div class="btn-row spaced"><button class="btn" data-action="provider-new">新增来源</button></div>'
+  );
+
+  const message = State.providerMessage;
+  const messageCard = message && message.text ? UI.Notice(message.text, message.tone || '') : '';
+
+  return currentCard + messageCard + listCard + (State.providerForm ? Views._providerForm(models) : '');
+};
+
+/** 新增/编辑表单。字段值来自 `State.drafts`，由 app.js 的 input 监听写入。 */
+Views._providerForm = function (models) {
+  const editing = State.providerForm;
+  const existing = editing === 'new' ? null : (models.providers || []).find((item) => item.id === editing) || null;
+  const drafts = State.drafts;
+  const value = (key, fallback) => {
+    const raw = drafts[key] !== undefined ? drafts[key] : fallback || '';
+    return UI.esc(raw);
+  };
+  const field = (label, key, fallback, type) =>
+    '<div class="list-row"><div class="list-main">' +
+    '<div class="list-sub">' +
+    UI.esc(label) +
+    '</div>' +
+    '<input class="input" type="' +
+    (type || 'text') +
+    '" data-draft="' +
+    UI.esc(key) +
+    '" value="' +
+    value(key, fallback) +
+    '"></div></div>';
+
+  const presetButtons = (models.presets || [])
+    .filter((item) => item.base_url)
+    .map(
+      (item) =>
+        '<button class="btn ghost" data-action="provider-preset" data-key="' +
+        UI.esc(item.id) +
+        '">' +
+        UI.esc(item.name) +
+        '</button>'
+    )
+    .join('');
+
+  return UI.Card(
+    editing === 'new' ? '新增来源' : '编辑来源',
+    '<div class="list-sub">挑一个预设会自动填好名称与服务地址；只接 OpenAI 兼容的服务，' +
+      '所以地址不对可以直接改，不需要等代码适配。</div>' +
+      '<div class="btn-row spaced">' +
+      presetButtons +
+      '</div>' +
+      field('名称', 'provider-name', existing && existing.name) +
+      field('服务地址（OpenAI 兼容端点）', 'provider-url', existing && existing.base_url) +
+      field('模型名', 'provider-model', existing && existing.model) +
+      field('密钥', 'provider-key', '', 'password') +
+      '<div class="list-sub">密钥留空＝不改动已存的那把（改地址或模型时不用重填）。' +
+      '密钥只写进 Windows 凭据管理器，不落在这个配置文件里。</div>' +
+      '<div class="btn-row spaced end">' +
+      '<button class="btn" data-action="provider-save">保存</button>' +
+      '<button class="btn ghost" data-action="provider-cancel">取消</button>' +
+      '</div>'
+  );
+};
+
+/** 重新取一次这一页的数据（改完之后让列表立刻反映出来）。 */
+Views._reloadSettings = async function () {
+  try {
+    State.data.settings.providers = await API.get('/api/settings/providers');
+  } catch (error) {
+    State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
+};
+
+Views.on_provider_new = function () {
+  State.providerForm = 'new';
+  State.providerMessage = { tone: '', text: '' };
+  Object.assign(State.drafts, {
+    'provider-preset': 'custom',
+    'provider-name': '',
+    'provider-url': '',
+    'provider-model': '',
+    'provider-key': '',
+  });
+  render();
+};
+
+Views.on_provider_edit = function (_target, key) {
+  const models = (State.data.settings || {}).providers || {};
+  const item = (models.providers || []).find((one) => one.id === key);
+  if (!item) return;
+  State.providerForm = key;
+  State.providerMessage = { tone: '', text: '' };
+  Object.assign(State.drafts, {
+    'provider-preset': item.preset,
+    'provider-name': item.name,
+    'provider-url': item.base_url,
+    'provider-model': item.model,
+    // 密钥从不回显，所以这里永远是空的 —— 留空即不改。
+    'provider-key': '',
+  });
+  render();
+};
+
+Views.on_provider_cancel = function () {
+  State.providerForm = '';
+  State.providerMessage = { tone: '', text: '' };
+  render();
+};
+
+Views.on_provider_preset = function (_target, key) {
+  const models = (State.data.settings || {}).providers || {};
+  const preset = (models.presets || []).find((one) => one.id === key);
+  if (!preset) return;
+  Object.assign(State.drafts, {
+    'provider-preset': preset.id,
+    'provider-name': preset.name,
+    'provider-url': preset.base_url,
+  });
+  render();
+};
+
+Views.on_provider_save = async function () {
+  const payload = {
+    name: State.drafts['provider-name'] || '',
+    base_url: State.drafts['provider-url'] || '',
+    model: State.drafts['provider-model'] || '',
+    api_key: State.drafts['provider-key'] || '',
+    preset: State.drafts['provider-preset'] || 'custom',
+  };
+  if (State.providerForm !== 'new') payload.id = State.providerForm;
+  try {
+    State.data.settings.providers = await API.post('/api/settings/providers', payload);
+    State.providerForm = '';
+    State.providerMessage = { tone: '', text: '已保存。' };
+  } catch (error) {
+    State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
+};
+
+Views.on_provider_activate = async function (_target, key) {
+  try {
+    State.data.settings.providers = await API.post('/api/settings/providers/active', { id: key });
+    State.providerMessage = { tone: '', text: '已切换。' };
+  } catch (error) {
+    State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
+};
+
+Views.on_provider_delete = async function (_target, key) {
+  const models = (State.data.settings || {}).providers || {};
+  const item = (models.providers || []).find((one) => one.id === key);
+  if (!window.confirm(`删除「${item ? item.name : key}」？密钥记录会留在凭据管理器里，这里只是不再使用它。`)) {
+    return;
+  }
+  try {
+    State.data.settings.providers = await API.post('/api/settings/providers/delete', { id: key });
+    State.providerMessage = { tone: '', text: '已删除。' };
+  } catch (error) {
+    State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
+};
+
+Views.on_provider_test = async function (_target, key) {
+  State.providerMessage = { tone: '', text: '正在测试…' };
+  render();
+  try {
+    const outcome = await API.post('/api/settings/providers/test', key ? { id: key } : {});
+    State.providerMessage = {
+      tone: outcome.ok ? '' : 'danger',
+      text: (outcome.ok ? '连接正常：' : '连不上：') + (outcome.message || '') + (outcome.model ? `（${outcome.model}）` : ''),
+    };
+  } catch (error) {
+    State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
 };

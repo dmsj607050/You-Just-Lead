@@ -188,7 +188,7 @@ const LOADERS = {
   loop: async () => API.get('/api/research/loop'),
   settings: async () => ({
     health: await API.get('/health'),
-    deepseek: await API.get('/api/settings/deepseek'),
+    providers: await API.get('/api/settings/providers'),
     runtime: await API.get('/api/runtime/local'),
   }),
 };
@@ -200,6 +200,10 @@ const State = {
   loading: {},
   // 这一页的当前数据是不是从离线缓存来的；值是那次同步的时间。
   offline: {},
+  // 「设置 → 模型」里正在编辑哪一套：'' 收起、'new' 新建、否则是那套的 id。
+  providerForm: '',
+  // 「设置 → 模型」里最后一次操作的结果（测试连接、保存、切换）。为空的形态是 {tone, text}。
+  providerMessage: null,
   // 每页自己的分段选择。与端侧一样，一屏只渲染一段。
   sections: {
     overview: 'project',

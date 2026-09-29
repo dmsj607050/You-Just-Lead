@@ -65,6 +65,11 @@ bba63495d627a89e0f197f024040cc3f56d16149b9d94cd75e2c18a92b115c8c  competition-ag
 3. 首次使用在「设置 → 模型」里填 DeepSeek API Key，或先设环境变量 `DEEPSEEK_API_KEY`。
 4. 想离线看上一次的状态：`YouJustLead.exe --offline`（不启动后端，一个网络请求都不发）。
 
+> **第 3 条在 `1.0.0-rc.1` 当时其实做不到。** 那一版两个前端的「模型」区都只是**只读展示**，
+> 界面上没有写入入口 —— 密钥只能靠环境变量进去。写入口是 `1.0.0-rc.2` 才补上的（见 `CHANGELOG.md`），
+> 同时把「来源」从写死的 DeepSeek 改成了可选的 OpenAI 兼容服务、环境变量改名 `YJL_LLM_API_KEY`。
+> 这一版记在这里是为了不留一句会误导人的说明。
+
 Windows 10/11 自带 Edge 即可，不需要装 Python、不需要装浏览器内核。
 
 ## 这一版验证过什么

@@ -17,7 +17,7 @@ from app.agent_tools import (
     available_tool_names,
     execute_tool,
 )
-from app.deepseek_service import DeepSeekError, run_agent
+from app.llm_service import LLMError, run_agent
 from tools.files import write_json_atomic
 
 
@@ -189,27 +189,19 @@ class RunAgentLoopTests(unittest.TestCase):
         (root / "database").mkdir(parents=True, exist_ok=True)
         return workspace
 
-    def _patch_settings(self):
+    def _patch_credentials(self):
+        """这一组用例只测循环逻辑，凭据从哪来不是重点：直接给一套（密钥，地址，模型）。"""
         return patch(
-            "app.deepseek_service.deepseek_settings_status",
-            return_value={
-                "configured": True,
-                "key_source": "environment",
-                "model": "deepseek-v4-pro",
-                "supported_models": ["deepseek-v4-flash", "deepseek-v4-pro"],
-                "secure_storage_available": True,
-            },
+            "app.llm_service.resolve_credentials",
+            return_value=("sk-test-key", "https://api.deepseek.com", "deepseek-v4-pro"),
         )
-
-    def _patch_key(self):
-        return patch("app.deepseek_service.get_deepseek_api_key", return_value=("sk-test-key", "environment"))
 
     def test_single_turn_returns_final_content(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = self._workspace(root)
             responses = [_response(_message(content="当前工作流处于 rules_capture 阶段，建议先运行 rules 命令。"))]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("当前项目处于什么阶段？", "rules_capture", root, workspace, thinking=False)
             self.assertEqual(outcome["content"], "当前工作流处于 rules_capture 阶段，建议先运行 rules 命令。")
             self.assertEqual(outcome["turns"], 1)
@@ -234,7 +226,7 @@ class RunAgentLoopTests(unittest.TestCase):
                 )),
                 _response(_message(content="当前共有 1 个已完成实验 EXP-0001，验证指标 0.91，建议下一步尝试提升鲁棒性。")),
             ]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("总结当前实验进度", "evidence_led_iteration", root, workspace, thinking=False)
             self.assertEqual(outcome["turns"], 2)
             self.assertEqual(len(outcome["trace"]), 2)
@@ -257,7 +249,7 @@ class RunAgentLoopTests(unittest.TestCase):
                 )),
                 _response(_message(content="已收集工作流和实验数据，当前没有完成实验，建议先建立基线。")),
             ]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("给我一份状态摘要", "baseline_design", root, workspace, thinking=False)
             self.assertEqual(outcome["turns"], 2)
             self.assertEqual(len(outcome["trace"][0]["tool_calls"]), 2)
@@ -274,7 +266,7 @@ class RunAgentLoopTests(unittest.TestCase):
             ))
             final_response = _response(_message(content="已达轮数上限，基于已有信息无法给出更多结论。"))
             responses = [loop_response, loop_response, final_response]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("反复调查", "evidence_led_iteration", root, workspace, max_turns=2, thinking=False)
             self.assertTrue(outcome["truncated"])
             self.assertEqual(outcome["turns"], 2)
@@ -284,10 +276,10 @@ class RunAgentLoopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = self._workspace(root)
-            with self._patch_settings(), self._patch_key():
-                with self.assertRaises(DeepSeekError):
+            with self._patch_credentials():
+                with self.assertRaises(LLMError):
                     run_agent("", "stage", root, workspace)
-                with self.assertRaises(DeepSeekError):
+                with self.assertRaises(LLMError):
                     run_agent("x" * 8001, "stage", root, workspace)
 
     def test_tool_arguments_as_dict_are_handled(self) -> None:
@@ -306,7 +298,7 @@ class RunAgentLoopTests(unittest.TestCase):
                 )),
                 _response(_message(content="EXP-0001 已完成，指标 0.9。")),
             ]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("看下 EXP-0001", "evidence_led_iteration", root, workspace, thinking=False)
             self.assertEqual(outcome["trace"][0]["tool_calls"][0]["result"]["experiment_id"], "EXP-0001")
 
@@ -322,7 +314,7 @@ class RunAgentLoopTests(unittest.TestCase):
                 )),
                 _response(_message(content="没有实验。", reasoning="列表为空。")),
             ]
-            with self._patch_settings(), self._patch_key(), patch("app.deepseek_service._request", side_effect=responses):
+            with self._patch_credentials(), patch("app.llm_service._request", side_effect=responses):
                 outcome = run_agent("进度如何", "baseline_design", root, workspace, thinking=False)
             self.assertEqual(outcome["trace"][0]["reasoning"], "用户问进度，需要先看实验列表。")
             self.assertEqual(outcome["trace"][1]["reasoning"], "列表为空。")

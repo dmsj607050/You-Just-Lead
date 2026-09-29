@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import threading
 import unittest
@@ -66,6 +67,20 @@ def _arkts_root() -> Path:
 #: `active`、`tests` 这种日常词，拿它们做文本扫描只会得到一堆假阳性，
 #: 所以那两类靠契约自洽断言（动作与核查项对得上）来守，不靠 grep。
 _FRONTEND_FORBIDDEN = tuple(RESEARCH_ACTIONS) + CHECK_FIELDS + EVIDENCE_VERDICTS
+
+
+def _private_copy(source: str) -> list[str]:
+    """源码里出现了哪些契约词。
+
+    **按词边界匹配，不按子串**：判定值里有一个 `pass`，而 `password`
+    这种正常标识符会把它裹进去 —— 子串扫描会在这里报假阳性，然后把这条守卫
+    逼成"要么误报、要么被关掉"。见 `PrivateCopyScannerTests` 里的自检。
+    """
+    return [
+        name
+        for name in _FRONTEND_FORBIDDEN
+        if re.search(rf"\b{re.escape(name)}\b", source) is not None
+    ]
 
 
 class VocabularyTests(unittest.TestCase):
@@ -212,7 +227,7 @@ class NoPrivateCopyTests(unittest.TestCase):
     def test_the_windows_ui_keeps_no_private_copy(self) -> None:
         for path in sorted((_repo_root() / "web").glob("*.js")):
             source = path.read_text(encoding="utf-8")
-            found = [name for name in _FRONTEND_FORBIDDEN if name in source]
+            found = _private_copy(source)
             with self.subTest(script=path.name):
                 self.assertEqual(
                     found,
@@ -228,7 +243,7 @@ class NoPrivateCopyTests(unittest.TestCase):
 
         for path in sources:
             source = path.read_text(encoding="utf-8")
-            found = [name for name in _FRONTEND_FORBIDDEN if name in source]
+            found = _private_copy(source)
             with self.subTest(source=path.relative_to(root).as_posix()):
                 self.assertEqual(
                     found,
@@ -236,6 +251,19 @@ class NoPrivateCopyTests(unittest.TestCase):
                     f"{path.name} 里出现了契约词的第二份定义：{found}。"
                     "文案要从 GET /api/research/contract 取，不要在端侧再抄一份。",
                 )
+
+
+class PrivateCopyScannerTests(unittest.TestCase):
+    """守卫自己的守卫：扫描器要真能抓到抄写，同时不误伤正常标识符。"""
+
+    def test_it_catches_a_planted_copy(self) -> None:
+        self.assertEqual(_private_copy("const verdict = 'pass';"), ["pass"])
+        self.assertEqual(_private_copy("if (action === 'GENERATE_HYPOTHESIS') {}"), ["GENERATE_HYPOTHESIS"])
+        self.assertEqual(_private_copy("label: 'prediction_met'"), ["prediction_met"])
+
+    def test_it_does_not_flag_a_longer_word_that_contains_a_contract_word(self) -> None:
+        """`password` 里有 `pass` —— 这不是抄了契约词。子串扫描会在这里报假阳性。"""
+        self.assertEqual(_private_copy('<input type="password" data-draft="provider-key">'), [])
 
 
 if __name__ == "__main__":

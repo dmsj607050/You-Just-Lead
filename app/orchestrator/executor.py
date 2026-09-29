@@ -221,13 +221,13 @@ class ResearchExecutor:
         if agent is not None:
             self._agent = agent
         elif self._project_root is not None:
-            from app.deepseek_service import run_agent  # 延迟导入：单轮路径不需要它
+            from app.llm_service import run_agent  # 延迟导入：单轮路径不需要它
 
             self._agent = run_agent
         else:
             self._agent = None
         if chat is None:
-            from app.deepseek_service import chat_completion
+            from app.llm_service import chat_completion
 
             chat = chat_completion
         self._chat = chat

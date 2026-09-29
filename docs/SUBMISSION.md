@@ -29,7 +29,9 @@
 
 1. 下载 `YouJustLead.exe`。
 2. 双击。它会在「文档/YouJustLead」建好工作区、在本机回环地址起后端、打开一个无地址栏的应用窗口。
-3. 首次使用在「设置 → 模型」里填 DeepSeek API Key（或先设环境变量 `DEEPSEEK_API_KEY`）。
+3. 首次使用进「设置 → 模型」，从预设里挑一家（DeepSeek / OpenAI / 月之暗面 / 阿里百炼 /
+   本地 Ollama / 自定义），填一次密钥即可；也可以先设环境变量 `YJL_LLM_API_KEY`。
+   可以同时存几家，选一家当前使用 —— 换供应商只是换个地址，不需要等软件适配。
 
 不需要装 Python，Windows 10/11 自带的 Edge 就够（用它的 `--app` 模式开窗口，不自带浏览器内核）。
 想离线看上一次的状态：`YouJustLead.exe --offline` —— 不启动后端，一个网络请求都不发。

@@ -42,10 +42,16 @@ from agents.materials_agent import MaterialIntakeError
 from app.approval_service import approve_training_config
 from app.data_audit_scheduler import DataAuditScheduler, DataAuditSchedulerError
 from app.dashboard_service import dashboard_snapshot
-from app.deepseek_service import DeepSeekError, run_agent, verify_connection
+from app.llm_service import LLMError, run_agent, verify_connection
 from app.runtime_service import local_runtime_snapshot
 from app.runtime_probe_service import RuntimeProbeError, latest_runtime_probe, probe_runtime
-from app.settings_service import SettingsError, configure_deepseek, deepseek_settings_status
+from app.settings_service import (
+    SettingsError,
+    delete_provider,
+    providers_status,
+    set_active_provider,
+    upsert_provider,
+)
 from app.trace_service import paper_package_report, trace_snapshot
 from app.training_scaffold_service import TrainingScaffoldError, build_training_scaffold, latest_training_scaffold
 from app.material_scheduler import MaterialScheduler, MaterialSchedulerError
@@ -107,7 +113,9 @@ STATIC_ASSETS = {
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
 }
 SENSITIVE_LOCAL_ENDPOINTS = {
-    "/api/settings/deepseek",
+    "/api/settings/providers",
+    "/api/settings/providers/active",
+    "/api/settings/providers/delete",
     "/api/rules/import",
     "/api/rules/approve",
     "/api/rules/evidence",
@@ -120,8 +128,8 @@ SENSITIVE_LOCAL_ENDPOINTS = {
     "/api/data-audit/run",
     "/api/build/scaffold",
     "/api/runtime/probe",
-    "/api/settings/deepseek/test",
-    "/api/agent/deepseek",
+    "/api/settings/providers/test",
+    "/api/agent/ask",
     "/api/experiments/execute",
     "/api/decisions/approve",
     "/api/research/loop/step",
@@ -479,8 +487,8 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, latest_runtime_probe(self.workspace) or {"status": "not_probed"})
             elif path == "/api/build/scaffold":
                 self._send(HTTPStatus.OK, latest_training_scaffold(self.workspace) or {"status": "not_built"})
-            elif path == "/api/settings/deepseek":
-                self._send(HTTPStatus.OK, deepseek_settings_status())
+            elif path == "/api/settings/providers":
+                self._send(HTTPStatus.OK, providers_status())
             elif path == "/api/rules/report":
                 self._send(HTTPStatus.OK, _rule_report(self.workspace))
             elif path == "/api/rules/evidence":
@@ -769,14 +777,36 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 write_json_atomic(self.workspace / "experiments" / "approvals" / f"{experiment_id}.json", approval)
                 ledger.record_event("experiment_approval_recorded", approval)
                 self._send(HTTPStatus.CREATED, approval)
-            elif path == "/api/settings/deepseek":
-                status = configure_deepseek(str(body.get("api_key", "")), str(body.get("model", "")))
-                ledger.record_event("deepseek_configured", {"model": status["model"], "key_source": status["key_source"]})
+            elif path == "/api/settings/providers":
+                # 新增或更新一套来源。`api_key` 留空＝不改已存的密钥（改地址/模型不用重填密钥）。
+                status = upsert_provider(
+                    provider_id=(str(body.get("id")) if body.get("id") else None),
+                    name=str(body.get("name", "")),
+                    base_url=str(body.get("base_url", "")),
+                    model=str(body.get("model", "")),
+                    api_key=str(body.get("api_key", "")),
+                    models=body.get("models"),
+                    preset=str(body.get("preset") or "custom"),
+                )
+                ledger.record_event(
+                    "model_provider_saved",
+                    {"id": status["active"], "model": status["model"], "count": len(status["providers"])},
+                )
                 self._send(HTTPStatus.OK, status)
-            elif path == "/api/settings/deepseek/test":
-                outcome = verify_connection()
+            elif path == "/api/settings/providers/active":
+                status = set_active_provider(str(body.get("id", "")))
+                ledger.record_event("model_provider_activated", {"id": status["active"], "model": status["model"]})
+                self._send(HTTPStatus.OK, status)
+            elif path == "/api/settings/providers/delete":
+                removed = str(body.get("id", ""))
+                status = delete_provider(removed)
+                ledger.record_event("model_provider_removed", {"id": removed, "active": status["active"]})
+                self._send(HTTPStatus.OK, status)
+            elif path == "/api/settings/providers/test":
+                # 可以指定某一套来试（还没切过去也能先验证）。
+                outcome = verify_connection(str(body.get("id")) if body.get("id") else None)
                 self._send(HTTPStatus.OK if outcome["ok"] else HTTPStatus.BAD_GATEWAY, outcome)
-            elif path == "/api/agent/deepseek":
+            elif path == "/api/agent/ask":
                 prompt = str(body.get("prompt", "")).strip()
                 stage = str(body.get("stage", "当前项目阶段")).strip()[:120]
                 if not 1 <= len(prompt) <= 8_000:
@@ -910,7 +940,7 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except (SchedulerError, MaterialSchedulerError, DataAuditSchedulerError, ResearchLoopError) as exc:
             self._error(HTTPStatus.CONFLICT, str(exc))
-        except DeepSeekError as exc:
+        except LLMError as exc:
             self._error(HTTPStatus.BAD_GATEWAY, str(exc))
         except Exception as exc:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(exc).__name__}: {exc}")

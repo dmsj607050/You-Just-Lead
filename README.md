@@ -13,7 +13,9 @@
 
 1. 到 [Releases](../../releases) 下载 `YouJustLead.exe`（单文件，不需要先装 Python）。
 2. 双击。它会在「文档/YouJustLead」建好工作区、在本机回环地址起后端，并打开一个无地址栏的应用窗口。
-3. 首次使用在「设置 → 模型」里填 DeepSeek API Key，或先设环境变量 `DEEPSEEK_API_KEY`。
+3. 首次使用进「设置 → 模型」，从预设里挑一家（DeepSeek / OpenAI / 月之暗面 / 阿里百炼 /
+   本地 Ollama / 自定义），填一次密钥即可；也可以先设环境变量 `YJL_LLM_API_KEY`。
+   想换一家、或者同时留着几家切换，都在这一页。
 
 想离线看上一次的状态：`YouJustLead.exe --offline`。它不启动后端，直接打开上一次成功同步的静态快照
 （页面与数据都打包在本机，一个网络请求都不发）。

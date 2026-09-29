@@ -480,6 +480,19 @@ textarea {
   border-color: var(--primary);
 }
 
+/* 一行按钮。列表右侧是一组操作（设为当前 / 测试 / 编辑 / 删除），表单底部是保存与取消。 */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-row.end {
+  justify-content: flex-end;
+}
+.btn-row.spaced {
+  margin-top: 12px;
+}
+
 .notice {
   font-size: 13px;
   border-radius: var(--radius);
