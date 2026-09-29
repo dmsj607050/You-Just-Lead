@@ -14,6 +14,34 @@
  * 它只在离线页里存在。线上那份页面永远拿不到这个全局变量，所以下面的分支不影响正常运行。
  */
 const OFFLINE = window.__OFFLINE_SNAPSHOT__ || null;
+const THEME_OPTIONS = ['system', 'light', 'dark'];
+const THEME_LABELS = { system: '跟随系统', light: '浅色', dark: '深色' };
+
+/** 外观偏好只保存在当前 Windows 用户的浏览器本地，不写入工作区或服务器。 */
+function applyTheme(theme, persist = false) {
+  const selected = THEME_OPTIONS.includes(theme) ? theme : 'system';
+  document.documentElement.dataset.theme = selected;
+  const label = document.getElementById('theme-label');
+  const button = document.getElementById('theme-toggle');
+  if (label) label.textContent = `外观：${THEME_LABELS[selected]}`;
+  if (button) {
+    button.setAttribute('aria-label', `外观：${THEME_LABELS[selected]}。点击切换`);
+    button.title = `当前外观：${THEME_LABELS[selected]}，点击切换`;
+  }
+  if (persist) {
+    try {
+      localStorage.setItem('yjl.theme', selected);
+    } catch (_) {
+      // 隐私窗口禁用存储时，本次会话仍可切换主题。
+    }
+  }
+}
+
+function cycleTheme() {
+  const current = document.documentElement.dataset.theme || 'system';
+  const next = THEME_OPTIONS[(THEME_OPTIONS.indexOf(current) + 1) % THEME_OPTIONS.length];
+  applyTheme(next, true);
+}
 
 const API = {
   /**
@@ -262,6 +290,9 @@ const TOPBAR = `<div class="topbar">
     <span>You Just Lead</span>
   </div>
   <div class="topbar-spacer"></div>
+  <button class="chip-action theme-toggle" id="theme-toggle" data-action="theme" aria-label="外观：跟随系统。点击切换" title="当前外观：跟随系统，点击切换">
+    <span aria-hidden="true">◐</span><span id="theme-label">外观：跟随系统</span>
+  </button>
   <span id="backend-state"></span>
 </div>
 <div class="topbar-divider"></div>`;
@@ -408,6 +439,11 @@ document.addEventListener('click', async (event) => {
   const action = target.dataset.action;
   const key = target.dataset.key;
 
+  if (action === 'theme') {
+    cycleTheme();
+    return;
+  }
+
   if (action === 'nav') {
     State.nav = key;
     if (window.location.hash !== `#${key}`) window.location.hash = key;
@@ -496,6 +532,13 @@ async function boot() {
     <div class="sidebar" id="sidebar"></div>
     <div class="content" id="content"></div>
   </div></div>`;
+  let savedTheme = 'system';
+  try {
+    savedTheme = localStorage.getItem('yjl.theme') || 'system';
+  } catch (_) {
+    // 存储不可用时沿用系统主题。
+  }
+  applyTheme(savedTheme);
   render();
   // 先取契约再取页面数据：视图渲染要用契约里的中文名与色调，
   // 反过来会出现"第一屏全是英文动作名，刷新一下又变中文"的抖动。
