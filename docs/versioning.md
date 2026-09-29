@@ -108,6 +108,12 @@ Set-Location 'B:\You Just Lead\competition-agent\device'; hvigorw.bat clean asse
 理由见 `docs/architecture.md` D10）。**它不是必须放在仓库根才能构建** ——
 上面这条命令就是在子目录里跑的，已实测通过。
 
+**克隆之后要先配一次签名**，否则编出来的是 `entry-default-unsigned.hap`，而发布清单要的是
+signed 那一个，会直接报阻塞。配置本身不在版本库里：`device/build-profile.json5` 同时装着
+签名口令与本机绝对路径，两样都不该进公开仓库，所以它被 `.gitignore` 掉了，版本库里留的是
+`device/build-profile.json5.example`。复制一份、在 DevEco 里 `File > Project Structure >
+Signing Configs` 配一次即可（它会把口令与路径填回来）。
+
 第 3 步会把清单里**确实存在**的产物复制到 `release/`（复制，不是移动：`dist/` 仍是构建产物的原处），
 并写出 `release/SHA256SUMS.txt` —— 下载页要贴的那几行是算出来的，不是手抄的。缺的产物直接跳过。
 

@@ -80,6 +80,19 @@
   `release_ready: true` 而端侧那半没被看过。现在端侧在本仓库的 `device/` 子目录，19 个提交的
   历史原样保留，那 9 处 `skipTest` 全部去掉（缺 `device/` 直接红），HAP 无条件进产物清单。
   理由、实测证据与"合仓没修好什么"见 `docs/architecture.md` D10。
+- **清掉读不到的东西**（2026-09-28）：八份描述"待实现"状态的旧 README（`agents/`、`tests/`、
+  `tools/`、`templates/`、`docker/`、`app/ui/`、`app/orchestrator/`，其中 `app/ui/` 那份还写着
+  要放 Streamlit 仪表盘，而 D7 已把仪表盘删了）、四个没人引用的目录、D2 就写明读不到的旧论文产物、
+  `paper/evidence_map.json` 空壳、`docs/first_phase.md`、目录里已有真文件却还留着的 `.gitkeep`，
+  以及端侧 1 MB 设计素材（与 `docs/assets/logo.png` 是同一份 logo）。跟踪文件 370 → 334，
+  体积约 5.3 MB → 2.61 MB。讯飞那份**唯一编译好的论文 PDF** 移进了它所属的工作区。
+- **`workspace/*/data/metadata.jsonl` 不再跟踪**：它是赛事数据的逐文件清单（8001 行路径与 sha256），
+  而仓库是公开的，`.gitignore` 自己开头就写着规则禁止传播赛事数据。本地文件保留、审计可重跑；
+  历史里仍有它，要清干净需要重写历史。同类修正：`pyproject.toml` 的版本曾是 `0.1.9`
+  （`VERSION` 已是 `1.0.0-rc.1`），`Pillow` 被核心路径 import 却没声明 —— 都修了，
+  并加了一条测试比对 `pyproject.toml` 与 `VERSION`，让这种漂移不再沉默。
+- **LICENSE 从无到 MIT**；`device/build-profile.json5` 退出跟踪（里面是签名口令与本机绝对路径，
+  不该进公开仓库），版本库改留 `device/build-profile.json5.example` + 配置说明。
 - 修掉一个偶发失败：研究循环作业的响应与后台线程有竞态，"接的这一刻状态还是 running" 这条断言
   会偶发变红。作业模式承诺的是「给作业号 + 这个号查得到终态」，断言改成断言这两件。
 - **界面不再把跑不起来的设计算成"欠着的活"**：模型判定"这条假设没法在一次有对照的实验里判决"

@@ -1,0 +1,71 @@
+{
+  // 这是**模板**，不是能直接用的配置。克隆之后：复制成 build-profile.json5，
+  // 再去 DevEco 里配一次签名，DevEco 会把口令与路径填回来。
+  //
+  // 为什么不把真文件放进版本库：它同时装着两样不该公开的东西 ——
+  //   1. 签名口令（keyPassword / storePassword）；
+  //   2. 本机绝对路径（~/.ohos/config/ 下的 .cer / .p7b / .p12），对别人是死路径，
+  //      别人克隆下来连构建都跑不起来。
+  // 所以真文件在 .gitignore 里，版本库只留结构。
+  //
+  // 怎么配（一次性）：
+  //   DevEco Studio 打开本目录 → File > Project Structure > Signing Configs →
+  //   勾「Automatically generate signature」，或手动选 .p12 / .p7b / .cer → Apply。
+  //   之后 `hvigorw clean assembleHap --no-daemon` 就会产出
+  //   entry/build/default/outputs/default/entry-default-signed.hap。
+  //   不配也能构建，但产出的是 unsigned，发布清单会因此报阻塞。
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "<你的 .cer 路径>",
+          "keyAlias": "debugKey",
+          "keyPassword": "<DevEco 填>",
+          "profile": "<你的 .p7b 路径>",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "<你的 .p12 路径>",
+          "storePassword": "<DevEco 填>"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "6.1.1(24)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

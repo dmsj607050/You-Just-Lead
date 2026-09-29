@@ -10,3 +10,8 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+
+# 工程根的这个文件里装着签名口令与本机绝对路径，两样都不该进公开仓库。
+# 版本库里留的是 build-profile.json5.example（结构与配法说明），克隆后复制一份再配签名。
+# 注意它**不是**构建产物的忽略：这是配置，每个开发者一份。
+/build-profile.json5
