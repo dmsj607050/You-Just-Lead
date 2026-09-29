@@ -1,3 +1,17 @@
-# Design documentation
+# 文档索引
 
-Use this directory for architecture decisions, integration notes, and deployment guides. Competition-specific reports belong in `workspace/current_competition/reports/`.
+| 文件 | 内容 | 什么时候看 |
+|---|---|---|
+| [architecture.md](architecture.md) | **架构决定记录**：D1–D10，每条都注明验收依据 | 想知道"为什么是这样设计的"、或准备改边界时 |
+| [operation_guide.md](operation_guide.md) | 操作指南：跑实验、连接端侧、模拟器端口转发、局域网接入 | 要动手跑东西时 |
+| [versioning.md](versioning.md) | 版本流、发布清单字段、**什么算"可以发布"**、切一次发布要做什么 | 发版前 |
+| [SUBMISSION.md](SUBMISSION.md) | 比赛提交材料 | 准备提交时 |
+| `RELEASE_<版本>.md` | 每次发布的说明：版本 + commit + 产物 **SHA-256** | 要核对"下载到的是不是发布的那一个文件"时 |
+| `assets/logo.png` | README 用的品牌图 | —— |
+
+**约定**：
+
+- 架构类决定写进 `architecture.md`（编号 D1、D2…），不要散落在别处；
+- 发布说明里必须留产物摘要 —— 产物不进版本库，能证明它身份的只有摘要；
+- 竞争项目的产物（实验、报告、论文）属于工作区，写在 `workspace/<项目 id>/`，
+  不写在 `docs/`。

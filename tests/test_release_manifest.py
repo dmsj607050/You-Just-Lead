@@ -343,6 +343,35 @@ class DeviceAppVersionTests(unittest.TestCase):
         )
 
 
+class PyprojectVersionTests(unittest.TestCase):
+    """`pyproject.toml` 里的版本必须与 `VERSION` 一致。
+
+    它是**第二处**声明同一件事的地方，而 D8 的原则是「版本只有一处来源」。这里不删那一行
+    （`[project]` 表要求有版本），而是把它钉住 —— `pyproject.toml` 曾经停在 `0.1.9`
+    五个版本没动过，正是因为没有任何东西比对它们。
+
+    刻意不用 `tomllib`：那是 3.11+ 才有的，而本项目 `requires-python = ">=3.10"`。
+    """
+
+    def test_pyproject_declares_the_pep440_form_of_the_version_file(self) -> None:
+        version = read_project_version(_repo_root())
+        suffix = {"dev": ".dev", "alpha": "a", "beta": "b", "rc": "rc", "release": ""}[version.stage]
+        serial = "" if version.serial is None else str(version.serial)
+        expected = f"{version.core}{suffix}{serial}"
+
+        text = (_repo_root() / "pyproject.toml").read_text(encoding="utf-8")
+        project_section = text.split("[project]", 1)[1]
+        declared = re.search(r'^\s*version\s*=\s*"([^"]+)"', project_section, re.M)
+        self.assertIsNotNone(declared, "pyproject.toml 的 [project] 里没有 version")
+
+        self.assertEqual(
+            declared.group(1),
+            expected,
+            f"pyproject.toml 的版本与 VERSION（{version.text}）对不上："
+            f"它的 PEP 440 写法应为 {expected}",
+        )
+
+
 class ManifestWritingTests(unittest.TestCase):
     def test_writes_next_to_the_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

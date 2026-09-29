@@ -12,6 +12,12 @@ workspace/*/data/interim/*
 !workspace/*/data/interim/.gitkeep
 workspace/*/data/processed/*
 !workspace/*/data/processed/.gitkeep
+# 数据审计的产出：逐**文件**的清单（路径 + 字节数 + sha256 + 尺寸），8001 行。
+# 上面那条「禁止传播赛事数据」指的是原始文件，而这份是它的完整索引 —— 性质上更接近
+# 赛事数据本身，不该随公开仓库分发。审计随时能用 `python main.py` 重跑出来，所以不跟踪。
+# 注意：它在 2026-09-24 的提交里，历史仍然有；只是不再跟踪新版本。要连历史一起清掉
+# 需要重写历史 + 强推（或者把仓库改成 private），那是另一个决定。
+workspace/*/data/metadata.jsonl
 workspace/*/models/*
 !workspace/*/models/.gitkeep
 workspace/*/experiments/artifacts/*

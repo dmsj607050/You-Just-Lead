@@ -76,7 +76,13 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 
 ## 从源码跑
 
+需要 **Python 3.10+**（`pyproject.toml` 的 `requires-python`）。依赖清单也在那里，
+核心是三个包 —— 训练、追踪、桌面端各自还有额外的，按需装：
+
 ```powershell
+python -m pip install "pypdf>=5.0" "PyYAML>=6.0" "Pillow>=10.0"
+# 要跑真实训练再加 torch；要 MLflow 追踪再加 mlflow；要自己构建桌面端再加 keyring + pyinstaller
+
 python main.py init
 python main.py serve                       # 本地接口 + 内置界面（默认 127.0.0.1:8765）
 python main.py run --config configs/<你的>.yaml
@@ -84,6 +90,8 @@ python main.py status
 python -m unittest discover -s tests       # 全量测试
 python main.py release-manifest            # 发布清单；退出码即「能不能发布」
 ```
+
+只想用不想配环境的话，别走这条路：到 Releases 下载 `YouJustLead.exe` 即可（见上面）。
 
 工作区在 `workspace/<项目 id>/`，每个子目录是一个项目；有哪些项目、当前是哪一个记在 `workspace/projects.json`。
 
@@ -93,6 +101,7 @@ python main.py release-manifest            # 发布清单；退出码即「能�
 - `app/orchestrator/`：研究循环的编排层（策略 / 验证器 / 执行器 / 状态 / 回填）。
 - `app/code_tools.py`：Agent 唯一能动手的地方（读、写、搜、跑命令，跑命令在隔离容器里）。
 - `web/`：Windows 端内置界面（无框架、无构建步骤，由后端自己 serve）。
+- `device/`：鸿蒙端 ArkTS 工程（DevEco 工程根，构建命令见 `docs/versioning.md`）。
 - `workspace/`：每个子目录是一场比赛的工作区。`database/`：账本与迁移。`paper/`：论文与证据映射。
 
 ## 文档
@@ -100,9 +109,9 @@ python main.py release-manifest            # 发布清单；退出码即「能�
 | 文档 | 内容 |
 |---|---|
 | [AGENT.md](AGENT.md) | 行为约束与安全边界 |
-| [docs/architecture.md](docs/architecture.md) | 架构决定记录（含 D9：科研契约只有一处定义） |
+| [docs/architecture.md](docs/architecture.md) | 架构决定记录（D1–D10：边界、契约、发布门禁、端侧并入） |
 | [docs/operation_guide.md](docs/operation_guide.md) | 操作指南（含内置 Windows 端与鸿蒙端） |
 | [docs/versioning.md](docs/versioning.md) | 版本流与发布清单；什么算「可以发布」 |
 | [docs/SUBMISSION.md](docs/SUBMISSION.md) | 比赛提交材料 |
+| [CHANGELOG.md](CHANGELOG.md) | 每个版本改了什么 |
 | [docs/RELEASE_*.md](docs/) | 历史发布说明（版本号 + commit + 产物 SHA-256） |
-| [app/orchestrator/README.md](app/orchestrator/README.md) | 编排层各模块的职责与三处硬约束 |

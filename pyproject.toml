@@ -1,11 +1,17 @@
 [project]
 name = "competition-agent"
-version = "0.1.9"
+# 版本号的唯一来源是仓库根的 VERSION。这里是它的 PEP 440 写法
+# （`1.0.0-rc.1` → `1.0.0rc1`），由 tests/test_release_manifest.py 对着 VERSION 核对 ——
+# 它曾经停在 0.1.9 五个版本没动，因为没人比对。
+version = "1.0.0rc1"
 description = "Experiment-driven workflow scaffold for machine-learning competitions"
 requires-python = ">=3.10"
 dependencies = [
   "pypdf>=5.0",
   "PyYAML>=6.0",
+  # agents/data_agent.py、tools/submission.py、training/* 直接 import PIL。
+  # 它既不属于 training 也不属于桌面端，是核心路径，所以放在这里而不是某个 extra 里。
+  "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]

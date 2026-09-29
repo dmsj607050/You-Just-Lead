@@ -51,10 +51,11 @@
   `app/trace_service.py::paper_package_report`（读取位置）、
   `tests/test_workflow_extensions.py::test_paper_evidence_lands_where_the_trace_chain_reads_it`、
   `::test_workspace_can_be_relocated_without_losing_the_evidence_package`。
-- **副作用（如实记录）**：真实项目里那份旧产物在 `competition-agent/paper/generated/`（工作区之外），
-  新规则下它不再被溯源链读到，`/api/trace` 的论文链会显示"未生成"。
-  旧文件没有被删（那是历史证据），要恢复显示就在工作区里重新生成：
-  `python main.py paper --workspace workspace/current_competition`。
+- **副作用（已清理）**：真实项目里那份旧产物原先在 `competition-agent/paper/generated/`（工作区之外），
+  新规则下它不再被溯源链读到，`/api/trace` 的论文链会显示"未生成"。当时没有删它（那是历史证据）。
+  **2026-09-28 清掉了** —— 工作区里已有同一份的更新版本（`workspace/aic2026/paper/generated/`），
+  留着一份读不到的副本只会让人以为论文生成坏了。要恢复显示就在工作区里重新生成：
+  `python main.py paper --workspace workspace/<项目 id>`。
 
 ### D3 账本按项目隔离，且 schema 有版本与迁移
 
