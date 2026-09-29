@@ -20,7 +20,9 @@ MAJOR.MINOR.PATCH-<stage>.<序号>   预发布
 `MAJOR.MINOR.PATCH` 部分（`1.0.0-rc.1` ↔ `versionName: "1.0.0"`）。
 对不上就是「文档里的版本 ≠ 实际构建的版本」，工具会把它记成阻塞项。
 
-当前：`1.0.0-rc.4` —— Python 全量回归 431 项通过；HAP 清理重建并安装验收完成，模拟器冷启动下浅色与深色界面均已查看；两个 Windows EXE 重建后 `--help` 均退出 0，本地 API 隔离冒烟检查 `/health` 返回 `ok`。`release-manifest --print` 报 `release_ready: true`，这是版本、必需产物与干净工作区的发布技术门槛，不代表六个 Gate 均通过；GitHub Release 尚未发布。真机、窄屏与字体放大尚未验。G4/G5/G6 仍不能标记通过：真实训练记录已存在，但 manifest/result 状态不一致，且数据泄漏、跨种子复现等核查仍未闭合。D12 的云端远程接入与多用户隔离仍未验收。
+当前：`1.0.0-rc.5` —— Python 全量回归 437 项通过（0 failures、0 errors、0 skipped）；两个 Windows EXE 已重建，`--help` 实跑退出码均为 0。API EXE 在隔离的 B 盘数据根启动，`/health` 实返 `status: ok` 和隔离工作区路径；测试服务已停止。该候选没有端侧源代码变更，复用 rc.4 的 HAP 与模拟器浅色/深色验收；真机、窄屏和字体放大尚未验。候选目录与 `release-manifest --print` 的最终干净提交记录见 `docs/RELEASE_1.0.0-rc.5.md`。这项清单门槛不代表六个 Gate 均通过，GitHub Release 尚未发布。G4/G5/G6 仍不能标记通过：真实训练记录已存在，但 manifest/result 状态不一致，且数据泄漏、跨种子复现等核查仍未闭合。
+
+部署形态仍是本地模式：Windows EXE 在用户电脑启动后端，鸿蒙端默认连接本机 API。用户可以配置自己的兼容模型来源，密钥存本机系统凭据库；这不是云平台账号，也没有让客户端连接已部署服务器。D12 的远程 API 合约、认证和多用户数据隔离仍未验收。
 
 ---
 
@@ -74,7 +76,7 @@ python main.py release-manifest --print    # 只看不写
 三条**同时**成立（`release_ready`）：
 
 1. 版本号处于 `rc` 或 `release` 阶段；
-2. 所有「发布必需」的产物都在（后端 exe、端侧 HAP）；
+2. 所有「发布必需」的产物都在（API EXE、Windows 桌面 EXE、端侧 HAP）；
 3. 工作仓库**没有未提交改动** —— 发布必须从干净的提交切出来，否则 commit 号对不上实际内容。
 
 缺哪条就会出现在 `release_blockers` 里。这条门槛针对的是一个已发生过的真问题：

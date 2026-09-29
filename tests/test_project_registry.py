@@ -314,6 +314,26 @@ class ProjectEndpointTests(unittest.TestCase):
         self.assertEqual(health["status"], "ok")
         self.assertTrue(str(health["workspace"]).endswith("current_competition"))
 
+    def test_health_reports_the_pinned_workspace_path(self) -> None:
+        pinned = (self.root / "isolated-preview").resolve()
+        handler = type(
+            "PinnedTestProjectApiHandler",
+            (CompetitionApiHandler,),
+            {"project_root": self.root, "workspace": pinned},
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(f"http://127.0.0.1:{server.server_port}/health", timeout=5) as response:
+                health = json.loads(response.read())
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(health["status"], "ok")
+        self.assertEqual(health["workspace"], str(pinned))
+
 
 if __name__ == "__main__":
     unittest.main()

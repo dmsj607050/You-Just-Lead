@@ -64,6 +64,48 @@ function statusLabel(name) {
   return Contract.statusLabel(name) || name || '';
 }
 
+/** 只翻译后端已知的工作流阻塞句；未知内容仍原样显示，避免编造含义。 */
+function workflowBlockerLabel(value) {
+  const labels = {
+    'No competition_spec.yaml exists.': '还没有竞赛规则文件。先导入官方规则，再逐项核对。',
+    'Official rules require human confirmation.': '规则草案还没有经过人工复核确认。',
+    'No built-in adapter matches the confirmed task type; add or select a task-specific adapter.':
+      '当前任务类型还没有匹配的执行器。确认任务类型后，再选择适配器。',
+    'Raw data has not been audited.': '原始数据尚未审计。审计只读取原始数据，不会修改它。',
+    'No completed baseline experiment exists.': '还没有完成可复现的基线实验。',
+  };
+  return labels[String(value)] || String(value ?? '');
+}
+
+/** 把常见待办改写成面向用户的动作；未知建议保持原文以保留来源信息。 */
+function workflowActionLabel(value) {
+  const labels = {
+    'Resolve official-rule questions and explicitly approve the specification.':
+      '对照官方规则补齐待办，并由你逐项复核后确认。',
+    'Run the deterministic data audit before creating a real baseline.':
+      '先对只读原始数据运行审计，再制定真实基线。',
+    'Search research sources using the task and metric from the approved specification.':
+      '规则确认后，按任务类型和主指标检索相关研究。',
+    'After rules and audit are approved, run one reproducible baseline with a frozen configuration.':
+      '规则和数据审计通过后，使用冻结配置运行可复现基线。',
+  };
+  return labels[String(value)] || String(value ?? '');
+}
+
+function ruleGapReasonLabel(value) {
+  const reason = String(value ?? '');
+  if (reason.startsWith('The confirmed value is missing')) return '请对照官方原文填写此规则值。';
+  if (reason.startsWith('Use a valid integer value')) return '请填写非负整数，并按原文确认后记录。';
+  if (reason.startsWith('Use a valid number value')) return '请填写非负数，并按原文确认后记录。';
+  if (reason.startsWith('Use a valid integer_list value')) return '请按字段提示填写两个正整数，顺序与官方原文一致。';
+  if (reason.startsWith('Use a valid text_list value')) return '请填写至少一项规则要求的内容。';
+  if (reason.startsWith('Record the official rule-page')) return '请记录规则来源类型、位置和复核日期。';
+  if (reason.startsWith('Add an exact quote')) return '请填写原文引句、章节、页码或截图名，方便回查。';
+  if (reason.startsWith('Resolve all ')) return '还有官方规则问题待确认。';
+  if (reason.startsWith('Use exactly loose_png or submit_zip')) return '请根据官方运行时契约选择输出方式。';
+  return reason;
+}
+
 function traceExperimentStatus(name) {
   const labels = {
     planned: '计划中',
@@ -128,23 +170,32 @@ Views.overview = function (data) {
   let body = '';
 
   if (section === 'project') {
+    const unresolvedRules = competition.requires_human_confirmation === true;
     const rows = [
-      UI.KeyValueRow('竞赛', competition.name),
-      UI.KeyValueRow('任务类型', competition.task_type, { mono: true }),
-      UI.KeyValueRow('主指标', competition.metric),
+      UI.KeyValueRow('竞赛', projectValue(competition.name)),
+      UI.KeyValueRow('任务类型', projectValue(competition.task_type), { mono: true }),
+      UI.KeyValueRow('主指标', projectValue(competition.metric)),
       UI.KeyValueRow('适配器', competition.preferred_runner, { mono: true }),
       UI.KeyValueRow('需要人工确认', competition.requires_human_confirmation ? '是' : '否'),
       UI.KeyValueRow('最后更新', workflow.stage ? (STAGE_LABELS[workflow.stage] || workflow.stage) : null),
     ].join('');
     const total = (readiness.required_fields || []).length;
     const missing = gaps.length;
-    const progress = UI.ProgressBar('规则字段完成度', total - missing, total);
+    const progress = total > 0
+      ? UI.ProgressBar('规则字段完成度', Math.max(0, total - missing), total)
+      : UI.EmptyHint('尚未形成可核对的规则字段；导入官方规则后会显示进度。');
     const blockers = (workflow.blockers || []).length
       ? `<div class="kv-row"><div class="kv-label">阻塞项</div><div class="kv-value">` +
-        (workflow.blockers || []).map((item) => UI.Badge(item, 'warn')).join(' ') +
+        (workflow.blockers || []).map((item) => UI.Badge(workflowBlockerLabel(item), 'warn')).join(' ') +
         '</div></div>'
       : '';
-    body = UI.Card('项目', rows + progress + blockers);
+    const nextStep = unresolvedRules
+      ? '<div class="rule-onboarding">' +
+        '<div><strong>下一步：核对官方规则</strong><p>导入官方文件或规则网页，检查提取结果和原文锚点，再由你写下复核说明。导入不会自动批准，也不会启动训练。</p></div>' +
+        '<button class="btn" data-action="workflow-rules">进入规则关口</button>' +
+        '</div>'
+      : '';
+    body = UI.Card('项目', rows + progress + blockers + nextStep);
   } else if (section === 'workflow') {
     const actions = (data.next_actions || []);
     const first = actions[0];
@@ -408,8 +459,21 @@ Views.workflow = function (data) {
   if (!data) return '';
   const workflow = (data.workflow) || {};
   const actions = (data.actions && data.actions.actions) || [];
+  const ruleReadiness = (data.rules && data.rules.readiness) || {};
+  const ruleStatus = workflow.components && workflow.components.rules;
+  const runner = workflow.recommended_runner;
+  const runnerName = typeof runner === 'string' ? runner : (runner && (runner.runner || runner.name));
+  const runnerLabels = {
+    tabular_classification: '表格分类',
+    tabular_regression: '表格回归',
+    image_segmentation: '图像分割',
+    image_classification: '图像分类',
+    external_detection: '外部目标检测工程',
+  };
+  const runnerLabel = runnerName ? (runnerLabels[runnerName] || runnerName) : '暂无匹配适配器';
   const sections = [
     { key: 'status', label: '现状', tone: (workflow.blockers || []).length ? 'warn' : 'ok' },
+    { key: 'rules', label: '规则与证据', tone: ruleStatus === 'approved' ? 'ok' : 'warn' },
     { key: 'blockers', label: '阻塞项', tone: (workflow.blockers || []).length ? 'danger' : 'ok' },
     { key: 'actions', label: '建议动作', tone: actions.length ? 'ok' : 'muted' },
   ];
@@ -419,22 +483,36 @@ Views.workflow = function (data) {
   let body = '';
   if (section === 'status') {
     const components = workflow.components || {};
+    const componentLabels = {
+      rules: '竞赛规则',
+      data_audit: '数据审计',
+      research: '研究检索',
+      baseline: '基线实验',
+      approvals: '实验审批',
+    };
+    const componentState = (value) => {
+      if (['approved', 'complete', 'completed', 'recorded'].includes(value)) return { label: '已完成', tone: 'ok' };
+      if (['awaiting_human_confirmation', 'pending'].includes(value)) return { label: '待人工确认', tone: 'warn' };
+      if (['missing', 'none', 'not_started'].includes(value)) return { label: '未开始', tone: 'muted' };
+      return { label: '未知', tone: 'muted' };
+    };
     const rows = ['rules', 'data_audit', 'research', 'baseline', 'approvals']
       .map((key) => {
-        const value = components[key];
-        const tone = value === true ? 'ok' : value === false ? 'danger' : 'muted';
-        return `<div class="kv-row"><div class="kv-label">${UI.esc(key)}</div><div class="kv-value">${UI.Badge(yesNo(value), tone)}</div></div>`;
+        const state = componentState(components[key]);
+        return `<div class="kv-row"><div class="kv-label">${UI.esc(componentLabels[key])}</div><div class="kv-value">${UI.Badge(state.label, state.tone)}</div></div>`;
       })
       .join('');
     body = UI.Card(
       '工作流现状',
       rows +
         UI.KeyValueRow('自动执行', workflow.automatic_execution ? '开启' : '关闭（高风险动作由人批准）') +
-        UI.KeyValueRow('推荐适配器', workflow.recommended_runner, { mono: true })
+        UI.KeyValueRow('推荐适配器', runnerLabel, { mono: true })
     );
+  } else if (section === 'rules') {
+    body = ruleWorkflowBody(data);
   } else if (section === 'blockers') {
     const blockers = workflow.blockers || [];
-    body = UI.Card('阻塞项', blockers.length ? blockers.map((item, index) => `<div class="timeline-item"><div class="timeline-index">${index + 1}</div><div class="timeline-body"><div class="timeline-detail">${UI.esc(text(item))}</div></div></div>`).join('') : UI.EmptyHint('当前没有阻塞项'));
+    body = UI.Card('阻塞项', blockers.length ? blockers.map((item, index) => `<div class="timeline-item"><div class="timeline-index">${index + 1}</div><div class="timeline-body"><div class="timeline-detail">${UI.esc(workflowBlockerLabel(item))}</div></div></div>`).join('') : UI.EmptyHint('当前没有阻塞项'));
   } else {
     body = UI.Card(
       '建议动作',
@@ -443,7 +521,7 @@ Views.workflow = function (data) {
             .map(
               (item) =>
                 '<div class="list-row"><div class="list-main">' +
-                `<div class="list-title">${UI.esc(text(item.action || item.title || item))}</div>` +
+                `<div class="list-title">${UI.esc(workflowActionLabel(item.action || item.title || item))}</div>` +
                 `<div class="list-sub">${UI.esc(text(item.reason || item.detail || item.evidence))}</div>` +
                 '</div>' +
                 (item.priority ? `<div class="list-side">${UI.Badge(item.priority, badgeToneForState(item.priority))}</div>` : '') +
@@ -457,10 +535,172 @@ Views.workflow = function (data) {
   return UI.PageHeader('工作流', status) + UI.Rail(sections, section) + body;
 };
 
+function ruleWorkflowBody(data) {
+  const report = data.rules || {};
+  const spec = report.spec || {};
+  const source = spec.rule_source || {};
+  const readiness = report.readiness || {};
+  const gaps = readiness.gaps || [];
+  const evidence = data.evidence || {};
+  const approved = spec.approval && spec.approval.requires_human_confirmation === false;
+
+  const importBusy = !!State.drafts.ruleImporting;
+  const importMessage = State.drafts.ruleImportMessage
+    ? UI.Notice(State.drafts.ruleImportMessage.text, State.drafts.ruleImportMessage.tone)
+    : '';
+  const sourceName = source.path ? String(source.path).split(/[\\/]/).pop() : '';
+  const originUrl = /^https?:\/\//i.test(String(source.origin_url || '')) ? String(source.origin_url) : '';
+  const sourceSummary = source.sha256
+    ? `<div class="rule-source-summary"><strong>已留存规则原件</strong><span>${UI.esc(sourceName || '官方规则来源')}</span><code>SHA-256 ${UI.esc(source.sha256)}</code>${originUrl ? `<a href="${UI.esc(originUrl)}" target="_blank" rel="noreferrer">查看来源网页</a>` : ''}</div>`
+    : UI.EmptyHint('还没有导入规则原件。导入只生成待核对草案，不会自动批准。');
+  const importForm =
+    '<div class="rule-import-grid">' +
+    '<label class="rule-form-field"><span>官方规则文件（PDF / Markdown / TXT / HTML，最大 12 MB）</span><input id="rule-source-file" class="input" type="file" accept=".pdf,.md,.markdown,.txt,.html,.htm"' + (OFFLINE || importBusy ? ' disabled' : '') + '></label>' +
+    '<div class="rule-or">或者填写公开规则页</div>' +
+    '<label class="rule-form-field"><span>官方规则页 URL</span><input id="rule-source-url" class="input" type="url" placeholder="https://…" value="' + UI.esc(State.drafts.ruleSourceUrl || '') + '" data-draft="ruleSourceUrl"' + (OFFLINE || importBusy ? ' disabled' : '') + '></label>' +
+    '</div>' +
+    '<p class="rule-help">请选择文件或网页其中一种。文件原件会保存在当前工作区并记录 SHA-256；网页由本机执行器读取。扫描版 PDF 需要先做 OCR。系统只提取草案，不会替你判断规则是否正确，也不会自动批准或开始训练。</p>' +
+    '<div class="btn-row spaced"><button class="btn" data-action="rule-import"' + (OFFLINE || importBusy ? ' disabled' : '') + '>' + (importBusy ? '正在导入…' : '导入并生成待核对草案') + '</button></div>';
+  const importCard = UI.Card('第一步：导入官方规则', sourceSummary + importForm + importMessage);
+
+  const gapsHtml = gaps.length
+    ? '<div class="rule-gap-list">' + gaps.map((gap) =>
+      `<div class="rule-gap"><strong>${UI.esc(gap.field || '规则字段')}</strong><span>${UI.esc(ruleGapReasonLabel(gap.reason))}</span></div>`
+    ).join('') + '</div>'
+    : UI.EmptyHint(readiness.ready ? '当前必填规则字段和证据锚点齐备；仍需由人复核并记录。' : '导入原件后会在这里列出待核对项。');
+  const reportText = report.report_markdown || '';
+  const reportDetails = reportText
+    ? `<details class="rule-report-details"><summary>展开规则提取报告，对照原件逐项核验</summary>${UI.MonoBlock(reportText)}</details>`
+    : '';
+  const profile = readiness.profile && readiness.profile !== 'generic'
+    ? `<div class="meta-line">规则档案：<code>${UI.esc(readiness.profile)}</code></div>`
+    : '';
+  const reviewCard = UI.Card('第二步：核对提取结果', profile + gapsHtml + reportDetails);
+
+  const evidenceCard = ruleEvidenceCard(evidence, readiness);
+  const approvalCard = ruleApprovalCard(spec, readiness, source);
+  return importCard + reviewCard + evidenceCard + approvalCard;
+}
+
+function ruleEvidenceCard(form, readiness) {
+  if (!form.supported) {
+    return UI.Card(
+      '第三步：记录官方出处',
+      UI.Notice(
+        '当前任务类型没有已定义的逐字段规则档案。系统不会套用其他竞赛的字段；请先检查提取报告，并补齐规则待办。',
+        'warn'
+      )
+    );
+  }
+
+  const fields = form.fields || [];
+  const source = form.source || {};
+  const rows = fields.map((item) => ruleEvidenceRow(item)).join('');
+  const total = Number(form.required_field_count) || 0;
+  const missingValues = Number(form.missing_value_count) || 0;
+  const missingAnchors = Number(form.missing_anchor_count) || 0;
+  const reviewDate = State.drafts['rule-evidence-reviewed-at'] !== undefined
+    ? State.drafts['rule-evidence-reviewed-at']
+    : (source.reviewed_at || new Date().toISOString().slice(0, 10));
+  const sourceType = State.drafts['rule-evidence-source-type'] !== undefined
+    ? State.drafts['rule-evidence-source-type'] : (source.source_type || '');
+  const sourceLocator = State.drafts['rule-evidence-source-locator'] !== undefined
+    ? State.drafts['rule-evidence-source-locator'] : (source.source_locator || '');
+  const message = State.drafts.ruleEvidenceMessage
+    ? UI.Notice(State.drafts.ruleEvidenceMessage.text, State.drafts.ruleEvidenceMessage.tone)
+    : '';
+  const disabled = OFFLINE || !!State.drafts.ruleEvidenceSaving;
+  const fieldForm = fields.length
+    ? '<div class="rule-evidence-fields">' + rows + '</div>'
+    : UI.EmptyHint('当前规则档案没有必填字段。');
+
+  return UI.Card(
+    '第三步：逐项记录官方出处',
+    `<div class="rule-evidence-summary">必填 ${total} 项 · 缺值 ${missingValues} 项 · 缺原文锚点 ${missingAnchors} 项</div>` +
+      UI.Notice('每项都要对照官方原文填写值和定位锚点。录入证据不会批准规则，也不会启动训练。', '') +
+      '<div class="rule-source-fields">' +
+      `<label class="rule-form-field"><span>来源类型</span><input id="rule-source-type-evidence" class="input" data-draft="rule-evidence-source-type" value="${UI.esc(sourceType)}" placeholder="例如 official_rule_pdf"${disabled ? ' disabled' : ''}></label>` +
+      `<label class="rule-form-field"><span>来源定位（官方 URL、文档名或章节）</span><input id="rule-source-locator-evidence" class="input" data-draft="rule-evidence-source-locator" value="${UI.esc(sourceLocator)}" placeholder="填写可回查的官方位置"${disabled ? ' disabled' : ''}></label>` +
+      `<label class="rule-form-field"><span>复核日期</span><input id="rule-reviewed-at-evidence" class="input" type="date" data-draft="rule-evidence-reviewed-at" value="${UI.esc(reviewDate)}"${disabled ? ' disabled' : ''}></label>` +
+      '</div>' + fieldForm +
+      '<div class="rule-help">数值、布尔值和列表会按原类型保存。列表请逐项填写；尺寸字段按官方原文的顺序录入。每个值都要附上可回查的原文锚点。</div>' +
+      `<div class="btn-row spaced"><button class="btn" data-action="rule-evidence"${disabled ? ' disabled' : ''}>${State.drafts.ruleEvidenceSaving ? '正在保存证据…' : '保存官方证据'}</button></div>` +
+      message
+  );
+}
+
+function ruleEvidenceRow(item) {
+  const field = String(item.field || '');
+  const valueKey = `rule-evidence-value:${field}`;
+  const anchorKey = `rule-evidence-anchor:${field}`;
+  const currentValue = State.drafts[valueKey] !== undefined ? State.drafts[valueKey] : (item.value || '');
+  const currentAnchor = State.drafts[anchorKey] !== undefined ? State.drafts[anchorKey] : (item.anchor || '');
+  const disabled = OFFLINE || !!State.drafts.ruleEvidenceSaving;
+  let control = '';
+  if (item.has_value) {
+    control = `<div class="rule-existing-value"><span>当前规格值</span><strong>${UI.esc(text(currentValue))}</strong><small>如需更正，请先按原类型修改工作区规格。</small></div>`;
+  } else if (item.kind === 'boolean') {
+    const choice = currentValue === true ? 'true' : currentValue === false ? 'false' : String(currentValue || '');
+    control = `<label class="rule-form-field"><span>官方规则取值</span><select class="input" data-draft="${UI.esc(valueKey)}"${disabled ? ' disabled' : ''}><option value=""${choice === '' ? ' selected' : ''}>请选择</option><option value="true"${choice === 'true' ? ' selected' : ''}>允许</option><option value="false"${choice === 'false' ? ' selected' : ''}>不允许</option></select></label>`;
+  } else if (item.kind === 'direction' || item.kind === 'runtime_output') {
+    const choices = item.kind === 'direction'
+      ? [['maximize', '最大化'], ['minimize', '最小化']]
+      : [['loose_png', '逐张 PNG'], ['submit_zip', '打包 ZIP']];
+    control = `<label class="rule-form-field"><span>官方规则取值</span><select class="input" data-draft="${UI.esc(valueKey)}"${disabled ? ' disabled' : ''}><option value=""${!currentValue ? ' selected' : ''}>请选择</option>${choices.map(([value, label]) => `<option value="${value}"${String(currentValue) === value ? ' selected' : ''}>${label}</option>`).join('')}</select></label>`;
+  } else if (item.kind === 'text') {
+    control = `<label class="rule-form-field"><span>官方规则取值</span><input class="input" data-draft="${UI.esc(valueKey)}" value="${UI.esc(currentValue)}" placeholder="按官方原文填写"${disabled ? ' disabled' : ''}></label>`;
+  } else if (item.kind === 'integer' || item.kind === 'number') {
+    const step = item.kind === 'integer' ? '1' : 'any';
+    control = `<label class="rule-form-field"><span>官方规则取值</span><input class="input" type="number" min="0" step="${step}" data-draft="${UI.esc(valueKey)}" value="${UI.esc(currentValue)}" placeholder="填写非负${item.kind === 'integer' ? '整数' : '数值'}"${disabled ? ' disabled' : ''}></label>`;
+  } else if (item.kind === 'integer_list' || item.kind === 'text_list') {
+    const placeholder = item.kind === 'integer_list' ? '例如：512, 512' : '每行填写一项';
+    control = `<label class="rule-form-field"><span>官方规则取值</span><textarea class="input" data-draft="${UI.esc(valueKey)}" placeholder="${placeholder}"${disabled ? ' disabled' : ''}>${UI.esc(currentValue)}</textarea></label>`;
+  } else {
+    control = `<div class="rule-existing-value"><span>当前规格值</span><strong>${UI.esc(text(currentValue))}</strong>${item.has_value ? '' : '<small>此字段类型暂不支持在表单中录入，请先检查规格文件。</small>'}</div>`;
+  }
+  return '<div class="rule-evidence-row">' +
+    `<div class="rule-evidence-name"><strong>${UI.esc(field)}</strong><span>${UI.esc(item.kind || 'text')} 字段</span></div>` +
+    control +
+    `<label class="rule-form-field"><span>原文锚点（引句、章节或页码）</span><input class="input" data-draft="${UI.esc(anchorKey)}" value="${UI.esc(currentAnchor)}" placeholder="写下可回查的位置"${disabled ? ' disabled' : ''}></label>` +
+    '</div>';
+}
+
+function ruleApprovalCard(spec, readiness, source) {
+  const approval = spec.approval || {};
+  if (approval.requires_human_confirmation === false) {
+    return UI.Card('最后一步：人工复核', UI.Notice(`规则已人工确认${approval.approved_at ? `（${approval.approved_at}）` : ''}。规则或证据变更后应重新复核。`, ''));
+  }
+  const sourceRecorded = !!(source.sha256 || source.path || source.origin_url);
+  const gaps = readiness.gaps || [];
+  const note = State.drafts['rule-approval-note'] || '';
+  const checked = State.drafts['rule-approval-confirmed'] === true;
+  const message = State.drafts.ruleApprovalMessage
+    ? UI.Notice(State.drafts.ruleApprovalMessage.text, State.drafts.ruleApprovalMessage.tone)
+    : '';
+  let gate = '';
+  if (!sourceRecorded) {
+    gate = UI.Notice('先导入官方规则原件并检查提取报告，才能进入人工批准。', 'warn');
+  } else if (!readiness.ready || gaps.length) {
+    gate = UI.Notice(`还有 ${gaps.length} 项规则待办；补齐值和原文锚点后才能批准。`, 'warn');
+  } else {
+    gate =
+      '<label class="rule-confirm-check"><input id="rule-approval-confirmed" type="checkbox" data-draft="rule-approval-confirmed"' + (checked ? ' checked' : '') + (OFFLINE || State.drafts.ruleApproving ? ' disabled' : '') + '><span>我已逐项对照官方原文复核规则值与证据锚点</span></label>' +
+      `<label class="rule-form-field"><span>人工复核说明（会原文留痕）</span><textarea id="rule-approval-note" class="input" rows="3" data-draft="rule-approval-note" placeholder="说明核对了哪份官方文档、确认了哪些关键规则"${OFFLINE || State.drafts.ruleApproving ? ' disabled' : ''}>${UI.esc(note)}</textarea></label>` +
+      `<div class="btn-row spaced"><button class="btn" data-action="rule-approve"${OFFLINE || State.drafts.ruleApproving || !checked || !note.trim() ? ' disabled' : ''}>${State.drafts.ruleApproving ? '正在记录复核…' : '记录人工复核并批准规则'}</button></div>`;
+  }
+  return UI.Card('最后一步：人工复核', gate + message);
+}
+
 function yesNo(value) {
   if (value === true) return '就绪';
   if (value === false) return '未就绪';
   return '未知';
+}
+
+function projectValue(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw === 'pending' || raw === 'New competition') return '尚未填写';
+  return raw;
 }
 
 Views.experiment = function (data) {
@@ -1053,6 +1293,227 @@ Views.on_provider_test = async function (_target, key) {
     };
   } catch (error) {
     State.providerMessage = { tone: 'danger', text: error.message || String(error) };
+  }
+  render();
+};
+
+async function reloadWorkflowAfterRuleAction() {
+  State.data.workflow = undefined;
+  await load('workflow', { force: true });
+}
+
+function bytesToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+Views.on_rule_import = async function () {
+  if (OFFLINE) return;
+  const fileInput = document.getElementById('rule-source-file');
+  const urlInput = document.getElementById('rule-source-url');
+  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+  const sourceUrl = urlInput ? urlInput.value.trim() : '';
+  if (Boolean(file) === Boolean(sourceUrl)) {
+    State.drafts.ruleImportMessage = { tone: 'warn', text: '请选择一个官方规则文件，或填写一个公开规则网页；两种方式只能选一种。' };
+    render();
+    return;
+  }
+
+  let payload = {};
+  if (file) {
+    if (file.size <= 0) {
+      State.drafts.ruleImportMessage = { tone: 'warn', text: '这个文件是空的，请重新选择。' };
+      render();
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      State.drafts.ruleImportMessage = { tone: 'warn', text: '文件超过 12 MB，请先压缩或选用官方规则网页。' };
+      render();
+      return;
+    }
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!['pdf', 'md', 'markdown', 'txt', 'html', 'htm'].includes(extension)) {
+      State.drafts.ruleImportMessage = { tone: 'warn', text: '目前支持 PDF、Markdown、TXT 和 HTML 文件。' };
+      render();
+      return;
+    }
+    try {
+      payload = { filename: file.name, content_base64: bytesToBase64(await file.arrayBuffer()) };
+    } catch (error) {
+      State.drafts.ruleImportMessage = { tone: 'danger', text: `读取文件失败：${error.message || String(error)}` };
+      render();
+      return;
+    }
+  } else {
+    let parsed;
+    try {
+      parsed = new URL(sourceUrl);
+    } catch (_) {
+      State.drafts.ruleImportMessage = { tone: 'warn', text: '请填写完整的官方网页地址。' };
+      render();
+      return;
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+      State.drafts.ruleImportMessage = { tone: 'warn', text: '网页地址只能使用 HTTP 或 HTTPS。' };
+      render();
+      return;
+    }
+    payload = { source_url: sourceUrl };
+  }
+
+  State.drafts.ruleImporting = true;
+  State.drafts.ruleImportMessage = { tone: '', text: '正在读取来源并生成草案…原件不会被修改。' };
+  render();
+  try {
+    const outcome = await API.post('/api/rules/import', payload);
+    State.drafts.ruleImportMessage = {
+      tone: 'ok',
+      text: `已保存原件并生成草案，提取到 ${Number(outcome.analysis && outcome.analysis.evidence_count) || 0} 条字段证据。请逐项对照原文；系统没有批准规则，也没有启动训练。`,
+    };
+    State.drafts.ruleSourceUrl = '';
+  } catch (error) {
+    State.drafts.ruleImportMessage = { tone: 'danger', text: `导入失败：${error.message || String(error)}` };
+  } finally {
+    State.drafts.ruleImporting = false;
+    await reloadWorkflowAfterRuleAction();
+  }
+};
+
+Views.on_rule_evidence = async function () {
+  if (OFFLINE) return;
+  const data = State.data.workflow || {};
+  const form = data.evidence || {};
+  if (!form.supported) {
+    State.drafts.ruleEvidenceMessage = { tone: 'warn', text: '当前规则档案不支持逐字段证据表单，未提交任何更改。' };
+    render();
+    return;
+  }
+  const fieldValue = (id, key) => {
+    const element = document.getElementById(id);
+    if (element) return element.value.trim();
+    return String(State.drafts[key] || '').trim();
+  };
+  const sourceType = fieldValue('rule-source-type-evidence', 'rule-evidence-source-type');
+  const sourceLocator = fieldValue('rule-source-locator-evidence', 'rule-evidence-source-locator');
+  const reviewedAt = fieldValue('rule-reviewed-at-evidence', 'rule-evidence-reviewed-at');
+  if (!sourceType || !sourceLocator || !reviewedAt) {
+    State.drafts.ruleEvidenceMessage = { tone: 'warn', text: '请填写来源类型、可回查的来源位置和复核日期。' };
+    render();
+    return;
+  }
+
+  const fields = [];
+  const missing = [];
+  for (const item of form.fields || []) {
+    const valueKey = `rule-evidence-value:${item.field}`;
+    const anchorKey = `rule-evidence-anchor:${item.field}`;
+    const anchorDraft = State.drafts[anchorKey];
+    const anchor = String(anchorDraft !== undefined ? anchorDraft : (item.anchor || '')).trim();
+    if (!anchor) missing.push(`${item.field} 的原文锚点`);
+    const entry = { field: item.field, anchor };
+    if (!item.has_value) {
+      const draftValue = State.drafts[valueKey] !== undefined ? State.drafts[valueKey] : item.value;
+      const value = String(draftValue ?? '').trim();
+      if (item.kind === 'boolean') {
+        if (value !== 'true' && value !== 'false') missing.push(`${item.field} 的取值`);
+        else entry.value_flag = value === 'true';
+      } else if (item.kind === 'direction' || item.kind === 'runtime_output' || item.kind === 'text') {
+        if (!value) missing.push(`${item.field} 的取值`);
+        else entry.value_text = value;
+      } else if (item.kind === 'integer' || item.kind === 'number') {
+        const parsed = Number(value);
+        if (!value || !Number.isFinite(parsed) || parsed < 0 || (item.kind === 'integer' && !Number.isInteger(parsed))) {
+          missing.push(`${item.field} 的有效${item.kind === 'integer' ? '整数' : '数值'}`);
+        } else {
+          entry.value_number = parsed;
+        }
+      } else if (item.kind === 'integer_list' || item.kind === 'text_list') {
+        const parts = value.split(/[\r\n,，、]+/).map((part) => part.trim()).filter(Boolean);
+        if (!parts.length) {
+          missing.push(`${item.field} 的列表值`);
+        } else if (item.kind === 'integer_list') {
+          const numbers = parts.map((part) => Number(part));
+          if (numbers.length !== 2 || numbers.some((part) => !Number.isInteger(part) || part <= 0)) missing.push(`${item.field} 的两个正整数`);
+          else entry.value_list = numbers;
+        } else {
+          entry.value_list = parts;
+        }
+      } else {
+        missing.push(`${item.field} 需先在规格文件中按原类型补值`);
+      }
+    }
+    fields.push(entry);
+  }
+  if (missing.length) {
+    const detail = missing.slice(0, 4).join('；');
+    State.drafts.ruleEvidenceMessage = {
+      tone: 'warn',
+      text: `还差 ${missing.length} 项。${detail}${missing.length > 4 ? '；…' : ''}`,
+    };
+    render();
+    return;
+  }
+
+  State.drafts.ruleEvidenceSaving = true;
+  State.drafts.ruleEvidenceMessage = { tone: '', text: '正在保存证据记录…' };
+  render();
+  try {
+    const outcome = await API.post('/api/rules/evidence', {
+      source_type: sourceType,
+      source_locator: sourceLocator,
+      reviewed_at: reviewedAt,
+      fields,
+    });
+    State.drafts.ruleEvidenceMessage = {
+      tone: 'ok',
+      text: `已记录 ${((outcome.applied_fields || []).length)} 个字段的官方锚点。规则仍需单独人工批准。`,
+    };
+  } catch (error) {
+    State.drafts.ruleEvidenceMessage = { tone: 'danger', text: `保存失败：${error.message || String(error)}` };
+  } finally {
+    State.drafts.ruleEvidenceSaving = false;
+    await reloadWorkflowAfterRuleAction();
+  }
+};
+
+Views.on_rule_approve = async function () {
+  if (OFFLINE) return;
+  const data = State.data.workflow || {};
+  const report = data.rules || {};
+  const spec = report.spec || {};
+  const noteElement = document.getElementById('rule-approval-note');
+  const confirmElement = document.getElementById('rule-approval-confirmed');
+  const note = (noteElement ? noteElement.value : State.drafts['rule-approval-note'] || '').trim();
+  const confirmed = !!(confirmElement && confirmElement.checked);
+  if (!spec.rule_source || !spec.rule_source.sha256) {
+    State.drafts.ruleApprovalMessage = { tone: 'warn', text: '请先导入并留存官方规则原件。' };
+  } else if (!(report.readiness || {}).ready) {
+    State.drafts.ruleApprovalMessage = { tone: 'warn', text: '规则值或官方锚点还有缺口，暂不能批准。' };
+  } else if (!confirmed || !note) {
+    State.drafts.ruleApprovalMessage = { tone: 'warn', text: '请勾选已对照原文，并写下人工复核说明。' };
+  } else {
+    State.drafts.ruleApproving = true;
+    State.drafts.ruleApprovalMessage = { tone: '', text: '正在记录人工复核…' };
+    render();
+    try {
+      const result = await API.post('/api/rules/approve', { note });
+      State.drafts.ruleApprovalMessage = {
+        tone: 'ok',
+        text: `已记录人工复核（${result.approved_at || '已留痕'}）。没有启动训练。`,
+      };
+      delete State.drafts['rule-approval-note'];
+      delete State.drafts['rule-approval-confirmed'];
+    } catch (error) {
+      State.drafts.ruleApprovalMessage = { tone: 'danger', text: `批准失败：${error.message || String(error)}` };
+    } finally {
+      State.drafts.ruleApproving = false;
+      await reloadWorkflowAfterRuleAction();
+    }
+    return;
   }
   render();
 };

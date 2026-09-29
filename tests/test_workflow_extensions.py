@@ -382,11 +382,13 @@ class WorkflowExtensionTests(unittest.TestCase):
             spec["submission"]["validation_profile"] = "xunfei_waterseg_inference_package"
             spec["submission"]["contract"] = {
                 "package_layout": "one top-level directory containing run.py and model/",
-                "required_files": ["run.py", "model/model.ts"],
-                "mask_size": [1024, 1024],
+                "required_files": "run.py, model/model.ts",
+                "mask_size": "1024, 1024",
                 "mask_filename_suffix": "_mask",
             }
-            # 锚点清空：19 个必备字段全缺锚点，其中 5 个连值也没确认（与真实项目同形）。
+            spec["submission"]["daily_limit"] = "3"
+            spec["constraints"]["model_size_limit_mb"] = "100"
+            # 锚点全缺；四个原本有值的数值/列表字段类型错误，也必须重新录成原类型。
             spec["approval"]["official_evidence"]["fields"] = {}
             spec["approval"]["unresolved_questions"] = []
             write_yaml(workspace / "competition_spec.yaml", spec)
@@ -401,11 +403,14 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertEqual(form["profile"], "xunfei_waterseg")
             self.assertEqual(form["required_field_count"], 19)
             self.assertEqual(form["missing_anchor_count"], 19)
-            self.assertEqual(form["missing_value_count"], 5)
+            self.assertEqual(form["missing_value_count"], 9)
             kinds = {item["field"]: item["kind"] for item in form["fields"]}
             self.assertEqual(kinds["constraints.external_data_allowed"], "boolean")
             self.assertEqual(kinds["submission.contract.runtime_output"], "runtime_output")
-            self.assertEqual(kinds["submission.contract.mask_size"], "list")
+            self.assertEqual(kinds["submission.contract.mask_size"], "integer_list")
+            self.assertEqual(kinds["submission.contract.required_files"], "text_list")
+            self.assertEqual(kinds["submission.daily_limit"], "integer")
+            self.assertEqual(kinds["constraints.model_size_limit_mb"], "number")
             self.assertEqual(kinds["competition.name"], "text")
 
             payload = {
@@ -438,6 +443,14 @@ class WorkflowExtensionTests(unittest.TestCase):
                         entry["value_flag"] = True
                     elif item["kind"] == "runtime_output":
                         entry["value_text"] = "loose_png"
+                    elif item["kind"] == "integer":
+                        entry["value_number"] = 3
+                    elif item["kind"] == "number":
+                        entry["value_number"] = 150.5
+                    elif item["kind"] == "integer_list":
+                        entry["value_list"] = [512, 512]
+                    elif item["kind"] == "text_list":
+                        entry["value_list"] = ["run.py", "model/model.ts"]
                     else:
                         entry["value_text"] = f"recorded limit {index + 1}"
                 entries.append(entry)
@@ -457,6 +470,11 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertTrue(outcome["readiness"]["ready"])
             self.assertEqual(after["missing_anchor_count"], 0)
             self.assertEqual(after["missing_value_count"], 0)
+            corrected = load_yaml(spec_path)
+            self.assertEqual(corrected["submission"]["daily_limit"], 3)
+            self.assertEqual(corrected["constraints"]["model_size_limit_mb"], 150.5)
+            self.assertEqual(corrected["submission"]["contract"]["mask_size"], [512, 512])
+            self.assertEqual(corrected["submission"]["contract"]["required_files"], ["run.py", "model/model.ts"])
 
             evidence_path = Path(outcome["evidence_path"])
             self.assertTrue(evidence_path.exists())

@@ -65,7 +65,6 @@ from app.project_registry import (
     ProjectError,
     ProjectNotSelected,
     create_project,
-    current_project,
     current_workspace,
     delete_project,
     find_project,
@@ -271,14 +270,6 @@ def _apply_rule_evidence(workspace: Path, body: dict[str, Any]) -> dict[str, Any
         raise
 
 
-def _workspace_display(project_root: Path) -> str:
-    """当前项目的工作区路径。一个项目都没选时返回空串：健康检查仍应是 ok。"""
-    project = current_project(project_root)
-    if project is None:
-        return ""
-    return str(workspace_path(project_root, str(project["id"])))
-
-
 _SCHEDULER_CACHE: dict[str, tuple[TrainingScheduler, MaterialScheduler, DataAuditScheduler]] = {}
 _SCHEDULER_LOCK = threading.Lock()
 _REPRODUCTION_CACHE: dict[str, ReproductionService] = {}
@@ -460,7 +451,12 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send_static(name, content_type)
                 return
             if path == "/health":
-                self._send(HTTPStatus.OK, {"status": "ok", "workspace": _workspace_display(self.project_root)})
+                # 固定工作区模式也要报告真正服务的路径，避免健康探针把请求导向错误项目。
+                try:
+                    workspace = str(self.workspace)
+                except ProjectNotSelected:
+                    workspace = ""
+                self._send(HTTPStatus.OK, {"status": "ok", "workspace": workspace})
             elif path == "/api/projects":
                 self._send(HTTPStatus.OK, self._project_state())
             elif path == "/api/experiments/jobs":

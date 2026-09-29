@@ -202,6 +202,7 @@ const LOADERS = {
     workflow: await API.get('/api/workflow'),
     actions: await API.get('/api/next-actions'),
     rules: await API.get('/api/rules/report'),
+    evidence: await API.get('/api/rules/evidence'),
   }),
   experiment: async () => ({
     experiments: await API.get('/api/experiments'),
@@ -451,6 +452,14 @@ document.addEventListener('click', async (event) => {
     load(key);
     return;
   }
+  if (action === 'workflow-rules') {
+    State.nav = 'workflow';
+    State.sections.workflow = 'rules';
+    if (window.location.hash !== '#workflow') window.location.hash = 'workflow';
+    render();
+    load('workflow');
+    return;
+  }
   if (action === 'section') {
     State.sections[State.nav] = key;
     render();
@@ -492,7 +501,14 @@ document.addEventListener('click', async (event) => {
 
 document.addEventListener('input', (event) => {
   const field = event.target.closest('[data-draft]');
-  if (field) State.drafts[field.dataset.draft] = field.value;
+  if (field) {
+    State.drafts[field.dataset.draft] = field.type === 'checkbox' ? field.checked : field.value;
+  }
+});
+
+document.addEventListener('change', (event) => {
+  const field = event.target.closest('[data-draft]');
+  if (field && field.tagName === 'SELECT') State.drafts[field.dataset.draft] = field.value;
 });
 
 window.addEventListener('hashchange', () => {

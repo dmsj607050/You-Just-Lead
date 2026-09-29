@@ -23,6 +23,9 @@ const webRoot = path.join(__dirname, '..', '..', 'web');
 const OFFLINE_MODE = process.argv[2] === '--offline';
 const TRACE_MODE = process.argv[2] === '--trace';
 const THEME_MODE = process.argv[2] === '--theme';
+const WORKFLOW_MODE = process.argv[2] === '--workflow';
+const WORKFLOW_STATUS_MODE = process.argv[2] === '--workflow-status';
+const OVERVIEW_MODE = process.argv[2] === '--overview';
 const bundleDir = OFFLINE_MODE ? process.argv[3] : webRoot;
 const scriptRoot = OFFLINE_MODE ? bundleDir : webRoot;
 
@@ -88,6 +91,18 @@ if (!OFFLINE_MODE) {
       cycle.push({ theme: document.documentElement.dataset.theme, stored: localStorage.getItem('yjl.theme') });
     }
     process.stdout.write(JSON.stringify(cycle));
+  } else if (WORKFLOW_MODE) {
+    const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    State.sections.workflow = 'rules';
+    process.stdout.write(JSON.stringify({ rules: Views.workflow(data) }));
+  } else if (WORKFLOW_STATUS_MODE) {
+    const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    State.sections.workflow = 'status';
+    process.stdout.write(JSON.stringify({ status: Views.workflow(data) }));
+  } else if (OVERVIEW_MODE) {
+    const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    State.sections.overview = 'project';
+    process.stdout.write(JSON.stringify({ overview: Views.overview(data) }));
   } else {
   Contract.data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   Contract.offline = false;

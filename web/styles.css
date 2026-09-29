@@ -524,6 +524,186 @@ textarea {
   margin-top: 12px;
 }
 
+/* 规则导入与人工复核：把第一道科研关口拆成可理解、可回查的动作。 */
+.rule-onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning-accent);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+}
+.rule-onboarding p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+}
+.rule-onboarding .btn {
+  flex: 0 0 auto;
+}
+.notice.ok {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+.rule-import-grid,
+.rule-source-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.rule-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.rule-form-field .input {
+  min-height: 40px;
+}
+.rule-form-field textarea.input {
+  min-height: 82px;
+  resize: vertical;
+}
+.rule-or {
+  align-self: end;
+  padding: 10px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.rule-help,
+.rule-existing-value small {
+  display: block;
+  margin: 9px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.rule-source-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft-alt);
+}
+.rule-source-summary strong {
+  color: var(--primary-dark);
+}
+.rule-source-summary span,
+.rule-source-summary code,
+.rule-source-summary a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rule-source-summary code {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.rule-source-summary a {
+  grid-column: 1 / -1;
+  color: var(--primary-dark);
+}
+.rule-gap-list {
+  display: grid;
+  gap: 8px;
+}
+.rule-gap {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--page-bg);
+}
+.rule-gap strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.rule-gap span,
+.rule-evidence-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.rule-evidence-summary {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.rule-evidence-fields {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+.rule-evidence-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.75fr) minmax(210px, 1fr) minmax(230px, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.rule-evidence-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rule-evidence-name strong {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.rule-evidence-name span,
+.rule-existing-value span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.rule-existing-value {
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--page-bg);
+  overflow-wrap: anywhere;
+}
+.rule-existing-value strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.rule-confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 14px 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.rule-confirm-check input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  accent-color: var(--primary);
+}
+.rule-report-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+}
+.rule-report-details summary {
+  color: var(--primary-dark);
+  cursor: pointer;
+}
+.rule-report-details .mono-block {
+  margin-top: 10px;
+}
+
 .notice {
   font-size: 13px;
   border-radius: var(--radius);
@@ -828,6 +1008,14 @@ textarea {
   .content-inner {
     padding: 22px 22px 34px;
   }
+
+  .rule-evidence-row {
+    grid-template-columns: minmax(150px, 0.75fr) minmax(0, 1fr);
+  }
+
+  .rule-evidence-row > .rule-form-field:last-child {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 680px) {
@@ -935,6 +1123,24 @@ textarea {
   .card-row,
   .loop-hero {
     flex-direction: column;
+  }
+
+  .rule-onboarding {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rule-onboarding .btn {
+    width: 100%;
+  }
+
+  .rule-gap,
+  .rule-evidence-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rule-evidence-row > .rule-form-field:last-child {
+    grid-column: auto;
   }
 
   .kv-row {

@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import shutil
 import subprocess
@@ -20,6 +21,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from agents.rules_agent import import_rule_source, rule_evidence_form_for_workspace
+from agents.strategy_agent import recommend_next_actions
+from app.api_server import _rule_report
+from app.dashboard_service import dashboard_snapshot
+from app.orchestrator.workflow import workflow_state
 from app.research_loop_service import ResearchLoopService
 from app.trace_service import trace_snapshot
 from schemas.research import (
@@ -33,6 +39,7 @@ from schemas.research import (
     research_contract,
 )
 from tools.files import write_json_atomic
+from tools.configuration import write_yaml
 
 PROBE = Path(__file__).resolve().parent / "js" / "render_probe.js"
 
@@ -161,6 +168,143 @@ class LoopViewRenderTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, f"溯源渲染探针失败：{result.stderr}")
         return json.loads(result.stdout)
+
+    def _render_named_view(self, mode: str, snapshot: dict) -> dict[str, str]:
+        with tempfile.TemporaryDirectory() as temporary:
+            snapshot_path = Path(temporary) / "view.json"
+            snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                ["node", str(PROBE), mode, str(snapshot_path)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=120,
+            )
+        self.assertEqual(result.returncode, 0, f"{mode} 渲染探针失败：{result.stderr}")
+        return json.loads(result.stdout)
+
+    def test_new_desktop_workspace_points_to_rule_review_without_fake_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace" / "current_competition"
+            workspace.mkdir(parents=True)
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {
+                    "competition": {"name": "New competition", "task_type": "pending"},
+                    "evaluation": {"primary_metric": "pending", "direction": "maximize"},
+                    "approval": {"requires_human_confirmation": True, "unresolved_questions": []},
+                },
+            )
+            html = self._render_named_view("--overview", dashboard_snapshot(root, workspace))["overview"]
+
+        self.assertIn("下一步：核对官方规则", html)
+        self.assertIn('data-action="workflow-rules"', html)
+        self.assertIn("尚未形成可核对的规则字段", html)
+        self.assertNotIn("0/0", html)
+        self.assertNotIn("New competition", html)
+        self.assertNotIn("pending", html)
+        self.assertNotIn("Official rules require human confirmation.", html)
+
+    def test_workflow_rule_import_stays_a_draft_until_a_human_approves_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {
+                    "competition": {"name": "New competition", "task_type": "pending"},
+                    "evaluation": {"primary_metric": "pending", "direction": "maximize"},
+                    "approval": {"requires_human_confirmation": True, "unresolved_questions": []},
+                },
+            )
+            source_text = "\n".join(
+                [
+                    "Competition name: Reviewable Vision Cup",
+                    "Platform: Official portal",
+                    "Task type: image classification",
+                    "Metric: accuracy",
+                    "Metric direction: maximize",
+                    "Submission format: csv",
+                    "External data: prohibited",
+                    "Pretrained: allowed",
+                    "Ensemble: not allowed",
+                ]
+            )
+            import_rule_source(
+                workspace,
+                filename="official_rules.txt",
+                content_base64=base64.b64encode(source_text.encode("utf-8")).decode("ascii"),
+            )
+            payload = {
+                "workflow": workflow_state(workspace),
+                "actions": {"actions": recommend_next_actions(workspace, persist=False)["actions"]},
+                "rules": _rule_report(workspace),
+                "evidence": rule_evidence_form_for_workspace(workspace),
+            }
+            html = self._render_named_view("--workflow", payload)["rules"]
+
+        self.assertIn("已留存规则原件", html)
+        self.assertIn("Reviewable Vision Cup", html)
+        self.assertIn("不会自动批准", html)
+        self.assertIn("我已逐项对照官方原文复核规则值与证据锚点", html)
+        self.assertIn("记录人工复核并批准规则", html)
+        self.assertNotIn("规则已人工确认", html)
+
+    def test_workflow_rule_evidence_keeps_typed_fields_and_prints_html_escaped(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            write_yaml(
+                workspace / "competition_spec.yaml",
+                {
+                    "competition": {
+                        "name": "AIC2026",
+                        "task_type": "object_detection",
+                        "rule_profile": "aic_multimodal_detection",
+                    },
+                    "approval": {"requires_human_confirmation": True, "unresolved_questions": ["check source"]},
+                },
+            )
+            payload = {
+                "workflow": workflow_state(workspace),
+                "actions": {"actions": []},
+                "rules": _rule_report(workspace),
+                "evidence": rule_evidence_form_for_workspace(workspace),
+            }
+            html = self._render_named_view("--workflow", payload)["rules"]
+
+        self.assertIn("<select class=\"input\"", html)
+        self.assertIn("允许", html)
+        self.assertIn("不允许", html)
+        self.assertIn("evaluation.primary_metric", html)
+        self.assertIn('type="number"', html)
+        self.assertIn('data-draft="rule-evidence-value:data.class_count"', html)
+        self.assertIn('<textarea class="input" data-draft="rule-evidence-value:submission.contract.line_columns"', html)
+
+    def test_workflow_status_formats_recommended_runner_object(self) -> None:
+        html = self._render_named_view(
+            "--workflow-status",
+            {
+                "workflow": {
+                    "stage": "rules_review",
+                    "completed_experiments": 0,
+                    "components": {"rules": "awaiting_human_confirmation"},
+                    "blockers": ["Official rules require human confirmation."],
+                    "recommended_runner": {
+                        "runner": "external_detection",
+                        "kind": "approved_external_training_project",
+                    },
+                },
+                "actions": {"actions": []},
+                "rules": {},
+            },
+        )["status"]
+
+        self.assertIn("外部目标检测工程", html)
+        self.assertNotIn("[object Object]", html)
 
     def test_theme_preference_cycles_and_persists_locally(self) -> None:
         result = subprocess.run(

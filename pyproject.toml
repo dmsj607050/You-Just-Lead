@@ -1,9 +1,9 @@
 [project]
 name = "competition-agent"
 # 版本号的唯一来源是仓库根的 VERSION。这里是它的 PEP 440 写法
-# （`1.0.0-rc.4` → `1.0.0rc4`），由 tests/test_release_manifest.py 对着 VERSION 核对 ——
+# （`1.0.0-rc.5` → `1.0.0rc5`），由 tests/test_release_manifest.py 对着 VERSION 核对 ——
 # 它曾经停在 0.1.9 五个版本没动，因为没人比对过。
-version = "1.0.0rc4"
+version = "1.0.0rc5"
 description = "Experiment-driven workflow scaffold for machine-learning competitions"
 requires-python = ">=3.10"
 dependencies = [

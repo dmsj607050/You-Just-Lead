@@ -11,6 +11,7 @@ import base64
 import binascii
 import hashlib
 import ipaddress
+import math
 import re
 import socket
 from html.parser import HTMLParser
@@ -224,6 +225,9 @@ def rule_confirmation_readiness(spec: dict[str, Any]) -> dict[str, Any]:
         value = _deep_get(spec, field)
         if not is_meaningful(value):
             gaps.append({"field": field, "reason": "The confirmed value is missing or unresolved."})
+        elif not _rule_value_matches_kind(field, value, profile):
+            kind = _evidence_kind(field, profile)
+            gaps.append({"field": field, "reason": f"Use a valid {kind} value for this field."})
 
     if profile == "xunfei_waterseg":
         output_mode = str(_deep_get(spec, "submission.contract.runtime_output") or "").lower()
@@ -331,6 +335,9 @@ def apply_official_rule_evidence(workspace: Path, evidence_path: Path) -> dict[s
         if not is_meaningful(value) or not is_meaningful(anchor):
             missing.append(name)
             continue
+        kind = _evidence_kind(name, profile)
+        if not _rule_value_matches_kind(name, value, profile):
+            raise ValueError(f"{name} must use a valid {kind} value")
         values[name] = value
         anchors[name] = str(anchor).strip()
     source_missing = [name for name in ("source_type", "source_locator", "reviewed_at") if not is_meaningful(source.get(name))]
@@ -390,16 +397,55 @@ EVIDENCE_FIELD_KINDS = {
     "constraints.offline_only": "boolean",
     "constraints.test_data_reuse_allowed": "boolean",
     "submission.contract.empty_file_required": "boolean",
-    "submission.contract.required_files": "list",
-    "submission.contract.mask_size": "list",
-    "data.modalities": "list",
-    "submission.contract.line_columns": "list",
-    "submission.daily_limit": "number",
-    "constraints.model_size_limit_mb": "number",
-    "data.class_count": "number",
-    "submission.contract.max_boxes_per_image": "number",
+    "submission.contract.required_files": "text_list",
+    "submission.contract.mask_size": "integer_list",
+    "data.modalities": "text_list",
+    "submission.contract.line_columns": "text_list",
+    "data.class_count": "integer",
+    "submission.contract.max_boxes_per_image": "integer",
     "evaluation.direction": "direction",
 }
+
+
+def _evidence_kind(field: str, profile: str) -> str:
+    """字段类型按档案解释：不同竞赛对同名字段可以有不同契约。"""
+    if profile == "xunfei_waterseg":
+        if field == "submission.daily_limit":
+            return "integer"
+        if field == "constraints.model_size_limit_mb":
+            return "number"
+    return EVIDENCE_FIELD_KINDS.get(field, "text")
+
+
+def _rule_value_matches_kind(field: str, value: Any, profile: str = "") -> bool:
+    """检查规则字段的值类型，避免数字或列表被写成文本。"""
+    kind = _evidence_kind(field, profile)
+    if kind == "boolean":
+        return isinstance(value, bool)
+    if kind == "integer":
+        return type(value) is int and value >= 0
+    if kind == "number":
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
+            return False
+        try:
+            return math.isfinite(value)
+        except (OverflowError, TypeError, ValueError):
+            return False
+    if kind == "integer_list":
+        return (
+            isinstance(value, list)
+            and len(value) == 2
+            and all(type(item) is int and item > 0 for item in value)
+        )
+    if kind == "text_list":
+        return isinstance(value, list) and bool(value) and all(
+            isinstance(item, str) and bool(item.strip()) for item in value
+        )
+    if kind == "direction":
+        return isinstance(value, str) and value in {"maximize", "minimize"}
+    if kind == "runtime_output":
+        return isinstance(value, str) and value in {"loose_png", "submit_zip"}
+    return isinstance(value, str) and bool(value.strip())
 
 
 def rule_evidence_form_for_workspace(workspace: Path) -> dict[str, Any]:
@@ -423,10 +469,10 @@ def rule_evidence_form_for_workspace(workspace: Path) -> dict[str, Any]:
             {
                 "field": name,
                 "value": display_value(value),
-                "has_value": is_meaningful(value),
+                "has_value": is_meaningful(value) and _rule_value_matches_kind(name, value, readiness.get("profile", "")),
                 "anchor": display_value(anchor),
                 "has_anchor": is_meaningful(anchor),
-                "kind": EVIDENCE_FIELD_KINDS.get(name, "text"),
+                "kind": _evidence_kind(name, readiness.get("profile", "")),
             }
         )
 
@@ -479,14 +525,28 @@ def build_rule_evidence_record(
         override = override if isinstance(override, dict) else {}
         value = _deep_get(spec, name)
         anchor = anchors.get(name)
-        # 布尔字段用 value_flag 传，显式的 false 不能被当成「没填」。
+        kind = _evidence_kind(name, resolved)
+        # 按字段类型提交值：false 不能被当成「没填」，数组也不能退化成文本。
         if "value_flag" in override:
-            value = bool(override["value_flag"])
-        elif is_meaningful(override.get("value_text")):
-            value = str(override["value_text"]).strip()
+            if kind != "boolean" or not isinstance(override["value_flag"], bool):
+                raise ValueError(f"{name} must be submitted as a boolean flag")
+            value = override["value_flag"]
+        elif "value_number" in override:
+            if kind not in {"integer", "number"}:
+                raise ValueError(f"{name} does not accept a numeric override")
+            value = override["value_number"]
+        elif "value_list" in override:
+            if kind not in {"integer_list", "text_list"}:
+                raise ValueError(f"{name} does not accept a list override")
+            value = override["value_list"]
+        elif "value_text" in override:
+            if kind not in {"text", "direction", "runtime_output"}:
+                raise ValueError(f"{name} must keep its {kind} value type")
+            if is_meaningful(override["value_text"]):
+                value = str(override["value_text"]).strip()
         if is_meaningful(override.get("anchor")):
             anchor = str(override["anchor"]).strip()
-        if not is_meaningful(value) or not is_meaningful(anchor):
+        if not is_meaningful(value) or not is_meaningful(anchor) or not _rule_value_matches_kind(name, value, resolved):
             missing.append(name)
             continue
         record_fields[name] = {"value": value, "anchor": anchor}
@@ -697,7 +757,9 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
 
     previous_approval = spec.get("approval", {}) if isinstance(spec.get("approval"), dict) else {}
     spec["approval"] = {
-        "requires_human_confirmation": bool(unresolved),
+        # Extracting every known field does not mean a person reviewed the source.
+        # Keep the human gate closed until approve_rule_specification records a note.
+        "requires_human_confirmation": True,
         "unresolved_questions": unresolved,
     }
     # Re-analysis may refresh extracted values, but it must not silently erase
@@ -755,7 +817,7 @@ def analyze_rules(source_path: Path, workspace: Path) -> dict[str, Any]:
         "spec_path": str(spec_path),
         "rules_report": str(docs_dir / "competition_rules.md"),
         "submission_checklist": str(docs_dir / "submission_checklist.md"),
-        "requires_human_confirmation": bool(unresolved),
+        "requires_human_confirmation": True,
         "unresolved_questions": unresolved,
         "evidence_count": len(evidence),
     }
