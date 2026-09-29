@@ -21,6 +21,7 @@ import unittest
 from pathlib import Path
 
 from app.research_loop_service import ResearchLoopService
+from app.trace_service import trace_snapshot
 from schemas.research import (
     ACTION_LABELS,
     CHECK_FIELDS,
@@ -31,6 +32,7 @@ from schemas.research import (
     Experiment,
     research_contract,
 )
+from tools.files import write_json_atomic
 
 PROBE = Path(__file__).resolve().parent / "js" / "render_probe.js"
 
@@ -140,10 +142,44 @@ class LoopViewRenderTests(unittest.TestCase):
                 ["node", str(PROBE), str(contract_path), str(snapshot_path)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=120,
             )
         self.assertEqual(result.returncode, 0, f"渲染探针失败：{result.stderr}")
         return json.loads(result.stdout)
+
+    def _render_trace(self, snapshot: dict) -> dict[str, str]:
+        with tempfile.TemporaryDirectory() as temporary:
+            snapshot_path = Path(temporary) / "trace.json"
+            snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                ["node", str(PROBE), "--trace", str(snapshot_path)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=120,
+            )
+        self.assertEqual(result.returncode, 0, f"溯源渲染探针失败：{result.stderr}")
+        return json.loads(result.stdout)
+
+    def test_theme_preference_cycles_and_persists_locally(self) -> None:
+        result = subprocess.run(
+            ["node", str(PROBE), "--theme"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120,
+        )
+        self.assertEqual(result.returncode, 0, f"主题探针失败：{result.stderr}")
+        cycle = json.loads(result.stdout)
+        self.assertEqual(
+            cycle,
+            [
+                {"theme": "light", "stored": "light"},
+                {"theme": "dark", "stored": "dark"},
+                {"theme": "system", "stored": "system"},
+            ],
+        )
 
     def test_every_section_renders_without_a_wiring_mistake(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -222,6 +258,63 @@ class LoopViewRenderTests(unittest.TestCase):
 
         self.assertIn(ACTION_LABELS["KILL_HYPOTHESIS"], rendered["history"])
         self.assertIn("负结果", rendered["history"])
+
+    def test_trace_sections_render_nested_chains_and_verified_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            manifests = workspace / "experiments" / "manifests"
+            results = workspace / "experiments" / "results"
+            approvals = workspace / "experiments" / "approvals"
+            research = workspace / "research"
+            for directory in (manifests, results, approvals, research):
+                directory.mkdir(parents=True, exist_ok=True)
+
+            digest = "a" * 64
+            write_json_atomic(
+                manifests / "EXP-0001.json",
+                {
+                    "experiment_id": "EXP-0001",
+                    "status": "planned",
+                    "config_sha256": digest,
+                    "config": {"training": {"runner": "synthetic_binary_classification"}},
+                },
+            )
+            write_json_atomic(
+                results / "EXP-0001.json",
+                {"experiment_id": "EXP-0001", "status": "completed", "artifact_paths": []},
+            )
+            write_json_atomic(
+                approvals / f"config-{digest[:16]}.json",
+                {
+                    "type": "training_config_approval",
+                    "config_sha256": digest,
+                    "approved_at": "2026-09-28T01:46:56+00:00",
+                    "note": "测试用：预算已复核",
+                },
+            )
+            write_json_atomic(
+                research / "papers.json",
+                {
+                    "records": [
+                        {"paper_id": "paper-1", "title": "示例研究", "source": "arXiv", "year": 2026}
+                    ]
+                },
+            )
+            snapshot = trace_snapshot(root, workspace)
+
+        rendered = self._render_trace(snapshot)
+        experiment_html = rendered["experiment"]
+        research_html = rendered["research"]
+        self.assertIn("EXP-0001", experiment_html)
+        self.assertIn("结果 已完成 · 清单 计划中", experiment_html)
+        self.assertIn("审批已核验", experiment_html)
+        self.assertIn("测试用：预算已复核", experiment_html)
+        self.assertIn("示例研究", research_html)
+        for section, html in rendered.items():
+            with self.subTest(section=section):
+                for fragment in FORBIDDEN_FRAGMENTS:
+                    self.assertNotIn(fragment, html)
 
 
 if __name__ == "__main__":

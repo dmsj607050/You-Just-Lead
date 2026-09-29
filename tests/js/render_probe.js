@@ -21,15 +21,26 @@ const vm = require('vm');
 
 const webRoot = path.join(__dirname, '..', '..', 'web');
 const OFFLINE_MODE = process.argv[2] === '--offline';
+const TRACE_MODE = process.argv[2] === '--trace';
+const THEME_MODE = process.argv[2] === '--theme';
 const bundleDir = OFFLINE_MODE ? process.argv[3] : webRoot;
 const scriptRoot = OFFLINE_MODE ? bundleDir : webRoot;
 
 // 浏览器的那几个全局。跟界面脚本的接触面越小越好，缺哪个补哪个。
 global.window = global;
 global.addEventListener = () => {};
-global.document = { addEventListener: () => {}, getElementById: () => null, body: { innerHTML: '' } };
+const localStorageData = {};
+global.document = {
+  addEventListener: () => {},
+  getElementById: () => null,
+  documentElement: { dataset: { theme: 'system' } },
+  body: { innerHTML: '' },
+};
 global.location = { hash: '', origin: 'http://127.0.0.1:8765' };
-global.localStorage = { getItem: () => null, setItem: () => {} };
+global.localStorage = {
+  getItem: (key) => localStorageData[key] || null,
+  setItem: (key, value) => { localStorageData[key] = String(value); },
+};
 let networkCalls = 0;
 global.fetch = () => {
   networkCalls += 1;
@@ -61,10 +72,28 @@ function renderLoopSections(snapshot) {
 }
 
 if (!OFFLINE_MODE) {
+  if (TRACE_MODE) {
+    const snapshot = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    const rendered = {};
+    for (const section of ['experiment', 'research']) {
+      State.sections.trace = section;
+      rendered[section] = Views.trace(snapshot);
+    }
+    process.stdout.write(JSON.stringify(rendered));
+  } else if (THEME_MODE) {
+    applyTheme('system');
+    const cycle = [];
+    for (let index = 0; index < 3; index += 1) {
+      cycleTheme();
+      cycle.push({ theme: document.documentElement.dataset.theme, stored: localStorage.getItem('yjl.theme') });
+    }
+    process.stdout.write(JSON.stringify(cycle));
+  } else {
   Contract.data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   Contract.offline = false;
   const snapshot = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
   process.stdout.write(JSON.stringify(renderLoopSections(snapshot)));
+  }
 } else {
   (async () => {
     // 走一次"从 hash 进来、再点开研究循环这一页"的真实路径：

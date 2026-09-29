@@ -217,6 +217,40 @@ export struct TracePage {
     return this.snapshot === null ? 0 : this.snapshot.experiments.artifact_missing_count;
   }
 
+  private statusConsistencyText(item: TraceExperiment): string {
+    if (item.status_consistent === true) {
+      return this.tr('trace.statusConsistent');
+    }
+    if (item.status_consistent === false) {
+      return this.trf('trace.statusDiverged', [
+        experimentStatusLabel(this.lang, item.result_status === null ? '' : item.result_status),
+        experimentStatusLabel(this.lang, item.manifest_status === null ? '' : item.manifest_status)
+      ]);
+    }
+    return this.tr('trace.statusCheckUnavailable');
+  }
+
+  private approvalVerificationLabel(verification: string | null): string {
+    switch (verification) {
+      case 'missing_config_digest':
+        return this.tr('trace.approvalMissingDigest');
+      case 'invalid_config_digest':
+        return this.tr('trace.approvalInvalidDigest');
+      case 'missing':
+        return this.tr('trace.approvalMissing');
+      case 'unreadable':
+        return this.tr('trace.approvalUnreadable');
+      case 'wrong_type':
+        return this.tr('trace.approvalWrongType');
+      case 'digest_mismatch':
+        return this.tr('trace.approvalDigestMismatch');
+      case 'incomplete':
+        return this.tr('trace.approvalIncomplete');
+      default:
+        return this.tr('trace.approvalUnknown');
+    }
+  }
+
   private paperAvailable(): boolean {
     return this.snapshot !== null && this.snapshot.paper.available;
   }
@@ -648,6 +682,10 @@ export struct TracePage {
         value: `Python ${this.textOrDash(item.environment.python)} · torch ${this.textOrDash(item.environment.torch)} · ${this.textOrDash(item.environment.gpu)}`
       })
       KeyValueRow({
+        label: this.tr('trace.statusCheckRow'),
+        value: this.statusConsistencyText(item)
+      })
+      KeyValueRow({
         label: this.tr('trace.metricRow'),
         value: formatNumber(item.validation_metric, 6)
       })
@@ -662,8 +700,10 @@ export struct TracePage {
       KeyValueRow({
         label: this.tr('trace.approvalRow'),
         value: item.approval.recorded
-          ? `${formatTimestamp(item.approval.approved_at)} · ${this.trf('trace.approvalBy', [this.textOrDash(item.approval.approved_by)])}`
-          : this.tr('trace.approvalNone')
+          ? `${this.tr('trace.approvalVerified')} · ${formatTimestamp(item.approval.approved_at)} · ${item.approval.approved_by !== null
+            ? this.trf('trace.approvalBy', [this.textOrDash(item.approval.approved_by)])
+            : this.trf('trace.approvalNote', [this.textOrDash(item.approval.note)])}`
+          : this.trf('trace.approvalUnverified', [this.approvalVerificationLabel(item.approval.verification)])
       })
 
       ForEach(metricRows(item.metrics), (metric: NameValue) => {

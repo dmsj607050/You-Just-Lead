@@ -64,6 +64,35 @@ function statusLabel(name) {
   return Contract.statusLabel(name) || name || '';
 }
 
+function traceExperimentStatus(name) {
+  const labels = {
+    planned: '计划中',
+    queued: '排队中',
+    running: '运行中',
+    awaiting_human_approval: '等待人工批准',
+    completed: '已完成',
+    failed: '失败',
+  };
+  return labels[name] || text(name);
+}
+
+function traceApprovalSummary(approval) {
+  if (!approval || typeof approval !== 'object') return '审批记录缺失';
+  if (approval.recorded) {
+    return `审批已核验 · ${text(approval.approved_at)}`;
+  }
+  const reasons = {
+    missing_config_digest: '缺少配置指纹',
+    invalid_config_digest: '配置指纹格式无效',
+    missing: '未找到记录',
+    unreadable: '记录无法读取',
+    wrong_type: '记录类型不匹配',
+    digest_mismatch: '配置指纹不匹配',
+    incomplete: '记录信息不完整',
+  };
+  return `审批未核验 · ${reasons[approval.verification] || '原因未知'}`;
+}
+
 // ------------------------------------------------------------------ 概览
 
 const STAGE_LABELS = {
@@ -620,11 +649,15 @@ Views.writing = function (data) {
 Views.trace = function (data) {
   if (!data) return '';
   const rule = data.rule || {};
+  const experimentChain = data.experiments || {};
+  const experiments = Array.isArray(experimentChain.experiments) ? experimentChain.experiments : [];
+  const researchChain = data.research || {};
+  const researchRecords = Array.isArray(researchChain.records) ? researchChain.records : [];
   const sections = [
     { key: 'rule', label: '规则链', tone: rule.ready ? 'ok' : 'danger' },
     { key: 'data', label: '数据链', tone: data.data ? 'ok' : 'muted' },
-    { key: 'experiment', label: '实验链', tone: (data.experiments || []).length ? 'ok' : 'muted' },
-    { key: 'research', label: '研究链', tone: (data.research || []).length ? 'ok' : 'muted' },
+    { key: 'experiment', label: '实验链', tone: experiments.length ? 'ok' : 'muted' },
+    { key: 'research', label: '研究链', tone: researchRecords.length ? 'ok' : 'muted' },
     { key: 'paper', label: '论文链', tone: data.paper ? 'ok' : 'muted' },
   ];
   const section = State.sections.trace;
@@ -637,35 +670,41 @@ Views.trace = function (data) {
       '规则链',
       UI.KeyValueRow('就绪', rule.ready ? '是' : '否') +
         UI.KeyValueRow('档案', rule.profile) +
-        UI.KeyValueRow('缺口', gaps.length ? `${gaps.length} 项` : '无') +
+        UI.KeyValueRow('缺口', rule.gap_count === undefined ? (gaps.length ? `${gaps.length} 项` : '—') : (rule.gap_count ? `${rule.gap_count} 项` : '无')) +
         (gaps.length ? `<ul class="sub-list">${gaps.map((item) => `<li>${UI.esc(text(item.field || item))}</li>`).join('')}</ul>` : '')
     );
   } else if (section === 'data') {
     body = kvCard('数据链', data.data);
   } else if (section === 'experiment') {
-    const experiments = data.experiments || [];
     body = UI.Card(
       '实验链',
       experiments.length
         ? experiments
             .map(
-              (item) =>
-                '<div class="list-row"><div class="list-main">' +
+              (item) => {
+                const statusSummary = item.status_consistent === false
+                  ? `结果 ${traceExperimentStatus(item.result_status)} · 清单 ${traceExperimentStatus(item.manifest_status)}`
+                  : traceExperimentStatus(item.status);
+                const approval = item.approval || {};
+                const approvalNote = approval.recorded && approval.note
+                  ? `<details class="trace-approval-note"><summary>查看批准备注</summary><div>${UI.esc(text(approval.note))}</div></details>`
+                  : '';
+                return '<div class="list-row"><div class="list-main">' +
                 `<div class="list-title">${UI.esc(text(item.experiment_id || item.id))}</div>` +
-                `<div class="list-sub">${UI.esc(text(item.status))} · ${UI.esc(text(item.result_path))}</div>` +
-                '</div></div>'
-            )
+                `<div class="list-sub">${UI.esc(statusSummary)} · ${UI.esc(text(item.result_path))}</div>` +
+                `<div class="list-sub">${UI.esc(traceApprovalSummary(approval))}</div>${approvalNote}` +
+                '</div></div>';
+              })
             .join('')
         : UI.EmptyHint('还没有实验')
     );
   } else if (section === 'research') {
-    const research = data.research || [];
     body = UI.Card(
       '研究链',
-      research.length
-        ? research
+      researchRecords.length
+        ? researchRecords
             .slice(0, 8)
-            .map((item) => `<div class="list-row"><div class="list-main"><div class="list-title">${UI.esc(text(item.title || item.paper_id))}</div><div class="list-sub">${UI.esc(text(item.decision || item.year))}</div></div></div>`)
+            .map((item) => `<div class="list-row"><div class="list-main"><div class="list-title">${UI.esc(text(item.title || item.paper_id))}</div><div class="list-sub">${UI.esc(text(item.source))} · ${UI.esc(text(item.year))}</div></div></div>`)
             .join('')
         : UI.EmptyHint('还没有研究记录')
     );

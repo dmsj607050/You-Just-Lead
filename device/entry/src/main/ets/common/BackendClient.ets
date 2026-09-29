@@ -608,8 +608,10 @@ export interface TraceEnvironment {
 
 export interface TraceApproval {
   recorded: boolean;
+  verification: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  note: string | null;
 }
 
 /** 一条实验记录：清单 → 结果 → 产物 → 人工批准。 */
@@ -618,6 +620,9 @@ export interface TraceExperiment {
   in_scope: boolean;
   exclusion: string | null;
   status: string | null;
+  manifest_status: string | null;
+  result_status: string | null;
+  status_consistent: boolean | null;
   change_type: string | null;
   hypothesis: string | null;
   config_path: string | null;

@@ -30,6 +30,60 @@ def _json_or_empty(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _training_approval(workspace: Path, config_sha256: Any) -> dict[str, Any]:
+    """按配置指纹查找审批记录，完整核验后才在溯源页标为有效。
+
+    文件名只使用短指纹前缀；真正的依据是记录中的完整指纹，不能让前缀碰撞或手改文件
+    冒充人工批准。
+    """
+    result: dict[str, Any] = {
+        "recorded": False,
+        "verification": "missing_config_digest",
+        "approved_at": None,
+        "approved_by": None,
+        "note": None,
+    }
+    if not isinstance(config_sha256, str) or not config_sha256.strip():
+        return result
+    if len(config_sha256) != 64 or any(char not in "0123456789abcdef" for char in config_sha256):
+        result["verification"] = "invalid_config_digest"
+        return result
+
+    path = workspace / "experiments" / "approvals" / f"config-{config_sha256[:16]}.json"
+    if not path.is_file():
+        result["verification"] = "missing"
+        return result
+    try:
+        approval = read_json(path)
+    except (OSError, ValueError):
+        result["verification"] = "unreadable"
+        return result
+    if approval.get("type") != "training_config_approval":
+        result["verification"] = "wrong_type"
+        return result
+    if approval.get("config_sha256") != config_sha256:
+        result["verification"] = "digest_mismatch"
+        return result
+    approved_at = approval.get("approved_at")
+    note = approval.get("note")
+    if (
+        not isinstance(approved_at, str)
+        or not approved_at.strip()
+        or not isinstance(note, str)
+        or not note.strip()
+    ):
+        result["verification"] = "incomplete"
+        return result
+
+    return {
+        "recorded": True,
+        "verification": "verified",
+        "approved_at": approval.get("approved_at"),
+        "approved_by": approval.get("approved_by"),
+        "note": approval.get("note"),
+    }
+
+
 def _documents(directory: Path, workspace: Path) -> list[dict[str, Any]]:
     """目录下的人工证据文档，按其工作区相对路径排序。"""
     if not directory.exists():
@@ -139,7 +193,7 @@ def _experiment_chain(workspace: Path) -> dict[str, Any]:
     experiments: list[dict[str, Any]] = []
     for experiment_id, manifest in sorted(manifests_by_id(workspace).items()):
         result = _json_or_empty(results_dir / f"{experiment_id}.json")
-        approval = _json_or_empty(workspace / "experiments" / "approvals" / f"{experiment_id}.json")
+        approval = _training_approval(workspace, manifest.get("config_sha256"))
         git = manifest.get("git") if isinstance(manifest.get("git"), dict) else {}
         environment = manifest.get("environment") if isinstance(manifest.get("environment"), dict) else {}
         artifacts: list[dict[str, Any]] = []
@@ -155,12 +209,21 @@ def _experiment_chain(workspace: Path) -> dict[str, Any]:
                 }
             )
         exclusion = scope_exclusion(workspace, manifest)
+        manifest_status = manifest.get("status")
+        result_status = result.get("status")
         experiments.append(
             {
                 "experiment_id": experiment_id,
                 "in_scope": exclusion is None,
                 "exclusion": exclusion,
-                "status": result.get("status") or manifest.get("status"),
+                "status": result_status or manifest_status,
+                "manifest_status": manifest_status,
+                "result_status": result_status,
+                "status_consistent": (
+                    manifest_status == result_status
+                    if manifest_status is not None and result_status is not None
+                    else None
+                ),
                 "change_type": manifest.get("change_type"),
                 "hypothesis": manifest.get("hypothesis"),
                 "config_path": manifest.get("config_path"),
@@ -193,9 +256,7 @@ def _experiment_chain(workspace: Path) -> dict[str, Any]:
                 "result_path": f"experiments/results/{experiment_id}.json" if result else None,
                 "artifacts": artifacts,
                 "approval": {
-                    "recorded": bool(approval),
-                    "approved_at": approval.get("approved_at"),
-                    "approved_by": approval.get("approved_by"),
+                    **approval,
                 },
             }
         )

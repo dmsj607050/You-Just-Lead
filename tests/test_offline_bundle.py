@@ -186,6 +186,7 @@ class OfflineRenderTests(unittest.TestCase):
             ["node", str(PROBE), "--offline", str(root / "offline")],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=120,
         )
         self.assertEqual(result.returncode, 0, f"离线渲染失败：{result.stderr}")
