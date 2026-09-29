@@ -86,6 +86,10 @@
   `paper/evidence_map.json` 空壳、`docs/first_phase.md`、目录里已有真文件却还留着的 `.gitkeep`，
   以及端侧 1 MB 设计素材（与 `docs/assets/logo.png` 是同一份 logo）。跟踪文件 370 → 334，
   体积约 5.3 MB → 2.61 MB。讯飞那份**唯一编译好的论文 PDF** 移进了它所属的工作区。
+  同一批里还重写了 `docs/SUBMISSION.md` —— 它原本停在 `0.1.4`，让评委去跑
+  `release/You Just Lead_0.1.4_x64-setup.exe`（Tauri 时代那个安装包早就不存在了），
+  还描述着 D7 已删掉的桌面仪表盘。现在按实际交付物写：三个产物的名字/大小/摘要、
+  各自的安装方式、最短自证路径、从规则 PDF 抽出的比赛契约，以及**独立一节的"没验证什么"**。
 - **`workspace/*/data/metadata.jsonl` 不再跟踪**：它是赛事数据的逐文件清单（8001 行路径与 sha256），
   而仓库是公开的，`.gitignore` 自己开头就写着规则禁止传播赛事数据。本地文件保留、审计可重跑；
   历史里仍有它，要清干净需要重写历史。同类修正：`pyproject.toml` 的版本曾是 `0.1.9`
