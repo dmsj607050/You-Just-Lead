@@ -759,13 +759,51 @@ export interface RuleEvidenceOutcome {
   next_action: string;
 }
 
-/** GET /api/settings/deepseek：模型设置状态。 */
-export interface DeepSeekSettings {
-  configured: boolean;
-  key_source: string;
+/** 一套内置预设：点了只是把地址和名字预填进表单，之后仍然可以改。 */
+export interface ModelProviderPreset {
+  id: string;
+  name: string;
+  base_url: string;
+  /** 这套预设是否必须填密钥（本地 Ollama 不需要）。 */
+  key_required: boolean;
+  docs_url: string;
+}
+
+/** 一套已存的模型来源。**不含密钥**，只回「有没有」。 */
+export interface ModelProvider {
+  id: string;
+  name: string;
+  /** 它属于哪条预设；自己填的地址是 custom。 */
+  preset: string;
+  base_url: string;
   model: string;
-  supported_models: string[];
+  /** 这套来源用过的模型名，界面用它做候选。 */
+  models: string[];
+  key_required: boolean;
+  has_key: boolean;
+  docs_url: string;
+}
+
+/** GET /api/settings/providers：预设 + 已配置的几套 + 哪套在用。 */
+export interface ProviderSettings {
+  presets: ModelProviderPreset[];
+  providers: ModelProvider[];
+  /** 当前使用的来源 id；一套都没有时是空串。 */
+  active: string;
+  configured: boolean;
+  model: string;
+  /** environment / windows_credential_manager / null，不回密钥本身。 */
+  key_source: string | null;
   secure_storage_available: boolean;
+  api_key_env: string;
+}
+
+/** POST /api/settings/providers/test 的结果。 */
+export interface ProviderTestResult {
+  ok: boolean;
+  message: string;
+  /** 用上了哪个模型；失败时后端不发这个字段。 */
+  model?: string;
 }
 
 /** GET /health：后端存活信息。 */
@@ -781,7 +819,7 @@ export interface AgentAnswer {
   turns: number;
 }
 
-/** POST /api/agent/deepseek 的请求体。 */
+/** POST /api/agent/ask 的请求体。 */
 interface AgentRequest {
   prompt: string;
   stage: string;
@@ -1055,6 +1093,21 @@ interface RuleApprovalRequest {
 
 interface DecisionApprovalRequest {
   experiment_id: string;
+}
+
+/** 只认 id 的请求体：切换当前来源、删除来源、测试某一套都用它。 */
+interface ProviderIdRequest {
+  id: string;
+}
+
+/** 新增/更新一套模型来源的请求体；`id` 为空串表示新增。 */
+interface ProviderSaveRequest {
+  id: string;
+  preset: string;
+  name: string;
+  base_url: string;
+  model: string;
+  api_key: string;
 }
 
 /** 检索请求：query 为空串表示按规则规格拼检索式。 */
@@ -1347,9 +1400,59 @@ export async function fetchRuntime(): Promise<RuntimeSnapshot> {
   return snapshot;
 }
 
-/** 读取模型设置状态。 */
-export function fetchDeepSeekSettings(): Promise<DeepSeekSettings> {
-  return requestJson<DeepSeekSettings>('/api/settings/deepseek', http.RequestMethod.GET);
+/** 读取模型来源：预设清单 + 已配置的几套 + 哪套在用。 */
+export function fetchProviders(): Promise<ProviderSettings> {
+  return requestJson<ProviderSettings>('/api/settings/providers', http.RequestMethod.GET);
+}
+
+/**
+ * 新增或更新一套模型来源。
+ *
+ * `apiKey` 留空表示**不改动已存的密钥** —— 只改地址或模型名时不用把密钥再填一遍。
+ * 后端把它存进系统凭据管理器，`settings.json` 里只有名称、地址与模型。
+ */
+export function saveProvider(id: string, preset: string, name: string, baseUrl: string,
+  model: string, apiKey: string): Promise<ProviderSettings> {
+  const payload: ProviderSaveRequest = {
+    id: id,
+    preset: preset,
+    name: name,
+    base_url: baseUrl,
+    model: model,
+    api_key: apiKey
+  };
+  return requestJson<ProviderSettings>('/api/settings/providers', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/** 换一套当前使用。 */
+export function setActiveProvider(id: string): Promise<ProviderSettings> {
+  const payload: ProviderIdRequest = { id: id };
+  return requestJson<ProviderSettings>('/api/settings/providers/active', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/** 删掉一套。删的是本地这份配置，系统凭据库里那条记录不动。 */
+export function deleteProvider(id: string): Promise<ProviderSettings> {
+  const payload: ProviderIdRequest = { id: id };
+  return requestJson<ProviderSettings>('/api/settings/providers/delete', http.RequestMethod.POST,
+    JSON.stringify(payload));
+}
+
+/**
+ * 发出一句最小请求，验证某一套配得通不通。
+ *
+ * 可以指定还没切过去的那一套先试。**配不通时后端返回 502**，而那句话正是界面要显示的东西，
+ * 所以这里不能走 `requestJson`（它见到非 2xx 就抛）—— 直接在响应体上解析。
+ */
+export async function testProvider(id: string): Promise<ProviderTestResult> {
+  const payload: ProviderIdRequest = { id: id };
+  const response: http.HttpResponse = await send(`${BASE_URL}/api/settings/providers/test`,
+    http.RequestMethod.POST, JSON.stringify(payload), READ_TIMEOUT_MS);
+  const raw: string = typeof response.result === 'string'
+    ? response.result
+    : JSON.stringify(response.result);
+  return JSON.parse(raw) as ProviderTestResult;
 }
 
 /** 读取后端存活信息。 */
@@ -1362,10 +1465,11 @@ export function fetchHealth(): Promise<HealthInfo> {
  *
  * Agent 会带着工作区记录做多轮工具调用，因此读超时放宽到 3 分钟。
  * 提问不会改动任何证据文件，改动类动作仍然要单独审批。
+ * 用的是「当前使用」的那套模型来源。
  */
 export function askAgent(prompt: string, stage: string): Promise<AgentAnswer> {
   const payload: AgentRequest = { prompt: prompt, stage: stage, max_turns: 6 };
-  return requestJson<AgentAnswer>('/api/agent/deepseek', http.RequestMethod.POST,
+  return requestJson<AgentAnswer>('/api/agent/ask', http.RequestMethod.POST,
     JSON.stringify(payload), AGENT_TIMEOUT_MS);
 }
 
