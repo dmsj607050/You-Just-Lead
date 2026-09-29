@@ -70,7 +70,12 @@ def _request(
                 parsed = json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             # 状态码类错误不重试：那是请求本身或额度/权限的问题，重试只是再犯一遍。
-            detail = exc.read().decode("utf-8", errors="replace")[:600]
+            body = exc.read()
+            detail = (
+                body.decode("utf-8", errors="replace")
+                if isinstance(body, bytes)
+                else str(body or "")
+            )[:600]
             raise LLMError(f"模型服务返回 HTTP {exc.code}：{detail}") from exc
         except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError) as exc:
             last_error = exc
@@ -316,4 +321,3 @@ def run_agent(
         "turns": max_turns,
         "truncated": True,
     }
-

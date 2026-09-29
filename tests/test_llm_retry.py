@@ -73,10 +73,11 @@ class RequestRetryTests(unittest.TestCase):
             raise HTTPError("http://example.invalid", 400, "bad request", {}, None)  # type: ignore[arg-type]
 
         with patch.object(llm_service, "urlopen", side_effect=failing):
-            with self.assertRaises(LLMError):
+            with self.assertRaises(LLMError) as caught:
                 llm_service._request({})
 
         self.assertEqual(len(calls), 1)
+        self.assertIn("HTTP 400", str(caught.exception))
 
     def test_it_gives_up_after_the_attempt_budget(self) -> None:
         calls: list[int] = []
