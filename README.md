@@ -9,13 +9,21 @@
 
 **人负责方向与算力审批，Agent 负责执行、记录、核查与建议。** 这条边界写在代码里，不写在提示词里。
 
-## 下载就能用（Windows）
+## Windows 当前本地版
 
-1. 到 [Releases](../../releases) 下载 `YouJustLead.exe`（单文件，不需要先装 Python）。
-2. 双击。它会在「文档/YouJustLead」建好工作区、在本机回环地址起后端，并打开一个无地址栏的应用窗口。
+本轮构建的 `dist/YouJustLead.exe` 是单文件程序，不需要先装 Python。它会：
+
+1. 在「文档/YouJustLead」建好本机工作区；
+2. 在本机回环地址启动后端，并打开一个无地址栏的应用窗口；
 3. 首次使用进「设置 → 模型」，从预设里挑一家（DeepSeek / OpenAI / 月之暗面 / 阿里百炼 /
    本地 Ollama / 自定义），填一次密钥即可；也可以先设环境变量 `YJL_LLM_API_KEY`。
    想换一家、或者同时留着几家切换，都在这一页。
+
+### 与托管后端的关系
+
+当前 EXE 启动的是**本机后端**，尚未连接用户提到的已部署服务器；这里配置的模型来源也由本机后端读取。当前 RC.3 尚未发布为新的 GitHub Release。
+
+目标产品是 Windows 与鸿蒙可下载客户端连接托管服务，用户自带模型密钥（BYOK）。远程服务器地址、用户认证、多用户数据隔离和密钥调用路径尚未接通或完成真实服务器验收，详见 [架构决定 D12](docs/architecture.md)。
 
 想离线看上一次的状态：`YouJustLead.exe --offline`。它不启动后端，直接打开上一次成功同步的静态快照
 （页面与数据都打包在本机，一个网络请求都不发）。
@@ -54,10 +62,12 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 |---|---|
 | 提出假设 | H0007：把 `external.stage` 从 `rgb` 换成 `fusion` 后 mAP@50-95 会高于单模态参考点 0.00234 |
 | 设计实验 | 模型自己读现有配置、写出 `configs/loop/stage_fusion_vs_rgb.yaml`（只改一个自变量） |
-| 真执行 | 人工批准 → JOB-0003 → EXP-0008，真实三模态早融合训练 |
+| 真执行 | 人工批准 → JOB-0003 → EXP-0008，真实数据上的 `stage=fusion` 训练（1 epoch、10% 数据子集） |
 | 证据核查 | 0.00211 ≤ 0.00234 → `prediction_met=false` → 判定 `hypothesis_falsified` |
 | 据此改进 | 终止 H0007 与分支 B0007（负结果是有价值的结论，不是要修的 bug） |
 | 新假设 | 综合证据后开出 3 条：三模态读取/配对是否真的成立、0.002 是否只是 1 epoch+10% 数据的产物、差距是否在噪声内 |
+
+这说明一次实验路线确实走过了“提出 → 设计 → 批准 → 训练 → 核查 → 终止”并留下账本事件；它不等于 G4/G5 验收通过。EXP-0006/0007/0008 的 manifest 仍标为 `planned`，对应 result 标为 `completed`；三模态配对、数据泄漏与跨种子复现也仍未核实。三个已完成运行均为同一种子、1 epoch、`fraction=0.1`，不能据此外推完整训练表现。
 
 ## 交付形态：一个项目，按系统选一个包
 
@@ -66,8 +76,8 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 
 | 你的系统 | 产物 | 用途 |
 |---|---|---|
-| Windows | `dist/YouJustLead.exe` | 给用户直接下载使用：自带界面、自带后端、离线可读 |
-| Windows | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；鸿蒙端在电脑上连的就是它 |
+| Windows | `dist/YouJustLead.exe` | 当前为本地模式：自带界面、本机后端、离线可读；云端客户端仍待实现 |
+| Windows | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；当前鸿蒙端本机调试时连接它 |
 | 鸿蒙 | `device/` 编出来的 HAP | 比赛交付用的端侧应用 |
 | Linux | —— | **还没有**。后端本身跨平台，但桌面壳是 Windows 专用的（找 Edge 与 `%LOCALAPPDATA%`），要出 Linux 版得先改 `app/desktop_entry.py` |
 
@@ -111,7 +121,7 @@ python main.py release-manifest            # 发布清单；退出码即「能�
 | 文档 | 内容 |
 |---|---|
 | [AGENT.md](AGENT.md) | 行为约束与安全边界 |
-| [docs/architecture.md](docs/architecture.md) | 架构决定记录（D1–D10：边界、契约、发布门禁、端侧并入） |
+| [docs/architecture.md](docs/architecture.md) | 架构决定记录（D1–D12：边界、契约、发布门禁、端侧并入、模型密钥与托管服务目标） |
 | [docs/operation_guide.md](docs/operation_guide.md) | 操作指南（含内置 Windows 端与鸿蒙端） |
 | [docs/versioning.md](docs/versioning.md) | 版本流与发布清单；什么算「可以发布」 |
 | [docs/SUBMISSION.md](docs/SUBMISSION.md) | 比赛提交材料 |
