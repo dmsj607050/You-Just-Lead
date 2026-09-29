@@ -216,10 +216,15 @@ Python 一行都不共用。配色就是一处例子：`device/entry/src/main/et
   旧凭据记录**不删** —— 那是用户自己存进去的东西，删掉不可逆。
 - **环境变量改名** `DEEPSEEK_API_KEY` → `YJL_LLM_API_KEY`：多供应商之后旧名字只对得上其中一家。
   旧名字仍然认，但**只在当前这套的预设是 DeepSeek 时**生效。
+- **环境变量只覆盖「当前使用」那套**：它是一句全局设置，不是给某一套来源的 —— 不这么切，
+  「测试某一套」就会把当前这套的密钥发给第三方。`has_key` / `configured` / `key_source`
+  与真正取密钥这四处统一按这条口径判（`settings_service._env_key()`）。
+  这一条是部署到一台**没有系统凭据库**的 Linux 时才暴露的：那时界面说「未配置」「缺密钥」，
+  而 Agent 其实答得出来 —— 状态在说谎。
 - 接口：`GET/POST /api/settings/providers`、`.../active`、`.../delete`、`.../test`；
   `/api/agent/deepseek` 改名 `/api/agent/ask`。旧的 `/api/settings/deepseek` 已下线。
 
-**验收依据**：`tests/test_model_providers.py`（13 项，用 `_FakeKeyring` + 临时 `APPDATA`，
+**验收依据**：`tests/test_model_providers.py`（16 项，用 `_FakeKeyring` + 临时 `APPDATA`，
 **不碰这台机器真实的凭据库与设置文件**）；`tests/test_arkts_sources.py::ContractShapeTests`
 新增一条，比对端侧 `ProviderSettings` 与后端 `providers_status()` 逐字段一致；
 Windows 端 `web/views.js` 与鸿蒙端 `device/entry/src/main/ets/view/SettingsPage.ets` 各自接上。

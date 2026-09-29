@@ -264,10 +264,33 @@ def _ensure_providers() -> tuple[list[dict[str, Any]], str]:
     return providers, active
 
 
-def _public_view(provider: dict[str, Any]) -> dict[str, Any]:
-    """给界面看的：**永远不带密钥**。"""
+def _env_key(provider: dict[str, Any], active: str) -> str:
+    """环境变量给「当前使用」那套用的密钥；没有就返回空串。
+
+    `YJL_LLM_API_KEY` 是一句**全局**设置，只覆盖当前那套。不这么切的话，「测试某一套」
+    会拿当前这套的密钥去打另一个服务 —— 既测不准，也把密钥发给了第三方。
+    旧的 `DEEPSEEK_API_KEY` 只在当前那套的预设确实是 DeepSeek 时认。
+    """
+    if provider["id"] != active:
+        return ""
+    override = os.environ.get(API_KEY_ENV, "").strip()
+    if override:
+        return override
+    preset = _preset_of(provider)
+    if preset is not None and preset.id == "deepseek":
+        return os.environ.get(LEGACY_API_KEY_ENV, "").strip()
+    return ""
+
+
+def _public_view(provider: dict[str, Any], active: str) -> dict[str, Any]:
+    """给界面看的：**永远不带密钥**。
+
+    `has_key` 把环境变量也算进去：不装系统凭据库的机器（纯环境变量配起来的 Linux）
+    否则会被界面说成「未配置」「缺密钥」，而它其实答得出来 —— 这是真发生过的一次部署。
+    """
     preset = _preset_of(provider)
     account = KEYRING_ACCOUNT_PREFIX + provider["id"]
+    has_key = bool(_env_key(provider, active)) or _read_keyring(account) is not None
     return {
         "id": provider["id"],
         "name": provider["name"],
@@ -276,7 +299,7 @@ def _public_view(provider: dict[str, Any]) -> dict[str, Any]:
         "model": provider["model"],
         "models": provider["models"],
         "key_required": preset.key_required if preset else False,
-        "has_key": _read_keyring(account) is not None,
+        "has_key": has_key,
         "docs_url": preset.docs_url if preset else "",
     }
 
@@ -284,55 +307,45 @@ def _public_view(provider: dict[str, Any]) -> dict[str, Any]:
 def providers_status() -> dict[str, Any]:
     """现状：预设 + 已配置的几套 + 哪套在用。密钥只回「有没有」。"""
     providers, active = _ensure_providers()
-    views = [_public_view(item) for item in providers]
+    views = [_public_view(item, active) for item in providers]
     current = next((item for item in views if item["id"] == active), None)
+    stored_current = next((item for item in providers if item["id"] == active), None)
     return {
         "presets": provider_presets(),
         "providers": views,
         "active": active,
         "configured": bool(current and (current["has_key"] or not current["key_required"])),
         "model": current["model"] if current else "",
-        "key_source": _key_source_for(active) if active else None,
+        "key_source": _key_source_for(stored_current, active),
         "secure_storage_available": _keyring() is not None,
         "api_key_env": API_KEY_ENV,
     }
 
 
-def _key_source_for(provider_id: str) -> str | None:
-    """密钥从哪来：环境变量还是凭据管理器。不回具体的值。"""
-    override = os.environ.get(API_KEY_ENV, "").strip()
-    if override:
+def _key_source_for(provider: dict[str, Any] | None, active: str) -> str | None:
+    """密钥从哪来：环境变量还是凭据库。**不回具体的值**；一套都没有时是 None。"""
+    if provider is None:
+        return None
+    if _env_key(provider, active):
         return "environment"
-    providers = {item["id"]: item for item in _stored_providers()}
-    preset = _preset_of(providers.get(provider_id, {}))
-    if preset is not None and preset.id == "deepseek":
-        legacy = os.environ.get(LEGACY_API_KEY_ENV, "").strip()
-        if legacy:
-            return "environment"
-    if _read_keyring(KEYRING_ACCOUNT_PREFIX + provider_id):
+    if _read_keyring(KEYRING_ACCOUNT_PREFIX + provider["id"]):
         return "windows_credential_manager"
     return None
 
 
 def resolve_credentials(provider_id: str | None = None) -> tuple[str | None, str, str]:
-    """取「当前使用」那套的连接信息：`(api_key, base_url, model)`。
+    """取一套的连接信息：`(api_key, base_url, model)`。
 
     `provider_id` 给了就取那一套（测试连接用），否则取当前的。
-    环境变量覆盖只在取当前那套时生效 —— 显式指定一套就按它自己算。
+    环境变量**只覆盖当前那套**：显式指定别的来源时按它自己存的密钥算，而指定当前那套时
+    环境变量照样生效 —— 否则靠环境变量配起来的环境根本没法自测。
     """
     providers, active = _ensure_providers()
     target = provider_id or active
     provider = next((item for item in providers if item["id"] == target), None)
     if provider is None:
         raise SettingsError("还没有配置任何模型来源。请先在「设置 → 模型」里添加一套。")
-    preset = _preset_of(provider)
-    if provider_id is None:
-        override = os.environ.get(API_KEY_ENV, "").strip()
-        if not override and preset is not None and preset.id == "deepseek":
-            override = os.environ.get(LEGACY_API_KEY_ENV, "").strip()
-        key = override or _read_keyring(KEYRING_ACCOUNT_PREFIX + provider["id"])
-    else:
-        key = _read_keyring(KEYRING_ACCOUNT_PREFIX + provider["id"])
+    key = _env_key(provider, active) or _read_keyring(KEYRING_ACCOUNT_PREFIX + provider["id"])
     return key, provider["base_url"], provider["model"]
 
 

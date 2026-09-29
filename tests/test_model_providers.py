@@ -183,6 +183,48 @@ class CredentialTests(_ProviderTestCase):
         key, _, _ = settings_service.resolve_credentials()
         self.assertEqual(key, "sk-legacy")
 
+    def test_the_environment_variable_counts_as_a_stored_key(self) -> None:
+        """没有系统凭据库的机器（纯环境变量配起来的 Linux）也要被认成「已配置」。
+
+        这条钉的是一次真实部署：服务器上没有凭据库，`has_key` 只查凭据库，于是界面说
+        「未配置」「缺密钥」，而 Agent 其实答得出来 —— 状态在说谎。
+        """
+        self.add(preset="deepseek", base_url="https://api.deepseek.com", model="a", api_key="")
+        os.environ[settings_service.API_KEY_ENV] = "sk-from-environment"
+
+        status = settings_service.providers_status()
+
+        self.assertTrue(status["providers"][0]["has_key"])
+        self.assertTrue(status["configured"])
+        self.assertEqual(status["key_source"], "environment")
+
+    def test_testing_the_active_provider_uses_the_environment_variable(self) -> None:
+        """「测试连接」指定当前那套时，环境变量要生效。
+
+        不给它生效，靠环境变量配起来的环境永远测不通 —— 用户会以为密钥填错了。
+        """
+        self.add(preset="deepseek", base_url="https://api.deepseek.com", model="a", api_key="")
+        os.environ[settings_service.API_KEY_ENV] = "sk-from-environment"
+
+        key, _, _ = settings_service.resolve_credentials("deepseek")
+        self.assertEqual(key, "sk-from-environment")
+
+    def test_the_environment_variable_never_reaches_another_provider(self) -> None:
+        """环境变量是「当前那套」的覆盖，不是给每一套的。
+
+        否则「测试某一套」会把当前这套的密钥发给另一个服务：既测不准，也是把密钥交出去。
+        """
+        self.add(name="甲", preset="deepseek", base_url="https://api.deepseek.com", model="a", api_key="")
+        self.add(name="乙", preset="openai", base_url="https://api.openai.com/v1", model="b", api_key="")
+        os.environ[settings_service.API_KEY_ENV] = "sk-from-environment"
+
+        self.assertEqual(settings_service.resolve_credentials("deepseek")[0], "sk-from-environment")
+        self.assertIsNone(settings_service.resolve_credentials("openai")[0], "非当前那套不该拿到环境变量")
+        self.assertFalse(
+            settings_service.providers_status()["providers"][1]["has_key"],
+            "非当前的那套不能因为环境变量被说成「有密钥」",
+        )
+
 
 class MigrationTests(_ProviderTestCase):
     def test_the_legacy_single_provider_setup_migrates_once(self) -> None:
