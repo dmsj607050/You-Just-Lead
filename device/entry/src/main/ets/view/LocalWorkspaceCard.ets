@@ -1,54 +1,26 @@
 import { common } from '@kit.AbilityKit';
 import AppTheme from '../common/AppTheme';
-import { describeError, shortHash } from '../common/Format';
-import { tFor, tfFor } from '../common/I18n';
-import { appendEvent, eventCount } from '../common/LocalLedger';
-import { GateApproval, currentApproval } from '../common/LocalRuleGate';
-import { RuleReadiness, ruleReadiness } from '../common/LocalRules';
-import { LocalWorkspace, WORKSPACE_PERMISSION_DENIED, WORKSPACE_UNSUPPORTED } from '../common/LocalWorkspace';
-import { YamlMap, parseYaml } from '../common/YamlLite';
-import { CardPanel, EmptyHint, KeyValueRow } from './Widgets';
+import { describeError } from '../common/Format';
+import IconPaths from '../common/IconPaths';
+import { tFor } from '../common/I18n';
+import { LocalWorkspace } from '../common/LocalWorkspace';
+import {
+  LocalWorkspaceReport,
+  WORKSPACE_FAILED_PERMISSION,
+  WORKSPACE_FAILED_UNSUPPORTED,
+  buildLocalWorkspaceLayout,
+  inspectLocalWorkspace,
+  inspectWorkspace,
+  prepareLocalWorkspace
+} from '../common/LocalWorkspaceState';
+import { ChipButton, InfoRow, SectionCard, StatusPill } from './Widgets';
 
 /**
- * 本地工作区卡片：选目录、建骨架、自检。
+ * 工作区设置卡片：目录在哪、能不能读，以及四个端侧操作。
  *
  * 这是「端侧自足」的入口，**必须能在没有后端时使用**——所以它自己取上下文、自己读文件，
  * 不依赖任何 HTTP 调用，并且同时挂在启动页与设置页上：后端挂了也走得到。
  */
-
-/** 建骨架时写进账本的载荷（键名与端侧工作区字段一致）。 */
-interface WorkspaceInitPayload {
-  root: string;
-  spec_sha256: string;
-}
-
-/**
- * 卡片上的一个文字按钮。
- *
- * 必须是 @Component 而不是 @Builder：@Builder 的按值参数只在首帧取值，
- * 后来可点状态从 false 变 true 时按钮仍然是禁用的（状态行变了、按钮没变，
- * 看起来就像"点了没反应"）。@Prop 才会跟着父组件刷新。
- */
-@Component
-struct LocalActionButton {
-  @Prop label: string = '';
-  /** 不能叫 `enabled`：与通用属性同名，ArkTS 会报不可赋值。 */
-  @Prop active: boolean = false;
-  onTap: () => void = () => {
-  };
-
-  build() {
-    Text(this.label)
-      .fontSize(13)
-      .fontColor(this.active ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY)
-      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .enabled(this.active)
-      .onClick(() => {
-        this.onTap();
-      })
-  }
-}
-
 @Component
 export struct LocalWorkspaceCard {
   /**
@@ -68,27 +40,12 @@ export struct LocalWorkspaceCard {
   @StorageLink('localStatusOpen') statusOpen: boolean = false;
   @State workspaceRoot: string = '';
   @State readable: boolean = false;
-  @State specExists: boolean = false;
-  @State profile: string = '';
-  @State fieldCount: number = 0;
-  @State missingValue: number = 0;
-  @State missingAnchor: number = 0;
-  @State gapCount: number = 0;
-  @State specHash: string = '';
-  /** 规则是否已人工批准（读规格里的 requires_human_confirmation）。 */
-  @State ruleApproved: boolean = false;
-  @State ledgerCount: number = 0;
   @State localError: string = '';
   @State busy: boolean = false;
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
     return tFor(this.lang, key);
-  }
-
-  /** 带占位符取文案。 */
-  private trf(key: string, args: string[]): string {
-    return tfFor(this.lang, key, args);
   }
 
   aboutToAppear(): void {
@@ -103,12 +60,7 @@ export struct LocalWorkspaceCard {
   async restore(): Promise<void> {
     this.localError = '';
     try {
-      const workspace: LocalWorkspace = await LocalWorkspace.restore(this.abilityContext());
-      this.workspaceRoot = workspace.root;
-      this.readable = workspace.readable;
-      if (workspace.hasRoot() && workspace.readable) {
-        await this.inspect(workspace);
-      }
+      this.apply(await inspectLocalWorkspace(this.abilityContext()));
     } catch (err) {
       this.localError = describeError(err as Object);
     }
@@ -119,15 +71,12 @@ export struct LocalWorkspaceCard {
     this.busy = true;
     this.localError = '';
     try {
-      const workspace: LocalWorkspace = await LocalWorkspace.prepareUserFolder(this.abilityContext());
-      this.workspaceRoot = workspace.root;
-      this.readable = workspace.readable;
-      await this.inspect(workspace);
+      this.apply(await prepareLocalWorkspace(this.abilityContext()));
     } catch (err) {
       const message: string = describeError(err as Object);
-      if (message.includes(WORKSPACE_PERMISSION_DENIED)) {
+      if (message.includes(WORKSPACE_FAILED_PERMISSION)) {
         this.localError = this.tr('settings.workspacePermissionDenied');
-      } else if (message.includes(WORKSPACE_UNSUPPORTED)) {
+      } else if (message.includes(WORKSPACE_FAILED_UNSUPPORTED)) {
         this.localError = this.tr('settings.workspaceUnsupported');
       } else {
         this.localError = message;
@@ -142,18 +91,7 @@ export struct LocalWorkspaceCard {
     this.busy = true;
     this.localError = '';
     try {
-      const workspace: LocalWorkspace = new LocalWorkspace(this.workspaceRoot);
-      const created: boolean = await workspace.initSkeleton();
-      // 端侧自己记第一笔账：既是"端侧真能落账本"的证据，也把工作区的起点固定下来。
-      // 只在新建成时记——账本是审计流水，反复点按钮不该刷出重复事件。
-      if (created) {
-        const init: WorkspaceInitPayload = {
-          root: this.workspaceRoot,
-          spec_sha256: await LocalWorkspace.sha256Of(workspace.join('competition_spec.yaml'))
-        };
-        appendEvent(workspace, 'local_workspace_initialized', JSON.stringify(init));
-      }
-      await this.inspect(workspace);
+      this.apply(await buildLocalWorkspaceLayout(this.workspaceRoot));
     } catch (err) {
       this.localError = describeError(err as Object);
     } finally {
@@ -164,7 +102,7 @@ export struct LocalWorkspaceCard {
   async recheck(): Promise<void> {
     this.busy = true;
     try {
-      await this.inspect(new LocalWorkspace(this.workspaceRoot));
+      this.apply(await inspectWorkspace(new LocalWorkspace(this.workspaceRoot)));
     } catch (err) {
       this.localError = describeError(err as Object);
     } finally {
@@ -172,89 +110,94 @@ export struct LocalWorkspaceCard {
     }
   }
 
-  /**
-   * 自检：读规格 → 解析 → 算就绪度 → 算指纹 → 数账本。
+  /** 把一份自检报告落到卡片的状态上。
    *
-   * 全部在端侧算，不经过后端；这也是「端侧真的能读懂工作区」的证据。
+   * 卡片只显示「目录在哪、能不能读」——规则与账本的明细在设置页的「高级信息」里，
+   * 那一页读的是同一份报告（`common/LocalWorkspaceState.ets`）。
    */
-  private async inspect(workspace: LocalWorkspace): Promise<void> {
+  private apply(report: LocalWorkspaceReport): void {
     this.localError = '';
-    this.specExists = workspace.exists('competition_spec.yaml');
-    this.ledgerCount = eventCount(workspace);
-    if (!this.specExists) {
-      this.profile = '';
-      this.fieldCount = 0;
-      this.missingValue = 0;
-      this.missingAnchor = 0;
-      this.gapCount = 0;
-      this.specHash = '';
-      this.ruleApproved = false;
-      return;
-    }
-    const text: string = workspace.readText('competition_spec.yaml');
-    const spec: YamlMap = parseYaml(text);
-    const readiness: RuleReadiness = ruleReadiness(spec);
-    this.profile = readiness.profile;
-    this.fieldCount = readiness.requiredFieldCount;
-    this.missingValue = readiness.missingValueCount;
-    this.missingAnchor = readiness.missingAnchorCount;
-    this.gapCount = readiness.gapCount;
-    this.specHash = shortHash(await LocalWorkspace.sha256Of(workspace.join('competition_spec.yaml')));
-    // 批准状态只认规格里的 requires_human_confirmation，判定口径与后端一致（这里不另立标准）。
-    const approval: GateApproval = currentApproval(spec);
-    this.ruleApproved = !approval.required;
+    this.workspaceRoot = report.root;
+    this.readable = report.readable;
   }
 
   build() {
-    CardPanel({
-      title: this.tr('settings.localWorkspace')
+    SectionCard({
+      title: this.tr('settings.card.workspace'),
+      subtitle: 'Workspace',
+      icon: IconPaths.FOLDER,
+      iconTone: this.readable ? 'ok' : 'muted'
     }) {
       Column() {
-        KeyValueRow({
+        InfoRow({
           label: this.tr('settings.workspacePath'),
           value: this.workspaceRoot.length > 0 ? this.workspaceRoot : this.tr('settings.workspaceNone'),
-          mono: true
+          mono: true,
+          labelWidth: 96
         })
 
         if (this.workspaceRoot.length > 0) {
-          Text(this.readable ? this.tr('settings.workspaceReady') : this.tr('settings.workspaceNotReadable'))
-            .fontSize(12)
-            .fontColor(this.readable ? AppTheme.TEXT_TERTIARY : AppTheme.WARN_TEXT)
-            .width('100%')
-            .margin({ top: 4 })
+          Row() {
+            StatusPill({
+              label: this.readable ? this.tr('settings.available') : this.tr('settings.unavailable'),
+              tone: this.readable ? 'ok' : 'warn'
+            })
+          }
+          .width('100%')
+          .margin({ bottom: 10 })
         }
 
-        Row({ space: 8 }) {
-          LocalActionButton({
+        Text(this.tr('settings.workspacePurpose'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_TERTIARY)
+          .width('100%')
+          .margin({ bottom: 14 })
+
+        Row({ space: 10 }) {
+          ChipButton({
+            icon: IconPaths.FOLDER,
             label: this.busy ? this.tr('settings.working') : this.tr('settings.chooseFolder'),
+            tone: 'outline',
             active: !this.busy,
             onTap: () => {
               this.choose();
             }
           })
-          LocalActionButton({
+          ChipButton({
+            icon: IconPaths.PLUS,
             label: this.tr('settings.initSkeleton'),
+            tone: 'outline',
             active: !this.busy && this.readable,
             onTap: () => {
               this.createLayout();
             }
           })
-          LocalActionButton({
+        }
+        .width('100%')
+
+        Row({ space: 10 }) {
+          ChipButton({
+            icon: IconPaths.REFRESH,
             label: this.tr('settings.recheck'),
+            tone: 'outline',
             active: !this.busy && this.readable,
             onTap: () => {
               this.recheck();
             }
           })
-          LocalActionButton({
+          ChipButton({
+            icon: IconPaths.CHECK,
             label: this.tr('settings.ruleGate'),
+            tone: 'outline',
             active: !this.busy && this.readable,
             onTap: () => {
               this.gateOpen = true;
             }
           })
-          LocalActionButton({
+          ChipButton({
+            icon: IconPaths.DOC,
             label: this.tr('settings.offlineStatus'),
+            tone: 'outline',
             active: !this.busy && this.readable,
             onTap: () => {
               this.statusOpen = true;
@@ -262,37 +205,22 @@ export struct LocalWorkspaceCard {
           })
         }
         .width('100%')
-        .margin({ top: 12, bottom: 12 })
+        .margin({ top: 10 })
 
         if (this.localError.length > 0) {
           Text(this.localError)
             .fontSize(12)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ bottom: 10 })
+            .margin({ top: 12 })
         }
 
         if (this.workspaceRoot.length === 0) {
-          EmptyHint({ text: this.tr('settings.workspaceHint') })
-        } else {
-          KeyValueRow({
-            label: this.tr('settings.specFile'),
-            value: this.specExists ? this.tr('settings.present') : this.tr('settings.missing')
-          })
-          KeyValueRow({ label: this.tr('settings.ruleProfile'), value: this.profile })
-          KeyValueRow({ label: this.tr('settings.ruleFields'), value: `${this.fieldCount}` })
-          KeyValueRow({
-            label: this.tr('settings.ruleGaps'),
-            value: this.trf('settings.ruleGapsValue', [
-              `${this.gapCount}`, `${this.missingValue}`, `${this.missingAnchor}`
-            ])
-          })
-          KeyValueRow({
-            label: this.tr('settings.ruleApproval'),
-            value: this.ruleApproved ? this.tr('localRule.approved') : this.tr('localRule.notApproved')
-          })
-          KeyValueRow({ label: this.tr('settings.specFingerprint'), value: this.specHash, mono: true })
-          KeyValueRow({ label: this.tr('settings.ledgerEvents'), value: `${this.ledgerCount}` })
+          Text(this.tr('settings.workspaceHint'))
+            .fontSize(11)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .width('100%')
+            .margin({ top: 12 })
         }
       }
       .width('100%')

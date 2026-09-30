@@ -116,4 +116,46 @@ export default class IconPaths {
   /** 近山：横幅装饰，按 280×110 坐标系绘制。 */
   static readonly RIDGE_FRONT: string =
     'M36 110 L104 52 L172 110 Z';
+
+  // ---- 设置页就绪状态用到的图标 ----
+
+  /** 机架：后端服务。两台叠起来的机器，左边两个指示灯。 */
+  static readonly SERVER: string =
+    'M4 5 L20 5 L20 10.5 L4 10.5 Z M4 13.5 L20 13.5 L20 19 L4 19 Z M7 7.8 L9 7.8 M7 16.2 L9 16.2';
+
+  /** 头形折线：当前模型（推理与分析的那一层）。 */
+  static readonly BRAIN: string =
+    'M12 4.5 L16 5.5 L18.5 8.5 L18.5 13 L17 16.5 L14 19 L10 19 L7 16.5 L5.5 13 L5.5 8.5 L8 5.5 Z ' +
+    'M12 4.5 L12 19 M9 8 L12 10 L9 12 M15 8 L12 10 L15 12';
+
+  /** 芯片：GPU / CUDA。方芯 + 八根引脚。 */
+  static readonly CHIP: string =
+    'M7 7 L17 7 L17 17 L7 17 Z M10 10 L14 10 L14 14 L10 14 Z M9.5 4 L9.5 7 M14.5 4 L14.5 7 ' +
+    'M9.5 17 L9.5 20 M14.5 17 L14.5 20 M4 9.5 L7 9.5 M4 14.5 L7 14.5 M17 9.5 L20 9.5 M17 14.5 L20 14.5';
+
+  /** 盾牌带勾：系统就绪与权限。 */
+  static readonly SHIELD_CHECK: string =
+    'M12 3.5 L19 6 L19 12 L12 20.5 L5 12 L5 6 Z M8.5 11.5 L11 14 L15.5 9.5';
+
+  /** 双向箭头：重新检测。 */
+  static readonly REFRESH: string =
+    'M6 9 L16 9 M13 6 L16 9 L13 12 M18 15 L8 15 M11 12 L8 15 L11 18';
+
+  /** 向下箭头带底座：自动安装依赖。 */
+  static readonly DOWNLOAD: string =
+    'M12 4 L12 14.5 M8 11 L12 15 L16 11 M5 19 L19 19';
+
+  /** 尖括号：允许修改代码。 */
+  static readonly CODE: string =
+    'M9 7 L4 12 L9 17 M15 7 L20 12 L15 17 M13.5 5 L10.5 19';
+
+  /** 人形带勾：关键步骤人工确认。 */
+  static readonly USER_CHECK: string =
+    'M10 4 L13 6 L13 10 L10 12 L7 10 L7 6 Z M4 20 L6 15 L14 15 L16 20 M15 10.5 L17 13 L21 8.5';
+
+  /** 齿轮：高级信息。八齿 + 中心方孔。 */
+  static readonly GEAR: string =
+    'M12 3.5 L14 5.5 L17 5.5 L19 7.5 L19 10.5 L21 12 L19 13.5 L19 16.5 L17 18.5 L14 18.5 ' +
+    'L12 20.5 L10 18.5 L7 18.5 L5 16.5 L5 13.5 L3 12 L5 10.5 L5 7.5 L7 5.5 L10 5.5 Z ' +
+    'M10 10 L14 10 L14 14 L10 14 Z';
 }

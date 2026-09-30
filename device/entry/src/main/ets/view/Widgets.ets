@@ -1,5 +1,6 @@
 import AppTheme from '../common/AppTheme';
 import { tFor } from '../common/I18n';
+import { AppIcon } from './AppIcon';
 
 /**
  * 跨页面复用的展示原子。
@@ -520,5 +521,402 @@ export struct ProgressBar {
       .margin({ top: 6 })
     }
     .width('100%')
+  }
+}
+
+// ---- 设置页就绪状态与配置卡片用到的一组控件 ----
+//
+// 与上面几个的区别：上面的是「一行标签 + 一个值」，这一组带色点、图标、开关与操作按钮，
+// 用来把「现在能不能用、哪里缺、缺了怎么办」一眼说清。色调口径与 StatusBadge 一致。
+
+/** 色调 -> 文字色。ok / warn / danger / muted。 */
+function toneTextColor(tone: string): ResourceColor {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY_DARK;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_TEXT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER;
+  }
+  return AppTheme.TEXT_SECONDARY;
+}
+
+/** 色调 -> 底色。 */
+function toneBackground(tone: string): ResourceColor {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY_SOFT;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_SOFT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER_SOFT;
+  }
+  return AppTheme.PAGE_BG;
+}
+
+/** 色调 -> 色点颜色。点比文字更醒目，所以用饱和色而不是文字色。 */
+function toneDotColor(tone: string): ResourceColor {
+  if (tone === 'ok') {
+    return AppTheme.PRIMARY;
+  }
+  if (tone === 'warn') {
+    return AppTheme.WARN_TEXT;
+  }
+  if (tone === 'danger') {
+    return AppTheme.DANGER;
+  }
+  return AppTheme.TEXT_TERTIARY;
+}
+
+/** 状态胶囊：一个色点 + 一句短状态（正常 / 未配置 / 未连接）。 */
+@Component
+export struct StatusPill {
+  @Prop label: string = '';
+  @Prop tone: string = 'muted';
+
+  build() {
+    Row() {
+      Row()
+        .width(7)
+        .height(7)
+        .borderRadius(4)
+        .backgroundColor(toneDotColor(this.tone))
+      Text(this.label)
+        .fontSize(12)
+        .fontColor(toneTextColor(this.tone))
+        .margin({ left: 6 })
+    }
+    .alignItems(VerticalAlign.Center)
+    .padding({ left: 9, right: 9, top: 4, bottom: 4 })
+    .backgroundColor(toneBackground(this.tone))
+    .borderRadius(6)
+  }
+}
+
+/** 圆角方块里的图标：卡片头与状态磁贴都用它，保证图标的底色口径一致。 */
+@Component
+export struct IconChip {
+  @Prop icon: string = '';
+  @Prop tone: string = 'muted';
+  /** 方块边长。**不能叫 `size`**：那是组件的内置属性名，同名会报不可赋值。 */
+  @Prop chipSize: number = 32;
+
+  build() {
+    Stack() {
+      AppIcon({
+        commands: this.icon,
+        color: toneTextColor(this.tone),
+        filled: false,
+        iconSize: Math.round(this.chipSize * 0.56)
+      })
+    }
+    .width(this.chipSize)
+    .height(this.chipSize)
+    .backgroundColor(toneBackground(this.tone))
+    .borderRadius(Math.round(this.chipSize * 0.3))
+  }
+}
+
+/**
+ * 区块卡片：中文主标题 + 英文副标题 +（可选）右上角一个操作。
+ *
+ * 副标题不是装饰：这个产品里「就绪状态」「模型与运行时」这类词在两端、在文档里都要对得上，
+ * 英文那行是给同一套术语留的锚点，也让人一眼看出这一块管的是什么。
+ */
+@Component
+export struct SectionCard {
+  @Prop title: string = '';
+  @Prop subtitle: string = '';
+  /** 卡片头左侧图标；留空则不画。 */
+  @Prop icon: string = '';
+  @Prop iconTone: string = 'muted';
+  /** 右上角操作文案；留空则不画。 */
+  @Prop actionLabel: string = '';
+  /** 右上角操作的色调：primary / danger / muted。 */
+  @Prop actionTone: string = 'primary';
+  @Prop actionActive: boolean = true;
+  /** 放在 Row 中并排时用它分配宽度，0 表示按自身尺寸。与 CardPanel 同一口径。 */
+  @Prop weight: number = 0;
+  onAction: () => void = () => {
+  };
+  @BuilderParam content: () => void = this.emptyContent;
+
+  @Builder
+  emptyContent() {
+  }
+
+  build() {
+    Column() {
+      Row() {
+        if (this.icon.length > 0) {
+          IconChip({ icon: this.icon, tone: this.iconTone, chipSize: 34 })
+            .margin({ right: 12 })
+        }
+        Column() {
+          Text(this.title)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+          if (this.subtitle.length > 0) {
+            Text(this.subtitle)
+              .fontSize(11)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .margin({ top: 3 })
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        if (this.actionLabel.length > 0) {
+          Text(this.actionLabel)
+            .fontSize(12)
+            .fontColor(this.actionActive
+              ? (this.actionTone === 'danger'
+                ? AppTheme.DANGER
+                : (this.actionTone === 'muted' ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY))
+              : AppTheme.TEXT_TERTIARY)
+            .padding({ left: 8, top: 4, bottom: 4 })
+            .enabled(this.actionActive)
+            .onClick(() => {
+              if (this.actionActive) {
+                this.onAction();
+              }
+            })
+        }
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 16 })
+
+      this.content()
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .layoutWeight(this.weight)
+    .padding(20)
+    .backgroundColor(AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS_LG)
+    .border({ width: 1, color: AppTheme.BORDER })
+  }
+}
+
+/**
+ * 状态磁贴：一项能力现在怎么样。
+ *
+ * 与 `MetricCard` 的区别：那个只给一个数字，这个要给「什么能力 + 正常不正常 + 现在是什么 +
+ * 缺了会影响什么」四件事 —— 设置页的价值恰恰在这四件事一起看。
+ */
+@Component
+export struct StatusTile {
+  @Prop icon: string = '';
+  @Prop title: string = '';
+  @Prop subtitle: string = '';
+  @Prop tone: string = 'muted';
+  @Prop pill: string = '';
+  /** 当前值（模型名、设备名）。可以为空。 */
+  @Prop value: string = '';
+  /** 这一项对用户意味着什么。 */
+  @Prop note: string = '';
+
+  build() {
+    Column() {
+      Row() {
+        IconChip({ icon: this.icon, tone: this.tone, chipSize: 36 })
+          .margin({ right: 12 })
+        Column() {
+          Text(this.title)
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+            .maxLines(1)
+          if (this.subtitle.length > 0) {
+            Text(this.subtitle)
+              .fontSize(10)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 2 })
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        if (this.pill.length > 0) {
+          StatusPill({ label: this.pill, tone: this.tone })
+        }
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      if (this.value.length > 0) {
+        Text(this.value)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .margin({ top: 12 })
+      }
+      if (this.note.length > 0) {
+        Text(this.note)
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .maxLines(3)
+          .margin({ top: this.value.length > 0 ? 6 : 12 })
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .padding(16)
+    .backgroundColor(AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS_LG)
+    .border({ width: 1, color: AppTheme.BORDER })
+  }
+}
+
+/** 权限开关行：图标 + 一句话 + 开关。说明文字交代「开了会发生什么」。 */
+@Component
+export struct ToggleRow {
+  @Prop icon: string = '';
+  @Prop label: string = '';
+  @Prop note: string = '';
+  @Prop checked: boolean = false;
+  /** 正在写入时禁用，避免连点两次写出两个相反的值。 */
+  @Prop busy: boolean = false;
+  onToggle: (value: boolean) => void = () => {
+  };
+
+  build() {
+    Row() {
+      AppIcon({
+        commands: this.icon,
+        color: this.checked ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
+        filled: false,
+        iconSize: 20
+      })
+      Column() {
+        Text(this.label)
+          .fontSize(13)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+        if (this.note.length > 0) {
+          Text(this.note)
+            .fontSize(11)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .margin({ top: 3 })
+            .maxLines(2)
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      .margin({ left: 10, right: 12 })
+
+      Toggle({ type: ToggleType.Switch, isOn: this.checked })
+        .selectedColor(AppTheme.PRIMARY)
+        .enabled(!this.busy)
+        .onChange((isOn: boolean) => {
+          this.onToggle(isOn);
+        })
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ top: 10, bottom: 10 })
+    .opacity(this.busy ? 0.6 : 1)
+  }
+}
+
+/** 小操作按钮：图标 + 文字。tone 取 outline / primary / danger。 */
+@Component
+export struct ChipButton {
+  @Prop icon: string = '';
+  @Prop label: string = '';
+  @Prop tone: string = 'outline';
+  @Prop active: boolean = true;
+  onTap: () => void = () => {
+  };
+
+  private textColor(): ResourceColor {
+    if (!this.active) {
+      return AppTheme.TEXT_TERTIARY;
+    }
+    if (this.tone === 'primary') {
+      return Color.White;
+    }
+    if (this.tone === 'danger') {
+      return AppTheme.DANGER;
+    }
+    return AppTheme.TEXT_PRIMARY;
+  }
+
+  build() {
+    Row() {
+      if (this.icon.length > 0) {
+        AppIcon({
+          commands: this.icon,
+          color: this.textColor(),
+          filled: false,
+          iconSize: 16
+        })
+          .margin({ right: 6 })
+      }
+      Text(this.label)
+        .fontSize(13)
+        .fontColor(this.textColor())
+    }
+    .alignItems(VerticalAlign.Center)
+    .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+    .backgroundColor(this.tone === 'primary'
+      ? AppTheme.PRIMARY
+      : (this.tone === 'danger' ? AppTheme.DANGER_SOFT : AppTheme.SURFACE))
+    .borderRadius(AppTheme.RADIUS_SM)
+    .border({
+      width: this.tone === 'outline' ? 1 : 0,
+      color: AppTheme.BORDER
+    })
+    .opacity(this.active ? 1 : 0.5)
+    .enabled(this.active)
+    .onClick(() => {
+      if (this.active) {
+        this.onTap();
+      }
+    })
+  }
+}
+
+/** 一行「标签 + 值」，值右侧可以带一个状态胶囊。 */
+@Component
+export struct InfoRow {
+  @Prop label: string = '';
+  @Prop value: string = '';
+  @Prop mono: boolean = false;
+  /** 值右侧的状态胶囊；留空则不画。 */
+  @Prop pill: string = '';
+  @Prop tone: string = 'muted';
+  @Prop labelWidth: number = 132;
+
+  build() {
+    Row() {
+      Text(this.label)
+        .fontSize(13)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .width(this.labelWidth)
+      Text(this.value.length > 0 ? this.value : '—')
+        .fontSize(this.mono ? 12 : 13)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+        .layoutWeight(1)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.pill.length > 0) {
+        StatusPill({ label: this.pill, tone: this.tone })
+          .margin({ left: 8 })
+      }
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ top: 9, bottom: 9 })
   }
 }
