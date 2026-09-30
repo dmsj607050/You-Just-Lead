@@ -146,17 +146,17 @@ export struct LocalStatusPage {
     Column() {
       Row() {
         Text(`← ${this.tr('localStatus.back')}`)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY)
-          .padding({ right: 12, top: 4, bottom: 4 })
+          .padding({ right: 12 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.onBack();
           })
         Blank()
         Text(this.tr('common.refresh'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(this.busy ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           .enabled(!this.busy)
           .onClick(() => {
             this.reload();
@@ -166,16 +166,16 @@ export struct LocalStatusPage {
       .alignItems(VerticalAlign.Center)
 
       Text(this.tr('localStatus.title'))
-        .fontSize(24)
+        .fontSize(24 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppTheme.TEXT_PRIMARY)
-        .margin({ top: 10 })
+        .margin({ top: 10 * AppTheme.UI_SCALE })
 
       if (this.workspaceRoot.length > 0) {
         Text(this.workspaceRoot)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -188,7 +188,7 @@ export struct LocalStatusPage {
     Column() {
       Row() {
         Text(item.experimentId)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -202,12 +202,12 @@ export struct LocalStatusPage {
 
       if (item.hypothesis.length > 0) {
         Text(item.hypothesis)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
 
       KeyValueRow({ label: this.tr('localStatus.experimentMetric'), value: formatNumber(item.validationMetric, 4) })
@@ -216,14 +216,14 @@ export struct LocalStatusPage {
 
       if (!item.resultPresent) {
         Text(this.tr('localStatus.experimentNoResult'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
           .width('100%')
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
     .border({ width: { top: 1 }, color: AppTheme.BORDER })
   }
 
@@ -260,11 +260,11 @@ export struct LocalStatusPage {
       ForEach(this.trace.chains, (chain: TraceChain) => {
         Row() {
           Text(this.chainLabel(chain.key))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
-            .width(112)
+            .width(112 * AppTheme.UI_SCALE)
           Text(this.chainValue(chain))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
             .maxLines(1)
@@ -276,17 +276,17 @@ export struct LocalStatusPage {
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .padding({ top: 9, bottom: 9 })
+        .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
       }, (chain: TraceChain) => `${chain.key}-${chain.complete}-${chain.primary}-${chain.secondary}`)
 
       if (this.trace.chains.length > 0) {
         Text(this.trace.brokenAt.length > 0
           ? this.trf('localStatus.traceBroken', [this.chainLabel(this.trace.brokenAt)])
           : this.tr('localStatus.traceAllLinked'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(this.trace.brokenAt.length > 0 ? AppTheme.DANGER : AppTheme.PRIMARY_DARK)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       }
     }
   }
@@ -371,26 +371,26 @@ export struct LocalStatusPage {
         // 「只显示最近 N 条」是事实，放正文第一行；原先是标题下的灰色注脚。
         if (this.eventTotal > this.events.length) {
           Text(this.trf('localStatus.ledgerLatest', [`${this.events.length}`, `${this.eventTotal}`]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ bottom: 6 })
+            .margin({ bottom: 6 * AppTheme.UI_SCALE })
         }
         ForEach(this.events, (item: LedgerEvent) => {
           Row() {
             Text(eventTitle(this.lang, item.eventType))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_PRIMARY)
               .layoutWeight(1)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Text(formatTimestamp(item.createdAt))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
-          .padding({ top: 9, bottom: 9 })
+          .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
         }, (item: LedgerEvent) => `${item.eventType}-${item.createdAt}`)
       }
     }
@@ -428,26 +428,26 @@ export struct LocalStatusPage {
       ForEach(EXECUTOR_CAPABILITIES, (item: ExecutorCapability) => {
         Row() {
           Text(this.tr(item.titleKey))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .layoutWeight(1)
           StatusBadge({ text: this.tr('localStatus.executorBadge'), tone: 'warn' })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .padding({ top: 9, bottom: 9 })
+        .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
       }, (item: ExecutorCapability) => item.key)
     }
   }
 
   build() {
     // 卡片用父容器的间距排版：CardPanel 带尾随闭包时不能再链 `.margin()`。
-    Column({ space: 18 }) {
+    Column({ space: 18 * AppTheme.UI_SCALE }) {
       this.Header()
 
       if (this.errorText.length > 0) {
         Text(this.errorText)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
       }
@@ -457,7 +457,7 @@ export struct LocalStatusPage {
           title: this.tr('localStatus.title')
         }) {
           Text(this.tr('localStatus.noWorkspaceHint'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }

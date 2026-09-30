@@ -388,12 +388,12 @@ export struct SettingsPage {
   MessageLine() {
     if (this.providerMessage.length > 0) {
       Text(this.providerMessage)
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(this.providerMessageTone === 'ok'
           ? AppTheme.PRIMARY_DARK
           : (this.providerMessageTone === 'danger' ? AppTheme.DANGER : AppTheme.TEXT_TERTIARY))
         .width('100%')
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
     }
   }
 
@@ -401,20 +401,20 @@ export struct SettingsPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('settings.statusReadFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   /** 一条已存的来源：名字、模型、地址，以及它可以做的几个动作。 */
@@ -423,7 +423,7 @@ export struct SettingsPage {
     Column() {
       Row() {
         Text(item.name)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -439,44 +439,44 @@ export struct SettingsPage {
       .alignItems(VerticalAlign.Center)
 
       Text(item.model.length > 0 ? item.model : '—')
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 4 })
+        .margin({ top: 4 * AppTheme.UI_SCALE })
       Text(item.base_url)
-        .fontSize(11)
+        .fontSize(11 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .margin({ top: 2 })
+        .margin({ top: 2 * AppTheme.UI_SCALE })
 
       if (this.pendingDelete === item.id) {
-        Row({ space: 16 }) {
+        Row({ space: 16 * AppTheme.UI_SCALE }) {
           Text(this.tr('settings.deleteConfirm'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .onClick(() => {
               if (!this.providerBusy) {
                 this.remove(item);
               }
             })
           Text(this.tr('common.cancel'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .onClick(() => {
               this.pendingDelete = '';
             })
         }
         .width('100%')
-        .margin({ top: 10 })
+        .margin({ top: 10 * AppTheme.UI_SCALE })
       } else {
-        Row({ space: 16 }) {
+        Row({ space: 16 * AppTheme.UI_SCALE }) {
           if (item.id !== (this.providers === null ? '' : this.providers.active)) {
             Text(this.tr('settings.activate'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(this.providerBusy ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
-              .padding({ top: 4, bottom: 4 })
+              .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
               .onClick(() => {
                 if (!this.providerBusy) {
                   this.activate(item);
@@ -484,27 +484,27 @@ export struct SettingsPage {
               })
           }
           Text(this.providerBusy ? this.tr('settings.testing') : this.tr('settings.test'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(this.providerBusy ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .onClick(() => {
               if (!this.providerBusy) {
                 this.check(item);
               }
             })
           Text(this.tr('settings.edit'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(this.providerBusy ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .onClick(() => {
               if (!this.providerBusy) {
                 this.openEdit(item);
               }
             })
           Text(this.tr('settings.delete'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(this.providerBusy ? AppTheme.TEXT_TERTIARY : AppTheme.DANGER)
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .onClick(() => {
               if (!this.providerBusy) {
                 this.pendingDelete = item.id;
@@ -512,12 +512,12 @@ export struct SettingsPage {
             })
         }
         .width('100%')
-        .margin({ top: 10 })
+        .margin({ top: 10 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { top: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -529,7 +529,7 @@ export struct SettingsPage {
     }) {
       Column() {
         Text(this.tr('settings.preset'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
         ChoiceChips({
@@ -540,77 +540,77 @@ export struct SettingsPage {
             this.applyPreset(key);
           }
         })
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
 
         Text(this.tr('settings.fieldName'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
         TextInput({ text: this.formName, placeholder: this.tr('settings.fieldNameHint') })
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .width('100%')
-          .height(38)
+          .height(38 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             this.formName = value;
           })
 
         Text(this.tr('settings.fieldBaseUrl'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
         TextInput({ text: this.formBaseUrl, placeholder: this.tr('settings.fieldBaseUrlHint') })
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .width('100%')
-          .height(38)
+          .height(38 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             this.formBaseUrl = value;
           })
 
         Text(this.tr('settings.fieldModel'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
         TextInput({ text: this.formModel, placeholder: this.tr('settings.fieldModelHint') })
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .width('100%')
-          .height(38)
+          .height(38 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             this.formModel = value;
           })
 
         Text(this.tr('settings.fieldApiKey'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
         TextInput({ text: this.formApiKey, placeholder: this.apiKeyHint() })
           .type(InputType.Password)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .width('100%')
-          .height(38)
+          .height(38 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             this.formApiKey = value;
           })
 
-        Row({ space: 12 }) {
+        Row({ space: 12 * AppTheme.UI_SCALE }) {
           Text(this.providerBusy ? this.tr('settings.saving') : this.tr('settings.save'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
             .backgroundColor(AppTheme.PRIMARY)
             .borderRadius(AppTheme.RADIUS_SM)
-            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+            .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
             .opacity(this.providerBusy ? 0.6 : 1)
             .enabled(!this.providerBusy)
             .onClick(() => {
               this.save();
             })
           Text(this.tr('common.cancel'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .padding({ left: 8, right: 8, top: 8, bottom: 8 })
+            .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
             .onClick(() => {
               if (!this.providerBusy) {
                 this.closeForm();
@@ -618,7 +618,7 @@ export struct SettingsPage {
             })
         }
         .width('100%')
-        .margin({ top: 16 })
+        .margin({ top: 16 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
@@ -628,17 +628,17 @@ export struct SettingsPage {
   /** 模型来源这一段：当前用哪套、还有哪几套、怎么加一套。`key` 只用来触发重建。 */
   @Builder
   ModelSection(key: string) {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       CardPanel({
         title: this.tr('settings.currentSource')
       }) {
         Column() {
           if (this.providers === null || this.providers.providers.length === 0) {
             Text(this.tr('settings.noSource'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
-              .margin({ bottom: 4 })
+              .margin({ bottom: 4 * AppTheme.UI_SCALE })
           } else {
             KeyValueRow({
               label: this.tr('settings.currentName'),
@@ -674,13 +674,13 @@ export struct SettingsPage {
             this.ProviderRow(item)
           }, (item: ModelProvider) => `${item.id}-${item.model}-${item.has_key}-${this.pendingDelete === item.id}`)
 
-          Row({ space: 12 }) {
+          Row({ space: 12 * AppTheme.UI_SCALE }) {
             Text(this.tr('settings.newSource'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(Color.White)
               .backgroundColor(AppTheme.PRIMARY)
               .borderRadius(AppTheme.RADIUS_SM)
-              .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+              .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
               .opacity(this.providerBusy ? 0.6 : 1)
               .enabled(!this.providerBusy)
               .onClick(() => {
@@ -688,7 +688,7 @@ export struct SettingsPage {
               })
           }
           .width('100%')
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
 
           this.MessageLine()
         }
@@ -718,10 +718,10 @@ export struct SettingsPage {
           value: this.providers === null ? '—' : this.providers.model
         })
         Text(this.tr('settings.managedModelHint'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
@@ -732,7 +732,7 @@ export struct SettingsPage {
   GpuRow(item: GpuDevice) {
     Column() {
       Text(item.name)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -741,13 +741,13 @@ export struct SettingsPage {
         memoryGb(item.memory_total_mb),
         item.driver_version
       ]))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 6 })
+        .margin({ top: 6 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -756,13 +756,13 @@ export struct SettingsPage {
   SettingsHeading() {
     Column() {
       Text(this.tr('nav.settings'))
-        .fontSize(20)
+        .fontSize(20 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppTheme.TEXT_PRIMARY)
       Text(this.tr('settings.pageDesc'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 3 })
+        .margin({ top: 3 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
@@ -775,22 +775,22 @@ export struct SettingsPage {
       Row() {
         Column() {
           Text(this.tr('settings.readiness.title'))
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_TERTIARY)
           Text(this.readinessTitle())
-            .fontSize(19)
+            .fontSize(19 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.readinessTone() === 'danger'
               ? AppTheme.DANGER
               : (this.readinessTone() === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY))
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
           Text(this.readinessNote())
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
             .maxLines(2)
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -812,36 +812,36 @@ export struct SettingsPage {
         Column() {
           Row() {
             Text(this.trf('settings.limitedTitle', [`${this.missingRuntimeCount()}`]))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontWeight(FontWeight.Medium)
               .fontColor(AppTheme.WARN_TEXT)
               .layoutWeight(1)
             Text(this.tr('settings.section.runtime'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.WARN_TEXT)
-              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+              .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
               .onClick(() => {
                 this.section = 'runtime';
               })
           }
           .width('100%')
           Text(this.trf('settings.limitedBody', [this.runtimeGapText()]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
             .width('100%')
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
-        .padding({ left: 12, right: 12, top: 9, bottom: 9 })
+        .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
         .backgroundColor(AppTheme.WARN_SOFT)
         .borderRadius(AppTheme.RADIUS_SM)
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .padding(18)
+    .padding(18 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: this.readinessTone() === 'warn' ? AppTheme.WARN_SOFT : AppTheme.BORDER })
@@ -849,7 +849,7 @@ export struct SettingsPage {
 
   @Builder
   StatusTilesFirstRow() {
-    Row({ space: 12 }) {
+    Row({ space: 12 * AppTheme.UI_SCALE }) {
       StatusTile({
         icon: IconPaths.SERVER,
         title: this.tr('settings.tile.backend'),
@@ -875,7 +875,7 @@ export struct SettingsPage {
 
   @Builder
   StatusTilesSecondRow() {
-    Row({ space: 12 }) {
+    Row({ space: 12 * AppTheme.UI_SCALE }) {
       StatusTile({
         icon: IconPaths.BOX,
         title: this.tr('settings.gpuCuda'),
@@ -901,7 +901,7 @@ export struct SettingsPage {
 
   @Builder
   StatusTilesWideRow() {
-    Row({ space: 12 }) {
+    Row({ space: 12 * AppTheme.UI_SCALE }) {
       StatusTile({
         icon: IconPaths.SERVER,
         title: this.tr('settings.tile.backend'),
@@ -987,10 +987,10 @@ export struct SettingsPage {
         Text(this.providers !== null && this.providers.managed
           ? this.tr('settings.managedModelHint')
           : this.tr('settings.localModelHint'))
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
@@ -999,7 +999,7 @@ export struct SettingsPage {
 
   @Builder
   OverviewSection() {
-    Column({ space: 12 }) {
+    Column({ space: 12 * AppTheme.UI_SCALE }) {
       if (this.compact) {
         this.StatusTilesFirstRow()
         this.StatusTilesSecondRow()
@@ -1007,14 +1007,14 @@ export struct SettingsPage {
         this.StatusTilesWideRow()
       }
       if (this.compact) {
-        Column({ space: 12 }) {
+        Column({ space: 12 * AppTheme.UI_SCALE }) {
           LocalWorkspaceCard()
           this.ModelRuntimeSummary()
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
       } else {
-        Row({ space: 12 }) {
+        Row({ space: 12 * AppTheme.UI_SCALE }) {
           LocalWorkspaceCard()
             .layoutWeight(1)
           this.ModelRuntimeSummary()
@@ -1028,7 +1028,7 @@ export struct SettingsPage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       this.SettingsHeading()
 
       if (this.errorText.length > 0) {
@@ -1080,15 +1080,15 @@ export struct SettingsPage {
               }, (item: GpuDevice) => item.name)
             }
             Text(this.tr('settings.runtimeManagementHint'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
-              .margin({ top: 12 })
+              .margin({ top: 12 * AppTheme.UI_SCALE })
           }
           .width('100%')
         }
       } else if (this.section === 'advanced') {
-        Column({ space: 12 }) {
+        Column({ space: 12 * AppTheme.UI_SCALE }) {
           CardPanel({ title: this.tr('settings.card.advanced') }) {
             Column() {
               KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
@@ -1107,16 +1107,16 @@ export struct SettingsPage {
                 mono: true
               })
               Text(this.tr('settings.advancedHint'))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .width('100%')
-                .margin({ top: 12 })
+                .margin({ top: 12 * AppTheme.UI_SCALE })
             }
             .width('100%')
           }
           CardPanel({ title: this.tr('settings.card.permissions') }) {
             Text(this.tr('settings.agentPermissionsHint'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
           }
@@ -1127,9 +1127,9 @@ export struct SettingsPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

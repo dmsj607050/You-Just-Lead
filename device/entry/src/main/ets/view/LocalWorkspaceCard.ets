@@ -144,16 +144,16 @@ export struct LocalWorkspaceCard {
             })
           }
           .width('100%')
-          .margin({ bottom: 10 })
+          .margin({ bottom: 10 * AppTheme.UI_SCALE })
         }
 
         Text(this.tr('settings.workspacePurpose'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .width('100%')
-          .margin({ bottom: 14 })
+          .margin({ bottom: 14 * AppTheme.UI_SCALE })
 
-        Row({ space: 10 }) {
+        Row({ space: 10 * AppTheme.UI_SCALE }) {
           ChipButton({
             icon: IconPaths.FOLDER,
             label: this.busy ? this.tr('settings.working') : this.tr('settings.chooseFolder'),
@@ -175,7 +175,7 @@ export struct LocalWorkspaceCard {
         }
         .width('100%')
 
-        Row({ space: 10 }) {
+        Row({ space: 10 * AppTheme.UI_SCALE }) {
           ChipButton({
             icon: IconPaths.REFRESH,
             label: this.tr('settings.recheck'),
@@ -205,22 +205,22 @@ export struct LocalWorkspaceCard {
           })
         }
         .width('100%')
-        .margin({ top: 10 })
+        .margin({ top: 10 * AppTheme.UI_SCALE })
 
         if (this.localError.length > 0) {
           Text(this.localError)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         }
 
         if (this.workspaceRoot.length === 0) {
           Text(this.tr('settings.workspaceHint'))
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         }
       }
       .width('100%')

@@ -9,7 +9,12 @@ import { AppIcon } from './AppIcon';
  * 所有输入都用 @Prop：数据是异步取回的，普通成员不会随父组件刷新。
  */
 
-/** 页面标题区：大标题 + 一行说明 + 刷新入口。 */
+/**
+ * 页面顶部状态条：一行现状 + 刷新入口。
+ *
+ * 原来这里还有个 24 号的大标题，和左侧面板里高亮的那一项完全重复 —— 面板上已经写着
+ * 「文献」，页面顶部再写一遍只是白占高度。标题删掉之后组件也不再收 title 参数。
+ */
 @Component
 export struct PageHeader {
   /**
@@ -23,12 +28,10 @@ export struct PageHeader {
     return tFor(this.lang, key);
   }
 
-  @Prop title: string = '';
   /**
    * 一行现状：把「现在是什么状态」压成一句带数字的话。
    *
-   * 标题下面只留这一行。原先还有一行灰色的说明文字（「数据先过审计再进训练…」那类），
-   * 它既不是数据也不是结论，只是把标题复述了一遍，已删除。
+   * 这是页面顶部唯一的一行字，取不到数据时留空。
    */
   @Prop status: string = '';
   /** 点击「刷新」重新取一次数据。 */
@@ -37,32 +40,23 @@ export struct PageHeader {
 
   build() {
     Row() {
-      Column() {
-        Text(this.title)
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppTheme.TEXT_PRIMARY)
-        if (this.status.length > 0) {
-          Text(this.status)
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(AppTheme.TEXT_PRIMARY)
-            .margin({ top: 10 })
-        }
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
+      // 空着也占满剩余宽度，刷新才会贴在最右边、位置不随文案长短跳。
+      Text(this.status)
+        .fontSize(14 * AppTheme.UI_SCALE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+        .layoutWeight(1)
 
       Text(this.tr('common.refresh'))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.PRIMARY)
-        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+        .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
         .onClick(() => {
           this.onRefresh();
         })
     }
     .width('100%')
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
   }
 }
 
@@ -83,13 +77,13 @@ export struct CardPanel {
       if (this.title.length > 0) {
         Column() {
           Text(this.title)
-            .fontSize(17)
+            .fontSize(17 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_PRIMARY)
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .margin({ bottom: 16 })
+        .margin({ bottom: 16 * AppTheme.UI_SCALE })
       }
 
       this.content()
@@ -97,7 +91,7 @@ export struct CardPanel {
     .alignItems(HorizontalAlign.Start)
     .width('100%')
     .layoutWeight(this.weight)
-    .padding(24)
+    .padding(24 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -115,11 +109,11 @@ export struct KeyValueRow {
   build() {
     Row() {
       Text(this.label)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .width(150)
+        .width(150 * AppTheme.UI_SCALE)
       Text(this.value.length > 0 ? this.value : '—')
-        .fontSize(this.mono ? 12 : 13)
+        .fontSize(this.mono ? 12 * AppTheme.UI_SCALE : 13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .layoutWeight(1)
         .maxLines(2)
@@ -127,7 +121,7 @@ export struct KeyValueRow {
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
-    .padding({ top: 9, bottom: 9 })
+    .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
   }
 }
 
@@ -165,11 +159,11 @@ export struct StatusBadge {
 
   build() {
     Text(this.text)
-      .fontSize(12)
+      .fontSize(12 * AppTheme.UI_SCALE)
       .fontColor(this.badgeTextColor())
       .backgroundColor(this.badgeBackgroundColor())
-      .borderRadius(6)
-      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+      .borderRadius(6 * AppTheme.UI_SCALE)
+      .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
   }
 }
 
@@ -189,18 +183,18 @@ export struct MetricCard {
   build() {
     Column() {
       Text(this.value)
-        .fontSize(26)
+        .fontSize(26 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.tone === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY)
       Text(this.label)
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 6 })
+        .margin({ top: 6 * AppTheme.UI_SCALE })
         .maxLines(2)
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -214,10 +208,10 @@ export struct EmptyHint {
 
   build() {
     Text(this.text)
-      .fontSize(13)
+      .fontSize(13 * AppTheme.UI_SCALE)
       .fontColor(AppTheme.TEXT_TERTIARY)
       .width('100%')
-      .padding({ top: 12, bottom: 12 })
+      .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
   }
 }
 
@@ -266,21 +260,21 @@ export struct SectionRail {
       ForEach(this.items, (item: RailItemSpec) => {
         Row() {
           Row()
-            .width(6)
-            .height(6)
-            .borderRadius(3)
+            .width(6 * AppTheme.UI_SCALE)
+            .height(6 * AppTheme.UI_SCALE)
+            .borderRadius(3 * AppTheme.UI_SCALE)
             .backgroundColor(railToneColor(item.tone))
           Text(item.label)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(item.key === this.active ? FontWeight.Medium : FontWeight.Normal)
             .fontColor(item.key === this.active ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
-            .margin({ left: 8 })
+            .margin({ left: 8 * AppTheme.UI_SCALE })
         }
         .alignItems(VerticalAlign.Center)
-        .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+        .padding({ left: 14 * AppTheme.UI_SCALE, right: 14 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
         .backgroundColor(item.key === this.active ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
         .borderRadius(AppTheme.RADIUS)
-        .margin({ right: 10, bottom: 10 })
+        .margin({ right: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
         .onClick(() => {
           this.onSelect(item.key);
         })
@@ -347,12 +341,12 @@ export struct ChoiceChips {
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(this.items, (item: ChoiceSpec) => {
         Text(item.label)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(item.key === this.active ? choiceTextColor(item.tone) : AppTheme.TEXT_SECONDARY)
           .backgroundColor(item.key === this.active ? choiceBackground(item.tone) : AppTheme.PAGE_BG)
-          .borderRadius(6)
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .margin({ right: 8, bottom: 8 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
+          .margin({ right: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
           .opacity(this.disabled ? 0.5 : 1)
           .onClick(() => {
             if (!this.disabled) {
@@ -417,35 +411,35 @@ export struct BarList {
   }
 
   build() {
-    Column({ space: 12 }) {
+    Column({ space: 12 * AppTheme.UI_SCALE }) {
       ForEach(this.items, (item: BarItemSpec) => {
         Column() {
           Row() {
             Text(item.label)
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_PRIMARY)
               .layoutWeight(1)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Text(item.valueText.length > 0 ? item.valueText : `${item.value}`)
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
-              .margin({ left: 12 })
+              .margin({ left: 12 * AppTheme.UI_SCALE })
           }
           .width('100%')
 
           Row() {
             Row()
               .width(`${this.percent(item.value)}%`)
-              .height(6)
-              .borderRadius(3)
+              .height(6 * AppTheme.UI_SCALE)
+              .borderRadius(3 * AppTheme.UI_SCALE)
               .backgroundColor(this.barColor())
           }
           .width('100%')
-          .height(6)
-          .borderRadius(3)
+          .height(6 * AppTheme.UI_SCALE)
+          .borderRadius(3 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.PAGE_BG)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
         }
         .width('100%')
       }, (item: BarItemSpec) => `${item.label}-${item.value}-${item.valueText}-${this.tone}`)
@@ -494,31 +488,31 @@ export struct ProgressBar {
     Column() {
       Row() {
         Text(this.label)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(`${this.current}/${this.total}`)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.barColor())
-          .margin({ left: 12 })
+          .margin({ left: 12 * AppTheme.UI_SCALE })
       }
       .width('100%')
 
       Row() {
         Row()
           .width(`${this.percent()}%`)
-          .height(6)
-          .borderRadius(3)
+          .height(6 * AppTheme.UI_SCALE)
+          .borderRadius(3 * AppTheme.UI_SCALE)
           .backgroundColor(this.barColor())
       }
       .width('100%')
-      .height(6)
-      .borderRadius(3)
+      .height(6 * AppTheme.UI_SCALE)
+      .borderRadius(3 * AppTheme.UI_SCALE)
       .backgroundColor(AppTheme.PAGE_BG)
-      .margin({ top: 6 })
+      .margin({ top: 6 * AppTheme.UI_SCALE })
     }
     .width('100%')
   }
@@ -580,19 +574,19 @@ export struct StatusPill {
   build() {
     Row() {
       Row()
-        .width(7)
-        .height(7)
-        .borderRadius(4)
+        .width(7 * AppTheme.UI_SCALE)
+        .height(7 * AppTheme.UI_SCALE)
+        .borderRadius(4 * AppTheme.UI_SCALE)
         .backgroundColor(toneDotColor(this.tone))
       Text(this.label)
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(toneTextColor(this.tone))
-        .margin({ left: 6 })
+        .margin({ left: 6 * AppTheme.UI_SCALE })
     }
     .alignItems(VerticalAlign.Center)
-    .padding({ left: 9, right: 9, top: 4, bottom: 4 })
+    .padding({ left: 9 * AppTheme.UI_SCALE, right: 9 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
     .backgroundColor(toneBackground(this.tone))
-    .borderRadius(6)
+    .borderRadius(6 * AppTheme.UI_SCALE)
   }
 }
 
@@ -652,19 +646,19 @@ export struct SectionCard {
     Column() {
       Row() {
         if (this.icon.length > 0) {
-          IconChip({ icon: this.icon, tone: this.iconTone, chipSize: 34 })
-            .margin({ right: 12 })
+          IconChip({ icon: this.icon, tone: this.iconTone, chipSize: 34 * AppTheme.UI_SCALE })
+            .margin({ right: 12 * AppTheme.UI_SCALE })
         }
         Column() {
           Text(this.title)
-            .fontSize(16)
+            .fontSize(16 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_PRIMARY)
           if (this.subtitle.length > 0) {
             Text(this.subtitle)
-              .fontSize(11)
+              .fontSize(11 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
-              .margin({ top: 3 })
+              .margin({ top: 3 * AppTheme.UI_SCALE })
           }
         }
         .alignItems(HorizontalAlign.Start)
@@ -672,13 +666,13 @@ export struct SectionCard {
 
         if (this.actionLabel.length > 0) {
           Text(this.actionLabel)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(this.actionActive
               ? (this.actionTone === 'danger'
                 ? AppTheme.DANGER
                 : (this.actionTone === 'muted' ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY))
               : AppTheme.TEXT_TERTIARY)
-            .padding({ left: 8, top: 4, bottom: 4 })
+            .padding({ left: 8 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             .enabled(this.actionActive)
             .onClick(() => {
               if (this.actionActive) {
@@ -689,14 +683,14 @@ export struct SectionCard {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ bottom: 16 })
+      .margin({ bottom: 16 * AppTheme.UI_SCALE })
 
       this.content()
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
     .layoutWeight(this.weight)
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -724,21 +718,21 @@ export struct StatusTile {
   build() {
     Column() {
       Row() {
-        IconChip({ icon: this.icon, tone: this.tone, chipSize: 36 })
-          .margin({ right: 12 })
+        IconChip({ icon: this.icon, tone: this.tone, chipSize: 36 * AppTheme.UI_SCALE })
+          .margin({ right: 12 * AppTheme.UI_SCALE })
         Column() {
           Text(this.title)
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .maxLines(1)
           if (this.subtitle.length > 0) {
             Text(this.subtitle)
-              .fontSize(10)
+              .fontSize(10 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .margin({ top: 2 })
+              .margin({ top: 2 * AppTheme.UI_SCALE })
           }
         }
         .alignItems(HorizontalAlign.Start)
@@ -753,26 +747,26 @@ export struct StatusTile {
 
       if (this.value.length > 0) {
         Text(this.value)
-          .fontSize(15)
+          .fontSize(15 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
       if (this.note.length > 0) {
         Text(this.note)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
           .maxLines(3)
-          .margin({ top: this.value.length > 0 ? 6 : 12 })
+          .margin({ top: this.value.length > 0 ? 6 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
+    .padding(16 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -797,23 +791,23 @@ export struct ToggleRow {
         commands: this.icon,
         color: this.checked ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
         filled: false,
-        iconSize: 20
+        iconSize: 20 * AppTheme.UI_SCALE
       })
       Column() {
         Text(this.label)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
         if (this.note.length > 0) {
           Text(this.note)
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 3 })
+            .margin({ top: 3 * AppTheme.UI_SCALE })
             .maxLines(2)
         }
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      .margin({ left: 10, right: 12 })
+      .margin({ left: 10 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE })
 
       Toggle({ type: ToggleType.Switch, isOn: this.checked })
         .selectedColor(AppTheme.PRIMARY)
@@ -824,7 +818,7 @@ export struct ToggleRow {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
     .opacity(this.busy ? 0.6 : 1)
   }
 }
@@ -859,16 +853,16 @@ export struct ChipButton {
           commands: this.icon,
           color: this.textColor(),
           filled: false,
-          iconSize: 16
+          iconSize: 16 * AppTheme.UI_SCALE
         })
-          .margin({ right: 6 })
+          .margin({ right: 6 * AppTheme.UI_SCALE })
       }
       Text(this.label)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(this.textColor())
     }
     .alignItems(VerticalAlign.Center)
-    .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+    .padding({ left: 14 * AppTheme.UI_SCALE, right: 14 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
     .backgroundColor(this.tone === 'primary'
       ? AppTheme.PRIMARY
       : (this.tone === 'danger' ? AppTheme.DANGER_SOFT : AppTheme.SURFACE))
@@ -901,22 +895,22 @@ export struct InfoRow {
   build() {
     Row() {
       Text(this.label)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
         .width(this.labelWidth)
       Text(this.value.length > 0 ? this.value : '—')
-        .fontSize(this.mono ? 12 : 13)
+        .fontSize(this.mono ? 12 * AppTheme.UI_SCALE : 13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .layoutWeight(1)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.pill.length > 0) {
         StatusPill({ label: this.pill, tone: this.tone })
-          .margin({ left: 8 })
+          .margin({ left: 8 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding({ top: 9, bottom: 9 })
+    .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
   }
 }

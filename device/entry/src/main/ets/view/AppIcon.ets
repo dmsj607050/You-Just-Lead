@@ -23,7 +23,7 @@ export struct AppIcon {
         .commands(this.commands)
         .fill(this.filled ? this.color : Color.Transparent)
         .stroke(this.filled ? Color.Transparent : this.color)
-        .strokeWidth(1.5)
+        .strokeWidth(1.5 * AppTheme.UI_SCALE)
     }
     .width(this.iconSize)
     .height(this.iconSize)

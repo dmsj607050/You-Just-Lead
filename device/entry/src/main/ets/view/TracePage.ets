@@ -374,20 +374,20 @@ export struct TracePage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   /** 一组用来展示文件名的标签。 */
@@ -396,12 +396,12 @@ export struct TracePage {
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(documents, (item: TraceDocument) => {
         Text(`${workspacePathLabel(item.path, this.snapshot === null ? null : this.snapshot.workspace)}（${formatBytes(item.size_bytes)}）`)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .backgroundColor(AppTheme.PAGE_BG)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-          .margin({ top: 8, right: 8 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 5 * AppTheme.UI_SCALE, bottom: 5 * AppTheme.UI_SCALE })
+          .margin({ top: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE })
       }, (item: TraceDocument) => item.path)
     }
     .width('100%')
@@ -413,7 +413,7 @@ export struct TracePage {
     Column() {
       Row() {
         Text(item.field)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -427,11 +427,11 @@ export struct TracePage {
 
       Row() {
         Text(this.tr('trace.valueLabel'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(104)
+          .width(104 * AppTheme.UI_SCALE)
         Text(item.value !== null ? item.value : this.tr('trace.valueUnresolved'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(item.has_value ? AppTheme.TEXT_SECONDARY : AppTheme.DANGER)
           .layoutWeight(1)
           .maxLines(3)
@@ -439,15 +439,15 @@ export struct TracePage {
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
-      .margin({ top: 6 })
+      .margin({ top: 6 * AppTheme.UI_SCALE })
 
       Row() {
         Text(this.tr('trace.anchorLabel'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(104)
+          .width(104 * AppTheme.UI_SCALE)
         Text(item.anchor !== null ? item.anchor : this.tr('trace.anchorMissing'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(item.has_anchor ? AppTheme.TEXT_SECONDARY : AppTheme.DANGER)
           .layoutWeight(1)
           .maxLines(3)
@@ -455,11 +455,11 @@ export struct TracePage {
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
-      .margin({ top: 4 })
+      .margin({ top: 4 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -469,17 +469,17 @@ export struct TracePage {
     CardPanel({
       title: this.tr('trace.ruleTitle')
     }) {
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         Row() {
           StatusBadge({ text: this.ruleGateText(), tone: this.ruleGateTone() })
           Text(this.snapshot === null
             ? ''
             : this.trf('trace.gapTotal', [`${this.snapshot.rule.gap_count}`,
               `${this.snapshot.rule.missing_value_count}`, `${this.snapshot.rule.missing_anchor_count}`]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
@@ -490,7 +490,7 @@ export struct TracePage {
           current: this.anchorCurrent(),
           total: this.anchorTotal()
         })
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
 
         KeyValueRow({
           label: this.tr('trace.specFile'),
@@ -520,10 +520,10 @@ export struct TracePage {
         })
 
         Text(this.tr('trace.fieldColumn'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
 
         if (this.ruleFields().length === 0) {
           EmptyHint({ text: this.tr('trace.noFields') })
@@ -535,24 +535,24 @@ export struct TracePage {
 
         if (this.ruleUnresolved().length > 0) {
           Text(this.tr('workflow.blockers'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
-            .margin({ top: 16 })
+            .margin({ top: 16 * AppTheme.UI_SCALE })
           ForEach(this.ruleUnresolved(), (item: string, index: number) => {
             Text(`${index + 1}. ${item}`)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
-              .margin({ top: 6 })
+              .margin({ top: 6 * AppTheme.UI_SCALE })
           }, (item: string) => item)
         }
 
         Text(`${this.tr('trace.evidenceDocs')} · ${this.trf('trace.docCount', [`${this.ruleDocs().length}`])}`)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ top: 18 })
+          .margin({ top: 18 * AppTheme.UI_SCALE })
 
         if (this.ruleDocs().length === 0) {
           EmptyHint({ text: this.tr('trace.noDocs') })
@@ -571,11 +571,11 @@ export struct TracePage {
     Column() {
       Row() {
         Text(item.experiment_id)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .width(140)
+          .width(140 * AppTheme.UI_SCALE)
         Text(item.data_version !== null ? this.trf('trace.dataVersion', [item.data_version]) : '—')
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .layoutWeight(1)
           .maxLines(1)
@@ -590,14 +590,14 @@ export struct TracePage {
 
       if (!item.in_scope && this.exclusionLabel(item.exclusion).length > 0) {
         Text(this.exclusionLabel(item.exclusion))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -607,7 +607,7 @@ export struct TracePage {
     CardPanel({
       title: this.tr('trace.dataTitle')
     }) {
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         KeyValueRow({
           label: this.tr('trace.auditDir'),
           value: this.snapshot === null ? '—' : this.textOrDash(workspacePathLabel(this.snapshot.data.audit.data_dir, this.snapshot.workspace)),
@@ -633,19 +633,19 @@ export struct TracePage {
 
         if (this.snapshot !== null && !this.snapshot.data.audit.available) {
           Text(this.tr('trace.auditMissing'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
             .width('100%')
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
         }
 
         Text(this.snapshot === null
           ? ''
           : this.trf('trace.expCount', [`${this.snapshot.data.in_scope_count}`, `${this.scopeItems().length}`]))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
 
         if (this.scopeItems().length === 0) {
           EmptyHint({ text: this.tr('trace.noExperiments') })
@@ -663,7 +663,7 @@ export struct TracePage {
   /** 实验详情：清单、环境、指标、产物、人工批准。 */
   @Builder
   ExperimentDetail(item: TraceExperiment) {
-    Column({ space: 4 }) {
+    Column({ space: 4 * AppTheme.UI_SCALE }) {
       KeyValueRow({ label: this.tr('trace.hypothesis'), value: this.textOrDash(item.hypothesis) })
       KeyValueRow({ label: this.tr('trace.changeTypeRow'), value: this.textOrDash(item.change_type) })
       KeyValueRow({
@@ -720,9 +720,9 @@ export struct TracePage {
       }, (metric: NameValue) => `metric-${metric.name}-${metric.value}`)
 
       Text(this.tr('trace.artifactsRow'))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 10, bottom: 4 })
+        .margin({ top: 10 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
 
       if (item.artifacts.length === 0) {
         EmptyHint({ text: this.tr('common.none') })
@@ -730,20 +730,20 @@ export struct TracePage {
         ForEach(item.artifacts, (artifact: TraceArtifact) => {
           Row() {
             Text(artifact.name)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
-              .width(150)
+              .width(150 * AppTheme.UI_SCALE)
             Text(workspacePathLabel(artifact.path, this.snapshot === null ? null : this.snapshot.workspace))
-              .fontSize(11)
+              .fontSize(11 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .layoutWeight(1)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             if (artifact.exists && artifact.size_bytes !== null) {
               Text(formatBytes(artifact.size_bytes))
-                .fontSize(11)
+                .fontSize(11 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ right: 10 })
+                .margin({ right: 10 * AppTheme.UI_SCALE })
             }
             StatusBadge({
               text: artifact.exists ? this.tr('trace.artifactPresent') : this.tr('trace.artifactAbsent'),
@@ -752,16 +752,16 @@ export struct TracePage {
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
-          .padding({ top: 6, bottom: 6 })
+          .padding({ top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
         }, (artifact: TraceArtifact) => `${artifact.path}-${artifact.exists}`)
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ left: 16, top: 10, bottom: 14 })
+    .padding({ left: 16 * AppTheme.UI_SCALE, top: 10 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .backgroundColor(AppTheme.PAGE_BG)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ top: 10 })
+    .margin({ top: 10 * AppTheme.UI_SCALE })
   }
 
   /** 实验链里的一行：摘要 + 可展开的详情。 */
@@ -770,11 +770,11 @@ export struct TracePage {
     Column() {
       Row() {
         Text(item.experiment_id)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .width(140)
+          .width(140 * AppTheme.UI_SCALE)
         Text(item.hypothesis !== null ? item.hypothesis : '—')
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .layoutWeight(1)
           .maxLines(1)
@@ -784,11 +784,11 @@ export struct TracePage {
           text: item.in_scope ? this.tr('trace.inScope') : this.tr('trace.excluded'),
           tone: item.in_scope ? 'ok' : 'muted'
         })
-          .margin({ left: 8 })
+          .margin({ left: 8 * AppTheme.UI_SCALE })
         Text(this.openExperiment === item.experiment_id ? this.tr('trace.detailsOpen') : this.tr('trace.detailsClose'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY)
-          .margin({ left: 12 })
+          .margin({ left: 12 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.openExperiment = this.openExperiment === item.experiment_id ? '' : item.experiment_id;
           })
@@ -798,9 +798,9 @@ export struct TracePage {
 
       if (!item.in_scope && this.exclusionLabel(item.exclusion).length > 0) {
         Text(this.exclusionLabel(item.exclusion))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
 
       if (this.openExperiment === item.experiment_id) {
@@ -809,7 +809,7 @@ export struct TracePage {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -819,10 +819,10 @@ export struct TracePage {
     CardPanel({
       title: this.tr('trace.expTitle')
     }) {
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         Row() {
           Text(this.trf('trace.expCount', [`${this.inScopeCount()}`, `${this.experiments().length}`]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
           if (this.artifactMissingCount() > 0) {
@@ -834,7 +834,7 @@ export struct TracePage {
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .margin({ bottom: 6 })
+        .margin({ bottom: 6 * AppTheme.UI_SCALE })
 
         if (this.experiments().length === 0) {
           EmptyHint({ text: this.tr('trace.expEmpty') })
@@ -854,28 +854,28 @@ export struct TracePage {
   ResearchRow(item: TraceResearchRecord) {
     Column() {
       Text(item.title !== null ? item.title : '—')
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .width('100%')
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(`${this.textOrDash(item.paper_id)} · ${this.textOrDash(item.source)} · ${this.countText(item.year)} · ${this.relevanceText(item.relevance_score)}`)
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 6 })
+        .margin({ top: 6 * AppTheme.UI_SCALE })
       if (item.url !== null) {
         Text(item.url)
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .margin({ top: 4 })
+          .margin({ top: 4 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -885,7 +885,7 @@ export struct TracePage {
     CardPanel({
       title: this.tr('trace.researchTitle')
     }) {
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         KeyValueRow({
           label: this.tr('trace.query'),
           value: this.snapshot === null ? '—' : this.textOrDash(this.snapshot.research.query)
@@ -901,17 +901,17 @@ export struct TracePage {
 
         if (this.snapshot !== null && failureRows(this.snapshot.research.provider_failures).length > 0) {
           Text(this.tr('trace.providerFailure'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
-            .margin({ top: 10 })
+            .margin({ top: 10 * AppTheme.UI_SCALE })
           ForEach(failureRows(this.snapshot.research.provider_failures), (item: NameText) => {
             Text(`${item.name}: ${item.text}`)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.WARN_TEXT)
               .width('100%')
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .margin({ top: 4 })
+              .margin({ top: 4 * AppTheme.UI_SCALE })
           }, (item: NameText) => `failure-${item.name}-${item.text}`)
         }
 
@@ -920,10 +920,10 @@ export struct TracePage {
         } else {
           if (this.researchRecords().length > TRACE_RESEARCH_LIMIT) {
             Text(this.trf('trace.recordsShown', [`${TRACE_RESEARCH_LIMIT}`, `${this.researchRecords().length}`]))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
-              .margin({ top: 8, bottom: 4 })
+              .margin({ top: 8 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
           }
           ForEach(this.researchRecordsShown(), (item: TraceResearchRecord) => {
             this.ResearchRow(item)
@@ -931,10 +931,10 @@ export struct TracePage {
         }
 
         Text(this.tr('trace.refFiles'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
 
         if (this.researchDocs().length === 0) {
           EmptyHint({ text: this.tr('trace.noDocs') })
@@ -953,7 +953,7 @@ export struct TracePage {
     CardPanel({
       title: this.tr('trace.paperTitle')
     }) {
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         if (!this.paperAvailable()) {
           EmptyHint({ text: this.tr('trace.paperMissing') })
         } else {
@@ -976,10 +976,10 @@ export struct TracePage {
           })
 
           Text(this.tr('trace.claimsTitle'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
-            .margin({ top: 14 })
+            .margin({ top: 14 * AppTheme.UI_SCALE })
 
           if (this.claims().length === 0) {
             EmptyHint({ text: this.tr('trace.claimsEmpty') })
@@ -988,7 +988,7 @@ export struct TracePage {
               Column() {
                 Row() {
                   Text(claim.claim)
-                    .fontSize(13)
+                    .fontSize(13 * AppTheme.UI_SCALE)
                     .fontColor(AppTheme.TEXT_PRIMARY)
                     .layoutWeight(1)
                     .maxLines(2)
@@ -997,22 +997,22 @@ export struct TracePage {
                     text: claim.result_exists ? this.tr('trace.claimResolved') : this.tr('trace.claimUnresolved'),
                     tone: claim.result_exists ? 'ok' : 'danger'
                   })
-                    .margin({ left: 12 })
+                    .margin({ left: 12 * AppTheme.UI_SCALE })
                 }
                 .width('100%')
                 .alignItems(VerticalAlign.Top)
 
                 Text(`${claim.experiment_id} · ${claim.result_path}`)
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.TEXT_TERTIARY)
                   .width('100%')
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .margin({ top: 6 })
+                  .margin({ top: 6 * AppTheme.UI_SCALE })
               }
               .alignItems(HorizontalAlign.Start)
               .width('100%')
-              .padding({ top: 12, bottom: 12 })
+              .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
               .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
             }, (claim: PaperClaim) => `${claim.experiment_id}-${claim.result_path}-${claim.result_exists}`)
           }
@@ -1024,9 +1024,9 @@ export struct TracePage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.trace'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「溯源」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -1059,9 +1059,9 @@ export struct TracePage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

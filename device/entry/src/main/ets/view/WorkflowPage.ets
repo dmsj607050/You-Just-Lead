@@ -120,6 +120,16 @@ export struct WorkflowPage {
   @State completedExperiments: number = 0;
   @State blockers: string[] = [];
   @State rows: ComponentRow[] = [];
+  /**
+   * 展开的环节（存 labelKey）。
+   *
+   * 三种取值：空串＝跟随当前阶段（默认只展开它）；`none`＝全部收起；其余＝那一个环节。
+   * 存 key 而不是下标：`ForEach` 的 key 生成器只拿得到元素、拿不到下标，
+   * 而展开态**必须进 key** 才能触发重建（ArkUI 不会因为 @Builder 里读到的状态变了就重建子树）。
+   */
+  @State expandedStepKey: string = '';
+  /** 窄窗口下右栏挪到时间线下面。 */
+  @State compactFlow: boolean = true;
   @State actions: NextAction[] = [];
   @State ruleReady: boolean = false;
   @State ruleProfile: string = '';
@@ -488,12 +498,12 @@ export struct WorkflowPage {
     Column() {
       Divider()
         .color(AppTheme.BORDER_SOFT)
-        .margin({ top: 16, bottom: 16 })
+        .margin({ top: 16 * AppTheme.UI_SCALE, bottom: 16 * AppTheme.UI_SCALE })
 
       Row() {
         Column() {
           Text(this.tr('workflow.evidenceTitle'))
-            .fontSize(15)
+            .fontSize(15 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
         }
@@ -502,9 +512,9 @@ export struct WorkflowPage {
 
         if (this.evidenceSupported) {
           Text(this.evidenceOpen ? this.tr('workflow.evidenceClose') : this.tr('workflow.evidenceOpen'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.PRIMARY)
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
             .onClick(() => {
               this.evidenceOpen = !this.evidenceOpen;
               this.evidenceError = '';
@@ -519,10 +529,10 @@ export struct WorkflowPage {
 
       if (!this.evidenceSupported) {
         Text(this.tr('workflow.evidenceUnsupported'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
           .width('100%')
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
       } else if (!this.evidenceOpen) {
         // 填写进度用两条比例条说：原先是一行灰字「必填 24 项：缺值 0 项、缺锚点 0 项」，
         // 要逐字读完才知道还差多少；条一眼就看出来。
@@ -531,7 +541,7 @@ export struct WorkflowPage {
           current: this.evidenceRequiredCount - this.evidenceMissingValue,
           total: this.evidenceRequiredCount
         })
-          .margin({ top: 14, bottom: 10 })
+          .margin({ top: 14 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
         ProgressBar({
           label: this.tr('workflow.anchorsFilled'),
           current: this.evidenceRequiredCount - this.evidenceMissingAnchor,
@@ -541,10 +551,10 @@ export struct WorkflowPage {
 
       if (this.evidenceDone.length > 0) {
         Text(this.evidenceDone)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
           .width('100%')
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
       }
 
       if (this.evidenceOpen && this.evidenceSupported) {
@@ -558,62 +568,62 @@ export struct WorkflowPage {
   /** 证据来源：类型 + 定位 + 复核时间，三项都要人填。 */
   @Builder
   EvidenceForm() {
-    Column({ space: 8 }) {
+    Column({ space: 8 * AppTheme.UI_SCALE }) {
       Text(this.tr('workflow.evidenceGateHint'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .width('100%')
 
       Text(this.tr('workflow.evidenceSourceType'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
         .width('100%')
       TextInput({ text: this.evidenceSourceType, placeholder: this.tr('workflow.evidenceSourceTypeHint') })
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .width('100%')
-        .height(38)
+        .height(38 * AppTheme.UI_SCALE)
         .onChange((value: string) => {
           this.evidenceSourceType = value;
         })
 
       Text(this.tr('workflow.evidenceSourceLocator'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
         .width('100%')
       TextInput({ text: this.evidenceSourceLocator, placeholder: this.tr('workflow.evidenceSourceLocatorHint') })
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .width('100%')
-        .height(38)
+        .height(38 * AppTheme.UI_SCALE)
         .onChange((value: string) => {
           this.evidenceSourceLocator = value;
         })
 
       Text(this.tr('workflow.evidenceReviewedAt'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
         .width('100%')
       TextInput({ text: this.evidenceReviewedAt, placeholder: this.tr('workflow.evidenceReviewedAtHint') })
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .width('100%')
-        .height(38)
+        .height(38 * AppTheme.UI_SCALE)
         .onChange((value: string) => {
           this.evidenceReviewedAt = value;
         })
 
       Row() {
         Text(this.tr('workflow.evidenceFieldColumn'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
         Text(this.trf('workflow.evidenceSummary', [
           `${this.evidenceRequiredCount}`, `${this.evidenceMissingValue}`, `${this.evidenceMissingAnchor}`
         ]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
       }
       .width('100%')
-      .margin({ top: 8 })
+      .margin({ top: 8 * AppTheme.UI_SCALE })
 
       ForEach(this.evidenceRows, (row: EvidenceRow, index: number) => {
         this.EvidenceRowLine(row, index)
@@ -621,28 +631,28 @@ export struct WorkflowPage {
 
       if (this.evidenceError.length > 0) {
         Text(this.evidenceError)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
 
-      Row({ space: 12 }) {
+      Row({ space: 12 * AppTheme.UI_SCALE }) {
         Text(this.evidenceSubmitting ? this.tr('workflow.evidenceSubmitting') : this.tr('workflow.evidenceSubmit'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(Color.White)
           .backgroundColor(AppTheme.PRIMARY)
           .borderRadius(AppTheme.RADIUS_SM)
-          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
           .enabled(!this.evidenceSubmitting)
           .opacity(this.evidenceSubmitting ? 0.6 : 1)
           .onClick(() => {
             this.sendRuleEvidence();
           })
         Text(this.tr('workflow.evidenceCancel'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
-          .padding({ left: 8, right: 8, top: 8, bottom: 8 })
+          .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.evidenceOpen = false;
             this.evidenceError = '';
@@ -650,33 +660,33 @@ export struct WorkflowPage {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 10 })
+      .margin({ top: 10 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .margin({ top: 14 })
+    .margin({ top: 14 * AppTheme.UI_SCALE })
   }
 
   /** 允许 / 不允许：布尔字段只能人选，未选就是没确认。 */
   @Builder
   BooleanChips(row: EvidenceRow, index: number) {
-    Row({ space: 8 }) {
+    Row({ space: 8 * AppTheme.UI_SCALE }) {
       Text(this.tr('workflow.evidenceYes'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(row.flag === true ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
         .backgroundColor(row.flag === true ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-        .borderRadius(6)
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(6 * AppTheme.UI_SCALE)
+        .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
         .onClick(() => {
           row.flag = true;
           this.updateEvidenceRow(index, row);
         })
       Text(this.tr('workflow.evidenceNo'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(row.flag === false ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
         .backgroundColor(row.flag === false ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-        .borderRadius(6)
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(6 * AppTheme.UI_SCALE)
+        .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
         .onClick(() => {
           row.flag = false;
           this.updateEvidenceRow(index, row);
@@ -688,14 +698,14 @@ export struct WorkflowPage {
   /** 取值必须二选一的字段（loose_png / submit_zip、maximize / minimize）。 */
   @Builder
   ChoiceChips(row: EvidenceRow, index: number, options: string[]) {
-    Row({ space: 8 }) {
+    Row({ space: 8 * AppTheme.UI_SCALE }) {
       ForEach(options, (option: string) => {
         Text(option)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(row.choice === option ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
           .backgroundColor(row.choice === option ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
           .onClick(() => {
             row.choice = option;
             this.updateEvidenceRow(index, row);
@@ -711,7 +721,7 @@ export struct WorkflowPage {
     Column() {
       Row() {
         Text(row.field)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -725,12 +735,12 @@ export struct WorkflowPage {
 
       Row() {
         Text(this.tr('workflow.evidenceValueColumn'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(84)
+          .width(84 * AppTheme.UI_SCALE)
         if (row.hasValue) {
           Text(row.valueText !== null ? row.valueText : '—')
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
             .maxLines(2)
@@ -743,43 +753,43 @@ export struct WorkflowPage {
           this.ChoiceChips(row, index, DIRECTION_OPTIONS)
         } else if (row.kind === 'text') {
           TextInput({ text: row.valueDraft, placeholder: this.tr('workflow.evidenceValueHint') })
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .layoutWeight(1)
-            .height(36)
+            .height(36 * AppTheme.UI_SCALE)
             .onChange((value: string) => {
               row.valueDraft = value;
             })
         } else {
           Text(this.tr('workflow.evidenceLockedValue'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
             .layoutWeight(1)
         }
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 8 })
+      .margin({ top: 8 * AppTheme.UI_SCALE })
 
       Row() {
         Text(this.tr('workflow.evidenceAnchorColumn'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(84)
+          .width(84 * AppTheme.UI_SCALE)
         TextInput({ text: row.anchor, placeholder: this.tr('workflow.evidenceAnchorHint') })
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .layoutWeight(1)
-          .height(36)
+          .height(36 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             row.anchor = value;
           })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 6 })
+      .margin({ top: 6 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -793,34 +803,34 @@ export struct WorkflowPage {
     Column() {
       Divider()
         .color(AppTheme.BORDER_SOFT)
-        .margin({ top: 16, bottom: 16 })
+        .margin({ top: 16 * AppTheme.UI_SCALE, bottom: 16 * AppTheme.UI_SCALE })
 
       Text(this.tr('workflow.gateTitle'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.TEXT_PRIMARY)
 
       if (this.rulesApproved) {
         Text(this.tr('workflow.gateDone'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
           .backgroundColor(AppTheme.PRIMARY_SOFT)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-          .margin({ top: 12 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 5 * AppTheme.UI_SCALE, bottom: 5 * AppTheme.UI_SCALE })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       } else {
         if (!this.ruleReady) {
           Text(this.trf('workflow.gateBlocked', [`${this.gapCount()}`]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         }
 
         Row() {
           TextInput({ text: this.approvalNote, placeholder: this.tr('workflow.gateNotePlaceholder') })
             .layoutWeight(1)
-            .height(38)
-            .fontSize(13)
+            .height(38 * AppTheme.UI_SCALE)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
             .enabled(this.ruleReady && !this.approving)
@@ -829,33 +839,33 @@ export struct WorkflowPage {
               this.approvalError = '';
             })
           Button(this.approving ? this.tr('workflow.gateApproving') : this.tr('workflow.gateSubmit'))
-            .height(38)
-            .fontSize(13)
+            .height(38 * AppTheme.UI_SCALE)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
             .backgroundColor(AppTheme.PRIMARY)
-            .margin({ left: 10 })
+            .margin({ left: 10 * AppTheme.UI_SCALE })
             .enabled(this.ruleReady && !this.approving && this.approvalNote.trim().length > 0)
             .onClick(() => {
               this.submitRuleApproval();
             })
         }
         .width('100%')
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
         .alignItems(VerticalAlign.Center)
       }
 
       if (this.approvalError.length > 0) {
         Text(this.approvalError)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       }
 
       if (this.approvalRecordedAt.length > 0) {
         Text(this.trf('workflow.gateRecorded', [this.approvalRecordedAt]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -868,12 +878,12 @@ export struct WorkflowPage {
     Column() {
       Row() {
         Text(this.gapTitle(group).length > 0 ? this.gapTitle(group) : group.reason)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
         Text(this.trf('workflow.fieldCount', [`${group.fields.length}`]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
       }
       .width('100%')
@@ -881,9 +891,9 @@ export struct WorkflowPage {
 
       if (this.gapTitle(group).length > 0) {
         Text(group.reason)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -891,19 +901,19 @@ export struct WorkflowPage {
       Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(group.fields, (field: string) => {
           Text(field)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .backgroundColor(AppTheme.PAGE_BG)
-            .borderRadius(6)
-            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .margin({ top: 8, right: 8 })
+            .borderRadius(6 * AppTheme.UI_SCALE)
+            .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
+            .margin({ top: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE })
         }, (field: string) => field)
       }
       .width('100%')
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -952,39 +962,506 @@ export struct WorkflowPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
+  }
+
+  // ---- 流程时间线 ----
+
+  /** 这个环节做完了吗。 */
+  private stepDone(state: string): boolean {
+    return state === 'approved' || state === 'complete';
+  }
+
+  /** 这个环节被卡住了吗（后端把「缺东西」标成 missing）。 */
+  private stepBlocked(state: string): boolean {
+    return state === 'missing';
+  }
+
+  /** 当前环节的下标：第一个没做完的；全做完返回 -1。 */
+  private currentStepIndex(): number {
+    for (let index: number = 0; index < this.rows.length; index++) {
+      if (!this.stepDone(this.rows[index].state)) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  /** 每个环节对应的那句后端阻塞原文（与 actionText 的映射表同一批，不另造话术）。 */
+  private stepBlockerSentence(index: number): string {
+    if (index === 1) {
+      return 'No data_statistics.json exists.';
+    }
+    if (index === 2) {
+      return 'No persisted research radar exists.';
+    }
+    if (index === 3) {
+      return 'No completed experiments recorded.';
+    }
+    return '';
+  }
+
+  /**
+   * 这一步为什么停着。
+   *
+   * 只在**后端真的报了这条阻塞**时才显示：拿那句原文去阻塞项里对，对上才翻译出来。
+   * 对不上就留空 —— 猜出来的原因是编的。
+   */
+  private stepReason(index: number): string {
+    if (index === 0 && !this.rulesApproved) {
+      return this.gapCount() > 0
+        ? this.trf('workflow.gateBlocked', [`${this.gapCount()}`])
+        : this.tr('workflow.stepWaitingConfirm');
+    }
+    const sentence: string = this.stepBlockerSentence(index);
+    if (sentence.length === 0 || !this.blockers.includes(sentence)) {
+      return '';
+    }
+    return this.actionText(sentence, true);
+  }
+
+  /** 节点符号：完成打勾、卡住感叹号、当前实心点、未开始空心圈。 */
+  private stepGlyph(index: number): string {
+    if (this.stepDone(this.rows[index].state)) {
+      return '✓';
+    }
+    if (this.stepBlocked(this.rows[index].state)) {
+      return '!';
+    }
+    return index === this.currentStepIndex() ? '●' : '○';
+  }
+
+  /** 节点与文字的色调：ok 完成 / warn 卡住 / current 当前 / muted 未开始。 */
+  private stepTone(index: number): string {
+    if (this.stepDone(this.rows[index].state)) {
+      return 'ok';
+    }
+    if (this.stepBlocked(this.rows[index].state)) {
+      return 'warn';
+    }
+    return index === this.currentStepIndex() ? 'current' : 'muted';
+  }
+
+  private stepNodeColor(index: number): ResourceColor {
+    const tone: string = this.stepTone(index);
+    if (tone === 'ok' || tone === 'current') {
+      return AppTheme.PRIMARY_DARK;
+    }
+    return tone === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_TERTIARY;
+  }
+
+  private stepNodeBackground(index: number): ResourceColor {
+    const tone: string = this.stepTone(index);
+    if (tone === 'ok' || tone === 'current') {
+      return AppTheme.PRIMARY_SOFT;
+    }
+    return tone === 'warn' ? AppTheme.WARN_SOFT : AppTheme.PAGE_BG;
+  }
+
+  /** 这一步要不要人动手；要的话给什么入口文案，不要就返回空串。 */
+  private stepActionLabel(index: number): string {
+    if (this.stepBlocked(this.rows[index].state)) {
+      return this.tr('workflow.stepViewBlockers');
+    }
+    if (index === this.currentStepIndex() && index === 0 && !this.rulesApproved) {
+      return this.tr('workflow.stepNeedConfirm');
+    }
+    return '';
+  }
+
+  /** 状态摘要条：四个数，一眼看完「走到哪、卡几个、要不要我动手」。 */
+  @Builder
+  SummaryStrip() {
+    Row() {
+      this.SummaryCell('workflow.summary.stage', stageLabel(this.lang, this.stage), AppTheme.PRIMARY_DARK)
+      this.SummaryCell('workflow.summary.experiments', `${this.completedExperiments}`, AppTheme.TEXT_PRIMARY)
+      this.SummaryCell('workflow.summary.blockers', `${this.blockers.length}`,
+        this.blockers.length > 0 ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY)
+      this.SummaryCell('workflow.summary.confirm', this.rulesApproved ? '0' : '1',
+        this.rulesApproved ? AppTheme.TEXT_PRIMARY : AppTheme.PRIMARY_DARK)
+    }
+    .width('100%')
+    .padding({ top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
+    .alignItems(VerticalAlign.Top)
+    .backgroundColor(AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS)
+    .border({ width: 1, color: AppTheme.BORDER })
   }
 
   @Builder
-  ComponentList() {
+  SummaryCell(labelKey: string, value: string, color: ResourceColor) {
     Column() {
-      ForEach(this.rows, (row: ComponentRow) => {
-        Row() {
-          Text(this.tr(row.labelKey))
-            .fontSize(14)
-            .fontColor(AppTheme.TEXT_PRIMARY)
-            .layoutWeight(1)
-          StatusBadge({ text: componentLabel(this.lang, row.state), tone: componentTone(row.state) })
-        }
-        .width('100%')
-        .padding({ top: 12, bottom: 12 })
-        .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
-      }, (row: ComponentRow) => `${row.labelKey}-${row.state}`)
+      Text(this.tr(labelKey))
+        .fontSize(12 * AppTheme.UI_SCALE)
+        .fontColor(AppTheme.TEXT_TERTIARY)
+      Text(value)
+        .fontSize(16 * AppTheme.UI_SCALE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(color)
+        .margin({ top: 4 * AppTheme.UI_SCALE })
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .alignItems(HorizontalAlign.Start)
+    .layoutWeight(1)
+    .padding({ left: 16 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE })
+  }
+
+  /**
+   * 这个环节现在展开着吗。
+   *
+   * 空串＝跟随当前阶段（默认只展开它）；`none`＝全部收起；其余＝那一个环节。
+   */
+  private isStepExpanded(row: ComponentRow, index: number): boolean {
+    if (this.expandedStepKey === 'none') {
+      return false;
+    }
+    if (this.expandedStepKey.length === 0) {
+      return index === this.currentStepIndex();
+    }
+    return this.expandedStepKey === row.labelKey;
+  }
+
+  /** ForEach 的 key 后缀：展开态必须进 key，否则展开块不会重建。 */
+  private stepKeySuffix(row: ComponentRow): string {
+    if (this.expandedStepKey === 'none') {
+      return 'collapsed';
+    }
+    if (this.expandedStepKey.length === 0) {
+      return 'auto';
+    }
+    return this.expandedStepKey === row.labelKey ? 'open' : 'closed';
+  }
+
+  /** 详情里的一行：标签 + 值。 */
+  @Builder
+  DetailLine(labelKey: string, value: string, color: ResourceColor) {
+    Row() {
+      Text(this.tr(labelKey))
+        .fontSize(11 * AppTheme.UI_SCALE)
+        .fontColor(AppTheme.TEXT_TERTIARY)
+        .width(64 * AppTheme.UI_SCALE)
+      Text(value)
+        .fontSize(12 * AppTheme.UI_SCALE)
+        .fontColor(color)
+        .layoutWeight(1)
+        .maxLines(3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
+    .alignItems(VerticalAlign.Top)
+    .margin({ top: 6 * AppTheme.UI_SCALE })
+  }
+
+  /**
+   * 流程时间线。
+   *
+   * 一条**有方向的流程**：左边节点与连接线，完成打勾、卡住感叹号、当前实心点；
+   * 右边是环节名与后端给的状态词，卡住或需要人确认时再补一行原因和入口。
+   * 状态词与色调直接取后端枚举的映射（`componentLabel` / `componentTone`），不另立一套。
+   *
+   * 环节名下面原先还有一行「确认实验规则、目标与约束」那样的说明，已删除：
+   * 它只是把环节名换个说法再说一遍，占位置不增信息量。
+   */
+  @Builder
+  Timeline() {
+    Column() {
+      ForEach(this.rows, (row: ComponentRow, index: number) => {
+        Row() {
+          // 左列：节点 + 一小段连接线。线不做整条贯穿 —— Row 内撑满高度在不同窗口下不可靠。
+          Column() {
+            Text(this.stepGlyph(index))
+              .fontSize(13 * AppTheme.UI_SCALE)
+              .fontColor(this.stepNodeColor(index))
+              .backgroundColor(this.stepNodeBackground(index))
+              .borderRadius(11 * AppTheme.UI_SCALE)
+              .width(22 * AppTheme.UI_SCALE)
+              .height(22 * AppTheme.UI_SCALE)
+              .textAlign(TextAlign.Center)
+            if (index < this.rows.length - 1) {
+              Column()
+                .width(1 * AppTheme.UI_SCALE)
+                .height(26 * AppTheme.UI_SCALE)
+                .backgroundColor(AppTheme.BORDER)
+            }
+          }
+          .width(30 * AppTheme.UI_SCALE)
+          .alignItems(HorizontalAlign.Center)
+
+          Column() {
+            Row() {
+              Text(this.tr(row.labelKey))
+                .fontSize(14 * AppTheme.UI_SCALE)
+                .fontWeight(index === this.currentStepIndex() ? FontWeight.Medium : FontWeight.Normal)
+                .fontColor(AppTheme.TEXT_PRIMARY)
+                .layoutWeight(1)
+              StatusBadge({ text: componentLabel(this.lang, row.state), tone: componentTone(row.state) })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            .onClick(() => {
+              // 点环节展开/收起详情；展开态进了 ForEach 的 key，才会真的重建。
+              this.expandedStepKey = this.isStepExpanded(row, index) ? 'none' : row.labelKey;
+            })
+
+            if (this.stepReason(index).length > 0) {
+              Text(this.stepReason(index))
+                .fontSize(12 * AppTheme.UI_SCALE)
+                .fontColor(AppTheme.WARN_TEXT)
+                .width('100%')
+                .margin({ top: 6 * AppTheme.UI_SCALE })
+            }
+
+            if (this.stepActionLabel(index).length > 0) {
+              Text(this.stepActionLabel(index))
+                .fontSize(12 * AppTheme.UI_SCALE)
+                .fontColor(AppTheme.PRIMARY_DARK)
+                .backgroundColor(AppTheme.PRIMARY_SOFT)
+                .borderRadius(6 * AppTheme.UI_SCALE)
+                .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
+                .margin({ top: 10 * AppTheme.UI_SCALE })
+                .onClick(() => {
+                  this.section = index === 0 ? 'rules' : 'blockers';
+                })
+            }
+
+            // 展开的详情。只放后端真有的字段：状态、当前阻塞、下一步。
+            // 「输入」与「Agent 已完成的操作」接口里还没有，不编。
+            if (this.isStepExpanded(row, index)) {
+              Column() {
+                this.DetailLine('workflow.detailState', componentLabel(this.lang, row.state), AppTheme.TEXT_PRIMARY)
+                // 阻塞那行只在有**具体原因**时出现：通用的「等待人工确认」与上面那行状态重复，不再抄一遍。
+                if (this.stepReason(index).length > 0
+                  && this.stepReason(index) !== this.tr('workflow.stepWaitingConfirm')) {
+                  this.DetailLine('workflow.detailBlocker', this.stepReason(index), AppTheme.WARN_TEXT)
+                }
+                // 卡住的环节，下一步是「补齐」而不是流程里的下一个环节，那件事由上面的入口按钮负责，这里不写。
+                if (this.stepNextName(index).length > 0 && !this.stepBlocked(row.state)) {
+                  this.DetailLine('workflow.detailNext', this.stepNextName(index), AppTheme.TEXT_SECONDARY)
+                }
+              }
+              .width('100%')
+              .alignItems(HorizontalAlign.Start)
+              .margin({ top: 10 * AppTheme.UI_SCALE })
+              .padding({ left: 12 * AppTheme.UI_SCALE })
+              .border({ width: { left: 2 }, color: AppTheme.BORDER })
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          .margin({ left: 12 * AppTheme.UI_SCALE })
+          .padding({ bottom: index < this.rows.length - 1 ? 10 * AppTheme.UI_SCALE : 0 * AppTheme.UI_SCALE })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
+      }, (row: ComponentRow) => `${row.labelKey}-${row.state}-${this.stepKeySuffix(row)}`)
+    }
+    .width('100%')
+  }
+
+  // ---- 右栏：卡在哪 / 下一步 / Agent 在做什么 ----
+
+  /** 这一步之后是哪一个环节；没有下一步返回空串。 */
+  private stepNextName(index: number): string {
+    return index < this.rows.length - 1 ? this.tr(this.rows[index + 1].labelKey) : '';
+  }
+
+  /** 补齐之前哪一步进不去。用环节顺序推，不编影响面。 */
+  private blockedImpact(): string {
+    const index: number = this.currentStepIndex();
+    if (index < 0 || index >= this.rows.length - 1) {
+      return '';
+    }
+    return this.trf('workflow.blockedImpact', [this.stepNextName(index)]);
+  }
+
+  /** 下一步的说明：当前环节要人确认时是「完成后自动开始」，否则是「Agent 会自动执行」。 */
+  private nextStepHint(): string {
+    const index: number = this.currentStepIndex();
+    if (index < 0) {
+      return this.tr('workflow.agentAuto');
+    }
+    const current: string = this.tr(this.rows[index].labelKey);
+    const next: string = this.stepNextName(index);
+    if (index === 0 && !this.rulesApproved) {
+      return next.length > 0
+        ? this.trf('workflow.nextAfterCurrent', [current, next])
+        : this.tr('workflow.stepWaitingConfirm');
+    }
+    return next.length > 0 ? this.trf('workflow.nextAuto', [next]) : this.tr('workflow.agentAuto');
+  }
+
+  /** 下一步该点哪里：要人确认就去规则关口，否则去后端的待办建议。 */
+  private nextStepSection(): string {
+    return this.currentStepIndex() === 0 && !this.rulesApproved ? 'rules' : 'actions';
+  }
+
+  /**
+   * 右栏一：现在卡在哪。
+   *
+   * 用浅橙底而不是红色错误框 —— 这是「要先补东西」，不是「出错了」。
+   * 「缺失内容」列的是**工作区里真的缺的字段**（来自规则缺口），不是编出来的清单。
+   */
+  @Builder
+  BlockedCard() {
+    Column() {
+      Text(this.tr('workflow.blockedTitle'))
+        .fontSize(15 * AppTheme.UI_SCALE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+
+      if (this.blockers.length === 0) {
+        Text(this.tr('workflow.blockedNone'))
+          .fontSize(13 * AppTheme.UI_SCALE)
+          .fontColor(AppTheme.PRIMARY_DARK)
+          .width('100%')
+          .margin({ top: 10 * AppTheme.UI_SCALE })
+      } else {
+        Text(this.actionText(this.blockers[0], true))
+          .fontSize(13 * AppTheme.UI_SCALE)
+          .fontColor(AppTheme.WARN_TEXT)
+          .width('100%')
+          .margin({ top: 10 * AppTheme.UI_SCALE })
+          .maxLines(3)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        if (this.ruleGroups.length > 0) {
+          Text(this.tr('workflow.blockedMissing'))
+            .fontSize(11 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+            .margin({ top: 12 * AppTheme.UI_SCALE })
+          Flex({ wrap: FlexWrap.Wrap }) {
+            ForEach(this.ruleGroups, (group: RuleGapGroup) => {
+              ForEach(group.fields, (field: string) => {
+                Text(field)
+                  .fontSize(11 * AppTheme.UI_SCALE)
+                  .fontColor(AppTheme.TEXT_SECONDARY)
+                  .backgroundColor(AppTheme.SURFACE)
+                  .borderRadius(6 * AppTheme.UI_SCALE)
+                  .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
+                  .margin({ top: 6 * AppTheme.UI_SCALE, right: 6 * AppTheme.UI_SCALE })
+              }, (field: string) => `${group.reason}-${field}`)
+            }, (group: RuleGapGroup) => group.reason)
+          }
+          .width('100%')
+        }
+
+        if (this.blockedImpact().length > 0) {
+          Text(this.blockedImpact())
+            .fontSize(12 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+            .margin({ top: 12 * AppTheme.UI_SCALE })
+        }
+
+        Row({ space: 10 * AppTheme.UI_SCALE }) {
+          Text(this.tr('workflow.blockedFill'))
+            .fontSize(12 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.PRIMARY_DARK)
+            .backgroundColor(AppTheme.SURFACE)
+            .borderRadius(6 * AppTheme.UI_SCALE)
+            .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
+            .onClick(() => {
+              this.section = 'rules';
+            })
+          Text(this.tr('workflow.blockedCheckAgent'))
+            .fontSize(12 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .backgroundColor(AppTheme.SURFACE)
+            .borderRadius(6 * AppTheme.UI_SCALE)
+            .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
+            .onClick(() => {
+              // 只把问题填好并跳到问答段，不替人发出去 —— 发一次是要花积分的。
+              this.question = this.tr('workflow.agentCheckPrompt');
+              this.section = 'ask';
+            })
+        }
+        .width('100%')
+        .margin({ top: 14 * AppTheme.UI_SCALE })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(20 * AppTheme.UI_SCALE)
+    .backgroundColor(this.blockers.length > 0 ? AppTheme.WARN_SOFT : AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS)
+    .border({ width: 1, color: AppTheme.BORDER })
+  }
+
+  /** 右栏二：下一步会发生什么，以及现在该点哪里。 */
+  @Builder
+  NextStepCard() {
+    CardPanel({ title: this.tr('workflow.nextTitle') }) {
+      Column() {
+        Text(this.nextStepHint())
+          .fontSize(13 * AppTheme.UI_SCALE)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+          .width('100%')
+        Text(this.automatic ? this.tr('workflow.autoOn') : this.tr('workflow.autoOff'))
+          .fontSize(11 * AppTheme.UI_SCALE)
+          .fontColor(AppTheme.TEXT_TERTIARY)
+          .width('100%')
+          .margin({ top: 6 * AppTheme.UI_SCALE })
+        Row() {
+          Text(this.currentStepIndex() === 0 && !this.rulesApproved
+            ? this.tr('workflow.stepNeedConfirm')
+            : this.tr('workflow.nextViewActions'))
+            .fontSize(12 * AppTheme.UI_SCALE)
+            .fontColor(Color.White)
+            .backgroundColor(AppTheme.PRIMARY)
+            .borderRadius(6 * AppTheme.UI_SCALE)
+            .padding({ left: 14 * AppTheme.UI_SCALE, right: 14 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
+            .onClick(() => {
+              this.section = this.nextStepSection();
+            })
+        }
+        .width('100%')
+        .margin({ top: 14 * AppTheme.UI_SCALE })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+    }
+  }
+
+  /** 右栏三：Agent 现在在做什么 —— 用户是在看它推进，不是在手动跑每一步。 */
+  @Builder
+  AgentStateCard() {
+    CardPanel({ title: this.tr('workflow.agentState') }) {
+      Column() {
+        Text(this.rulesApproved ? this.tr('workflow.agentAuto') : this.tr('workflow.agentWaitingRules'))
+          .fontSize(13 * AppTheme.UI_SCALE)
+          .fontColor(this.rulesApproved ? AppTheme.PRIMARY_DARK : AppTheme.WARN_TEXT)
+          .width('100%')
+        Row() {
+          Text(this.tr('workflow.autoExecution'))
+            .fontSize(11 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .layoutWeight(1)
+          Text(this.automatic ? this.tr('workflow.autoOn') : this.tr('workflow.autoOff'))
+            .fontSize(11 * AppTheme.UI_SCALE)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .margin({ top: 10 * AppTheme.UI_SCALE })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+    }
   }
 
   @Builder
@@ -993,22 +1470,22 @@ export struct WorkflowPage {
       ForEach(this.openQuestions(), (item: string, index: number) => {
         Row() {
           Text(`${index + 1}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .backgroundColor(AppTheme.DANGER_SOFT)
-            .borderRadius(11)
-            .width(22)
-            .height(22)
+            .borderRadius(11 * AppTheme.UI_SCALE)
+            .width(22 * AppTheme.UI_SCALE)
+            .height(22 * AppTheme.UI_SCALE)
             .textAlign(TextAlign.Center)
           Text(item)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
-        .padding({ top: 10, bottom: 10 })
+        .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
       }, (item: string, index: number) => `${index}-${item}`)
     }
     .width('100%')
@@ -1022,20 +1499,20 @@ export struct WorkflowPage {
           StatusBadge({ text: priorityLabel(this.lang, item.priority), tone: priorityTone(item.priority) })
           Column() {
             Text(this.actionText(item.action))
-              .fontSize(14)
+              .fontSize(14 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_PRIMARY)
             Text(this.actionText(item.evidence, true))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
-              .margin({ top: 6 })
+              .margin({ top: 6 * AppTheme.UI_SCALE })
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
-          .margin({ left: 12 })
+          .margin({ left: 12 * AppTheme.UI_SCALE })
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
-        .padding({ top: 12, bottom: 12 })
+        .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
       }, (item: NextAction) => `${item.priority}-${item.action}`)
     }
     .width('100%')
@@ -1047,31 +1524,31 @@ export struct WorkflowPage {
     Column() {
       Row() {
         Text(this.tr('auth.balance'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .layoutWeight(1)
         Text(this.creditBalance.toFixed(2))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.PRIMARY_DARK)
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ bottom: 10 })
+      .margin({ bottom: 10 * AppTheme.UI_SCALE })
 
       Row() {
         TextInput({ text: this.question, placeholder: this.tr('workflow.askPlaceholder') })
           .layoutWeight(1)
-          .height(40)
-          .fontSize(14)
+          .height(40 * AppTheme.UI_SCALE)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.PAGE_BG)
           .onChange((value: string) => {
             this.question = value;
           })
         Button(this.tr('workflow.ask'))
-          .height(40)
-          .margin({ left: 12 })
-          .fontSize(14)
+          .height(40 * AppTheme.UI_SCALE)
+          .margin({ left: 12 * AppTheme.UI_SCALE })
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontColor(Color.White)
           .backgroundColor(AppTheme.PRIMARY)
           .enabled(!this.asking)
@@ -1084,35 +1561,35 @@ export struct WorkflowPage {
 
       if (this.askError.length > 0) {
         Text(this.askError)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
 
       if (this.asking) {
         Text(this.tr('workflow.asking'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .width('100%')
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
       } else if (this.answer.length > 0) {
         Column() {
           Text(this.answer)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
           Text(this.trf('workflow.answerMeta', [this.answerModel, `${this.answerTurns}`]))
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 10 })
+            .margin({ top: 10 * AppTheme.UI_SCALE })
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .padding(16)
+        .padding(16 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PAGE_BG)
         .borderRadius(AppTheme.RADIUS_SM)
-        .margin({ top: 14 })
+        .margin({ top: 14 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
@@ -1120,14 +1597,18 @@ export struct WorkflowPage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('workflow.title'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「工作流」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
         }
       })
+
+      // 进页面直接给状态：一条摘要条四个数。原先标题下面还有一句「Agent 正在推进…」，
+      // 它没有一个数字、只是把这一页介绍了一遍，已删除 —— 状态本身说明问题。
+      this.SummaryStrip()
 
       if (this.errorText.length > 0) {
         this.ErrorBanner()
@@ -1174,10 +1655,10 @@ export struct WorkflowPage {
             EmptyHint({ text: this.tr('workflow.noOpenQuestions') })
           } else {
             Text(this.trf('workflow.blockersSubtitle', [`${this.openQuestions().length}`]))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
-              .margin({ bottom: 6 })
+              .margin({ bottom: 6 * AppTheme.UI_SCALE })
             this.BlockerList()
           }
         }
@@ -1186,10 +1667,10 @@ export struct WorkflowPage {
           title: this.tr('workflow.actions')
         }) {
           Text(this.tr('workflow.actionHint'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ bottom: 8 })
+            .margin({ bottom: 8 * AppTheme.UI_SCALE })
           if (this.actions.length === 0) {
             EmptyHint({ text: this.tr('workflow.noActions') })
           } else {
@@ -1202,22 +1683,62 @@ export struct WorkflowPage {
         }) {
           this.AskPanel()
         }
-      } else {
-        CardPanel({
-          title: this.tr('workflow.componentStatus')
-        }) {
-          this.ComponentList()
+      } else if (this.compactFlow) {
+        // 窄窗口：右栏挪到时间线下面，一列到底。
+        Column({ space: 16 * AppTheme.UI_SCALE }) {
+          CardPanel({
+            title: this.tr('workflow.timeline')
+          }) {
+            this.Timeline()
+          }
+          this.BlockedCard()
+          this.NextStepCard()
+          this.AgentStateCard()
         }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      } else {
+        // 宽窗口：左 65% 时间线、右 35% 「卡在哪 / 下一步 / Agent 在做什么」。
+        Row({ space: 16 * AppTheme.UI_SCALE }) {
+          Column() {
+            CardPanel({
+              title: this.tr('workflow.timeline')
+            }) {
+              this.Timeline()
+            }
+          }
+          .layoutWeight(2)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 16 * AppTheme.UI_SCALE }) {
+            this.BlockedCard()
+            this.NextStepCard()
+            this.AgentStateCard()
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
       }
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
+    .onAreaChange((_old: Area, newArea: Area) => {
+      // 断点取 900：右栏 1/3 要有 300vp 才装得下那几张卡，再窄就挤成读不下去的窄条，
+      // 不如改上下排。（侧栏加宽后内容区少了一百多 vp，原来那个 1000 在常见窗口里
+      // 会把两栏直接关掉，所以往下调到 900。）
+      const compact: boolean = Number(newArea.width) < 900;
+      if (this.compactFlow !== compact) {
+        this.compactFlow = compact;
+      }
+    })
   }
 }

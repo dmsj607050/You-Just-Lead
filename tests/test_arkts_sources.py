@@ -43,6 +43,15 @@ def _device_root() -> Path:
     return device_project_root(_repo_root())
 
 
+def _camel(name: str) -> str:
+    """`tabular_classification` → `tabularClassification`。
+
+    端侧 i18n 的键用驼峰，后端那张表用下划线；两边靠这个换算对齐，谁也不用抄一份名字。
+    """
+    head, *rest = name.split("_")
+    return head + "".join(part.capitalize() for part in rest)
+
+
 #: 要检查的文件（相对端侧工程根）。
 CHECKED_FILES = (
     "entry/src/main/ets/view/ResearchLoopPage.ets",
@@ -295,39 +304,277 @@ class ResponsiveHeaderTests(unittest.TestCase):
         self.assertIn("this.blockerCount > 0", top_bar)
         self.assertIn("this.onNotificationsClick();", top_bar)
         self.assertRegex(index, r"TopBar\(\{[\s\S]*?onNotificationsClick: \(\) => \{[\s\S]*?activeNav = 'workflow';")
-        self.assertIn("@State compactWorkspace: boolean = true;", index)
-        self.assertIn(".minContentWidth(this.compactWorkspace ? 260 : 420)", index)
-        self.assertIn("const compact = Number(newArea.width) < 680;", index)
+        # 2026-09-30 侧栏改成一列两层后，这里不再有「窄窗口收起面板」那套：
+        # 侧栏只剩一列，没有可以退守的图标栏，收了就等于把导航整条藏掉。
+        self.assertNotIn("this.panelOpen", index)
+        self.assertNotIn("this.compactWorkspace", index)
 
 
 class GroupedNavigationTests(unittest.TestCase):
-    """端侧侧栏按科研流程分组，并支持图标分组的展开与收起。"""
+    """侧栏是**一列两层**：一级是「工作区 / 研究 / 产出」，二级缩进排在展开的那一行下面。
+
+    这里改过三次，都是跟着版式走，**钉住的东西一直没变**：三个功能域都在共享导航表里、
+    都有中英双语文案、当前所在的域与当前页各有激活态、设置始终可达、导航表不重复抄。
+    第一次：一列文字里的手风琴；第二次：图标栏 + 面板两列；
+    第三次（2026-09-30，按用户要求）：回到单列手风琴，但一级是完整导航行（图标 + 名称 +
+    展开箭头），并且**导航项里不许出现说明文字**。
+    """
 
     def test_side_navigation_renders_all_shared_groups_and_items(self) -> None:
         root = _device_root()
         types = (root / "entry/src/main/ets/common/ViewTypes.ets").read_text(encoding="utf-8")
-        side_nav = (root / "entry/src/main/ets/view/SideNav.ets").read_text(encoding="utf-8")
+        nav = (root / "entry/src/main/ets/view/SideNav.ets").read_text(encoding="utf-8")
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
         i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
 
         for group in ("workspace", "research", "outputs"):
             with self.subTest(group=group):
+                # 二级页面的归属
                 self.assertIn(f"group: '{group}'", types)
+                # 一级功能域：在共享表里，并且带图标（`key: 'x', icon:` 只有 NAV_GROUPS 是这写法）
+                self.assertRegex(types, rf"key: '{group}', icon: IconPaths\.\w+")
                 self.assertIn(f"key: 'nav.group.{group}'", i18n)
                 self.assertRegex(i18n, rf"key: 'nav\.group\.{group}'.*zh: '.+'.*en: '.+'")
 
-        self.assertIn("return ['workspace', 'research', 'outputs'];", side_nav)
-        self.assertIn("this.tr(`nav.group.${groupKey}`)", side_nav)
-        self.assertIn("@State expandedGroup: string = 'workspace';", side_nav)
-        self.assertIn("this.expandedGroup === groupKey ? this.itemsForGroup(groupKey) : []", side_nav)
-        self.assertIn("this.expandedGroup = this.expandedGroup === groupKey ? '' : groupKey;", side_nav)
-        self.assertIn("private isActiveGroup(groupKey: string): boolean", side_nav)
-        self.assertIn("this.isActiveGroup(groupKey) ? AppTheme.PRIMARY_SOFT", side_nav)
-        self.assertIn("this.onSelect(item.key);", side_nav)
-        self.assertIn("item.key === 'workflow' && this.blockerCount > 0", side_nav)
-        self.assertIn(".scrollBar(BarState.Auto)", side_nav)
-        self.assertIn("this.onSelect('settings');", side_nav)
-        self.assertNotIn("nav.quote", side_nav)
-        self.assertNotIn("Blank()", side_nav)
+        # 两级各读共享表，谁也不自己抄一份
+        self.assertIn("export function groupOfNavItem(navKey: string): string", types)
+        self.assertIn("export function navItemsOf(groupKey: string): NavItem[]", types)
+        self.assertIn("ForEach(NAV_GROUPS, (group: NavGroupSpec) =>", nav)
+        self.assertIn("ForEach(navItemsOf(group.key), (item: NavItem) =>", nav)
+        self.assertNotIn("return ['workspace'", nav)
+
+        # 一级行：图标 + 名称 + 右侧展开箭头；展开态与当前域各有底色/配色
+        self.assertIn("expanded: this.openGroup === group.key,", nav)
+        self.assertIn("current: groupOfNavItem(this.activeKey) === group.key,", nav)
+        self.assertIn("this.openGroup === group.key", nav)
+        self.assertIn(".rotate({ angle: this.expanded ? 90 : 0 })", nav)
+        self.assertIn("AppTheme.PRIMARY_SOFT_ALT", nav)
+
+        # 二级行：当前页浅底 + 品牌色；工作流带阻塞角标；设置固定在底部
+        self.assertIn("active: this.activeKey === item.key,", nav)
+        self.assertIn("badge: item.key === 'workflow' ? this.blockerCount : 0,", nav)
+        self.assertIn("this.onSelect(item.key);", nav)
+        self.assertIn("label: this.tr('nav.settings'),", nav)
+        self.assertIn("icon: IconPaths.SLIDERS,", nav)
+        self.assertIn("this.onSelect('settings');", nav)
+
+        # 悬停是**自己画的**一层浅灰绿，不是系统高亮
+        self.assertIn("AppTheme.NAV_HOVER", nav)
+        self.assertIn(".onHover((isHover: boolean) => {", nav)
+
+        # 外壳：侧栏 + 内容区一行排开；展开哪个域由外壳一个状态说了算
+        self.assertIn("SideNav({", index)
+        self.assertIn("openGroup: this.openGroup,", index)
+        self.assertIn("@State openGroup: string = 'workspace';", index)
+        self.assertIn("private toggleGroup(groupKey: string): void", index)
+        self.assertIn("private selectPage(key: string): void", index)
+        self.assertNotIn("IconRail", index)
+
+    def test_navigation_items_carry_no_explanatory_copy(self) -> None:
+        """导航项只有图标 + 名称：不放副标题、不放「用于…」「你可以在这里…」这类说明。
+
+        说明文字属于页面内部、空状态或首次引导。导航条本身只回答「去哪里」。
+        """
+        root = _device_root() / "entry/src/main/ets"
+        source = (root / "view/SideNav.ets").read_text(encoding="utf-8")
+
+        # 侧栏只会去取 `nav.*` 这几个键：名称与域名。取别的键就说明有人塞了说明文案进来。
+        # （匹配时要带上引号，否则组件注释里那句 `this.tr()` 也会被算进来。）
+        all_calls = re.findall(r"this\.tr\([`'\"]", source)
+        nav_calls = re.findall(r"this\.tr\([`']nav\.", source)
+        self.assertEqual(len(all_calls), len(nav_calls))
+
+        # 两级行组件都不自己取文案，只渲染父级给的名称；出现 this.tr( 就是自己加了一句
+        body = source.split("struct NavRow {")[1].split("\n}")[0]
+        self.assertNotIn("this.tr(", body)
+
+        # 一级 / 二级的缩进是两个具名常量，不散落在两处字面量里
+        self.assertIn("const CHILD_INDENT: number = 40;", source)
+        self.assertIn("const ROOT_INDENT: number = 12;", source)
+        self.assertIn("indent: CHILD_INDENT,", source)
+        # 一级有两处用它：功能域那一行，和底部的设置
+        self.assertEqual(2, source.count("indent: ROOT_INDENT,"))
+
+        # 上一版的图标栏整个删掉了，不是留着不用
+        self.assertFalse((root / "view/IconRail.ets").exists())
+
+
+class WorkflowTimelineLayoutTests(unittest.TestCase):
+    """工作流页：宽窗口左时间线 + 右栏（卡在哪 / 下一步 / Agent 在做什么），窄窗口改上下排。
+
+    钉住三件事，都是会静默坏掉的机制：
+    一、断点：窄了必须换成单列，否则右栏被挤成读不下去的窄条；
+    二、展开态：ArkUI 不会因为 @Builder 里读到的状态变了就重建子树，展开态**必须进 ForEach 的 key**；
+    三、右栏说的要是后端真有的东西：缺失项取规则缺口的真实字段，
+       「让 Agent 检查工作区」只把问题填好、不替人发出去（发一次是要花积分的）。
+    """
+
+    def test_wide_screen_shows_side_column_and_narrow_screen_stacks_it(self) -> None:
+        workflow = (_device_root() / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+
+        self.assertIn("@State compactFlow: boolean = true;", workflow)
+        self.assertIn("const compact: boolean = Number(newArea.width) < 900;", workflow)
+        self.assertIn("this.compactFlow = compact;", workflow)
+        # 宽：一行两列；窄：同一个 else 分支里改成一列
+        self.assertIn("} else if (this.compactFlow) {", workflow)
+        self.assertIn(".layoutWeight(2)", workflow)
+        self.assertIn(".layoutWeight(1)", workflow)
+        for builder in ("BlockedCard()", "NextStepCard()", "AgentStateCard()"):
+            with self.subTest(builder=builder):
+                # 宽窄两条分支都要挂，漏一条这一块就在那种窗口里消失
+                self.assertEqual(2, workflow.count(f"this.{builder}"))
+
+    def test_expanded_step_state_is_part_of_the_foreach_key(self) -> None:
+        workflow = (_device_root() / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+
+        self.assertIn("@State expandedStepKey: string = '';", workflow)
+        self.assertIn("private isStepExpanded(row: ComponentRow, index: number): boolean", workflow)
+        self.assertIn("private stepKeySuffix(row: ComponentRow): string", workflow)
+        self.assertIn("${row.labelKey}-${row.state}-${this.stepKeySuffix(row)}", workflow)
+        self.assertIn("this.expandedStepKey = this.isStepExpanded(row, index) ? 'none' : row.labelKey;", workflow)
+
+    def test_blocked_card_uses_real_gaps_and_never_sends_a_paid_question(self) -> None:
+        workflow = (_device_root() / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+
+        # 缺失内容列的是规则缺口里的真实字段，不是编出来的清单
+        self.assertIn("ForEach(group.fields, (field: string) => {", workflow)
+        # 「让 Agent 检查工作区」只预填问题并跳到问答段
+        self.assertIn("this.question = this.tr('workflow.agentCheckPrompt');", workflow)
+        self.assertIn("this.section = 'ask';", workflow)
+        # 详情只写后端真有的三项；抢在「猜测原因」上的话一律不许出现在详情块里
+        for key in ("workflow.detailState", "workflow.detailBlocker", "workflow.detailNext"):
+            with self.subTest(key=key):
+                self.assertIn(key, workflow)
+
+
+class UiScaleTests(unittest.TestCase):
+    """界面整体放大：所有长度都乘 `AppTheme.UI_SCALE`，改一个数就能整体变大变小。
+
+    2026-09-30 按用户要求把字号与组件统一放大。以下两个检查是防止它悄悄退化的：
+    一是那个数还在（且只有一个来源），二是**没有漏网的裸字面量** ——
+    漏一个就会有两种大小的字并排出现，比整体偏小更难发现。
+    """
+
+    def test_theme_exposes_a_single_scale_knob(self) -> None:
+        theme = (_device_root() / "entry/src/main/ets/common/AppTheme.ets").read_text(encoding="utf-8")
+
+        self.assertRegex(theme, r"const UI_SCALE: number = \d+(?:\.\d+)?;")
+        self.assertIn("static readonly UI_SCALE: number = UI_SCALE;", theme)
+        self.assertIn("static readonly TOPBAR_HEIGHT: number = 56 * UI_SCALE;", theme)
+        self.assertIn("static readonly SIDEBAR_WIDTH: number = 240 * UI_SCALE;", theme)
+
+    def test_no_view_keeps_an_unscaled_length_literal(self) -> None:
+        root = _device_root() / "entry/src/main/ets"
+        # 匹配的是「参数就是一个裸数字」的写法；写成 `14 * AppTheme.UI_SCALE` 就不算命中。
+        number = r"\d+(?:\.\d+)?"
+        scalar = re.compile(
+            rf"\.(?:fontSize|lineHeight|strokeWidth|width|height|borderRadius)\({number}\)"
+            rf"|\.(?:padding|margin)\({number}\)"
+            rf"|\.(?:padding|margin)\(\{{[^}}]*:\s*{number}\s*[,}}]"
+        )
+        spacing = re.compile(rf"(?:Row|Column|Flex)\(\{{ space: {number}\s*[,}}]")
+
+        for path in sorted(root.rglob("*.ets")):
+            if path.name == "AppTheme.ets":
+                continue
+            for number_, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                with self.subTest(file=path.name, line=number_):
+                    self.assertIsNone(scalar.search(line), f"{path.name}:{number_} {line.strip()}")
+                    self.assertIsNone(spacing.search(line), f"{path.name}:{number_} {line.strip()}")
+
+
+class CapabilityCopyTests(unittest.TestCase):
+    """内置能力卡片不许把后端那张英文表直接铺出来。
+
+    后端 `training/catalog.py` 是一张固定的英文表（适配器标识、类型、数据契约说明全是英文），
+    2026-09-30 用户报的就是这个：界面切成中文，卡片还是 `tabular_classification`。
+    现在三层文案各走一个翻译函数，认不出的标识退回原文。
+
+    这里**直接读后端那张表**做对照：后端加了适配器而端侧没加译文，这个测试就红 ——
+    这正是这套映射最容易烂掉的地方。
+    """
+
+    def _assert_has_both_languages(self, i18n: str, key: str) -> None:
+        # 中英两栏都必须有值。英文那栏可能用双引号（句子里带撇号），所以两种引号都收。
+        lines = [line for line in i18n.splitlines() if f"key: '{key}'" in line]
+        self.assertEqual(1, len(lines), f"{key} 应该有且只有一条")
+        self.assertRegex(lines[0], r"zh: ['\"].+['\"]")
+        self.assertRegex(lines[0], r"en: ['\"].+['\"]")
+
+    def test_backend_catalog_has_device_translations(self) -> None:
+        from training.catalog import RUNNER_CAPABILITIES
+
+        root = _device_root() / "entry/src/main/ets"
+        i18n = (root / "common/I18n.ets").read_text(encoding="utf-8")
+        format_source = (root / "common/Format.ets").read_text(encoding="utf-8")
+
+        for item in RUNNER_CAPABILITIES:
+            runner = str(item["runner"])
+            kind = str(item["kind"])
+            with self.subTest(runner=runner):
+                # 展示名与契约说明都按适配器标识索引
+                for prefix in ("cap.runner.", "cap.contract."):
+                    self._assert_has_both_languages(i18n, f"{prefix}{_camel(runner)}")
+                # 翻译函数里必须有这个标识的分支，否则就是"键加了但没接上"
+                self.assertIn(f"runner === '{runner}'", format_source)
+
+            with self.subTest(kind=kind):
+                self._assert_has_both_languages(i18n, f"cap.kind.{_camel(kind)}")
+                self.assertIn(f"kind === '{kind}'", format_source)
+
+    def test_cards_render_translations_not_raw_backend_fields(self) -> None:
+        grid = (_device_root() / "entry/src/main/ets/view/CapabilityGrid.ets").read_text(encoding="utf-8")
+
+        self.assertIn("Text(runnerLabel(this.lang, item.runner))", grid)
+        self.assertIn("Text(runnerKindLabel(this.lang, item.kind))", grid)
+        self.assertIn("runnerContractLabel(this.lang, item.runner, item.data_contract)", grid)
+        # 原样铺后端字段的写法必须一个都不剩
+        for banned in ("Text(item.runner)", "Text(item.kind)", "Text(item.data_contract)"):
+            with self.subTest(banned=banned):
+                self.assertNotIn(banned, grid)
+        # 中文界面下搜「分类」也要能搜到，所以译文也要进搜索
+        self.assertIn("runnerLabel(this.lang, item.runner).toLowerCase().includes(key)", grid)
+        # 切语言要真的重建卡片：语言进 ForEach 的 key
+        self.assertIn("(item: RunnerCapability) => `${item.runner}-${this.gridView}-${this.lang}`", grid)
+
+
+class PageHeadingTests(unittest.TestCase):
+    """页面顶部不再重复页面名：左侧面板里高亮的那一项已经写着它。
+
+    2026-09-30 按用户要求删掉（起因是「文献」页顶部又写了一遍「文献」）。
+    例外是**不在导航里的页面** —— 设置（侧栏底部的一级入口，侧栏上不再有它的名字）
+    与两个本地离线工具页，它们没有别的地方显示名字，各自的大标题保留。
+    """
+
+    def test_page_header_no_longer_renders_a_title(self) -> None:
+        widgets = (_device_root() / "entry/src/main/ets/view/Widgets.ets").read_text(encoding="utf-8")
+        header = widgets.split("export struct PageHeader {")[1].split("\n}")[0]
+
+        self.assertNotIn("@Prop title", header)
+        self.assertNotIn("FontWeight.Bold", header)
+        # 现状那行还在，刷新入口也还在：删的只是标题
+        self.assertIn("@Prop status: string = '';", header)
+        self.assertIn("this.onRefresh();", header)
+
+    def test_every_nav_page_drops_the_duplicate_title(self) -> None:
+        ets = _device_root() / "entry/src/main/ets"
+        names = ("pages/Index.ets", "view/WorkflowPage.ets", "view/LiteraturePage.ets",
+                 "view/ExperimentPage.ets", "view/DataPage.ets", "view/WritingPage.ets",
+                 "view/TracePage.ets", "view/ReproductionPage.ets", "view/ResearchLoopPage.ets")
+        for name in names:
+            with self.subTest(page=name):
+                source = (ets / name).read_text(encoding="utf-8")
+                blocks = re.findall(r"PageHeader\(\{[\s\S]*?\n      \}\)", source)
+                # 页面里必须还剩着这条状态条，只是不再传标题
+                self.assertTrue(blocks)
+                for block in blocks:
+                    self.assertNotIn("title:", block)
+
+    def test_pages_without_a_panel_entry_keep_their_own_heading(self) -> None:
+        view = _device_root() / "entry/src/main/ets/view"
+        for name in ("SettingsPage.ets", "LocalStatusPage.ets", "LocalRulePage.ets"):
+            with self.subTest(page=name):
+                self.assertIn("FontWeight.Bold", (view / name).read_text(encoding="utf-8"))
 
 
 class ReproductionRuntimeCopyTests(unittest.TestCase):

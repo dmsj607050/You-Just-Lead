@@ -239,6 +239,93 @@ export function experimentStatusTone(status: string): string {
   return 'muted';
 }
 
+/**
+ * 内置能力（训练适配器）的展示名。
+ *
+ * 后端的 `training/catalog.py` 是一张固定的英文表，标识本身就是英文（`tabular_classification`），
+ * 直接铺在界面上切语言也不会跟着变。这里按**标识**翻一层，只负责显示：
+ * 表里没有的标识原样返回，不猜也不拼。
+ */
+export function runnerLabel(lang: string, runner: string): string {
+  if (runner === 'synthetic_binary_classification') {
+    return tFor(lang, 'cap.runner.syntheticBinaryClassification');
+  }
+  if (runner === 'tabular_classification') {
+    return tFor(lang, 'cap.runner.tabularClassification');
+  }
+  if (runner === 'tabular_regression') {
+    return tFor(lang, 'cap.runner.tabularRegression');
+  }
+  if (runner === 'image_classification') {
+    return tFor(lang, 'cap.runner.imageClassification');
+  }
+  if (runner === 'image_segmentation') {
+    return tFor(lang, 'cap.runner.imageSegmentation');
+  }
+  if (runner === 'waterseg_external') {
+    return tFor(lang, 'cap.runner.watersegExternal');
+  }
+  if (runner === 'external_detection') {
+    return tFor(lang, 'cap.runner.externalDetection');
+  }
+  return runner;
+}
+
+/** 适配器类型的展示名。未收录的原样返回。 */
+export function runnerKindLabel(lang: string, kind: string): string {
+  if (kind === 'infrastructure_smoke_test') {
+    return tFor(lang, 'cap.kind.infrastructureSmokeTest');
+  }
+  if (kind === 'classification') {
+    return tFor(lang, 'cap.kind.classification');
+  }
+  if (kind === 'regression') {
+    return tFor(lang, 'cap.kind.regression');
+  }
+  if (kind === 'image_classification') {
+    return tFor(lang, 'cap.kind.imageClassification');
+  }
+  if (kind === 'binary_segmentation') {
+    return tFor(lang, 'cap.kind.binarySegmentation');
+  }
+  if (kind === 'approved_external_training_project') {
+    return tFor(lang, 'cap.kind.approvedExternalTrainingProject');
+  }
+  return kind;
+}
+
+/**
+ * 适配器的数据契约说明。
+ *
+ * 按**适配器标识**取译文，拿不到就退回后端给的那句英文原文。
+ * 注意这不是"翻译后端那句话"：译文是我们自己写的一份说明，后端改了契约文字，
+ * 这里要跟着改；改之前界面显示的是旧说明，不是错的原文 —— 所以改动契约时要一起看这里。
+ */
+export function runnerContractLabel(lang: string, runner: string, fallback: string): string {
+  if (runner === 'synthetic_binary_classification') {
+    return tFor(lang, 'cap.contract.syntheticBinaryClassification');
+  }
+  if (runner === 'tabular_classification') {
+    return tFor(lang, 'cap.contract.tabularClassification');
+  }
+  if (runner === 'tabular_regression') {
+    return tFor(lang, 'cap.contract.tabularRegression');
+  }
+  if (runner === 'image_classification') {
+    return tFor(lang, 'cap.contract.imageClassification');
+  }
+  if (runner === 'image_segmentation') {
+    return tFor(lang, 'cap.contract.imageSegmentation');
+  }
+  if (runner === 'waterseg_external') {
+    return tFor(lang, 'cap.contract.watersegExternal');
+  }
+  if (runner === 'external_detection') {
+    return tFor(lang, 'cap.contract.externalDetection');
+  }
+  return fallback;
+}
+
 /** 字节数转成易读单位。 */
 export function formatBytes(bytes: number): string {
   if (bytes <= 0) {

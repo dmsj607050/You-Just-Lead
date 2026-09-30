@@ -74,58 +74,58 @@ export struct WorkflowStepper {
       Stack({ alignContent: Alignment.Center }) {
         if (step.status === 'active') {
           Row() {
-            Row().width(7).height(7).borderRadius(4).backgroundColor('#FFFFFF')
+            Row().width(7 * AppTheme.UI_SCALE).height(7 * AppTheme.UI_SCALE).borderRadius(4 * AppTheme.UI_SCALE).backgroundColor('#FFFFFF')
             Text(this.tr(step.label))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-              .margin({ left: 7 })
+              .margin({ left: 7 * AppTheme.UI_SCALE })
           }
-          .height(30)
-          .padding({ left: 13, right: 15 })
-          .borderRadius(15)
+          .height(30 * AppTheme.UI_SCALE)
+          .padding({ left: 13 * AppTheme.UI_SCALE, right: 15 * AppTheme.UI_SCALE })
+          .borderRadius(15 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.PRIMARY)
           .alignItems(VerticalAlign.Center)
         } else if (step.status === 'completed') {
           Row()
-            .width(26)
-            .height(26)
-            .borderRadius(13)
+            .width(26 * AppTheme.UI_SCALE)
+            .height(26 * AppTheme.UI_SCALE)
+            .borderRadius(13 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PRIMARY)
           Text('✓')
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
         } else {
           Row()
-            .width(26)
-            .height(26)
-            .borderRadius(13)
+            .width(26 * AppTheme.UI_SCALE)
+            .height(26 * AppTheme.UI_SCALE)
+            .borderRadius(13 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.SURFACE)
             .border({ width: 1, color: AppTheme.BORDER })
-          Row().width(5).height(5).borderRadius(3).backgroundColor(AppTheme.TEXT_TERTIARY)
+          Row().width(5 * AppTheme.UI_SCALE).height(5 * AppTheme.UI_SCALE).borderRadius(3 * AppTheme.UI_SCALE).backgroundColor(AppTheme.TEXT_TERTIARY)
         }
       }
-      .height(30)
+      .height(30 * AppTheme.UI_SCALE)
 
       if (step.status === 'active') {
         Text(this.tr('step.inProgress'))
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       } else {
         Text(this.tr(step.label))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(step.status === 'pending' ? AppTheme.TEXT_TERTIARY : AppTheme.TEXT_PRIMARY)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
           .maxLines(1)
         Text(step.status === 'completed' ? this.tr('step.completed') : this.tr('step.notStarted'))
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 3 })
+          .margin({ top: 3 * AppTheme.UI_SCALE })
           .maxLines(1)
       }
     }
-    .width(step.status === 'active' ? 104 : 74)
+    .width(step.status === 'active' ? 104 * AppTheme.UI_SCALE : 74 * AppTheme.UI_SCALE)
     .alignItems(HorizontalAlign.Center)
   }
 
@@ -134,10 +134,10 @@ export struct WorkflowStepper {
       ForEach(this.steps, (step: StepSpec, index: number) => {
         if (index > 0) {
           Row() {
-            Divider().strokeWidth(1).color(AppTheme.BORDER)
+            Divider().strokeWidth(1 * AppTheme.UI_SCALE).color(AppTheme.BORDER)
           }
           .layoutWeight(1)
-          .margin({ bottom: 30 })
+          .margin({ bottom: 30 * AppTheme.UI_SCALE })
         }
         this.StepDot(step)
       }, (step: StepSpec, index: number) => `${index}-${step.label}-${step.status}`)

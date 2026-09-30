@@ -396,20 +396,20 @@ export struct LiteraturePage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   /**
@@ -420,7 +420,7 @@ export struct LiteraturePage {
   @Builder
   Muted(text: string, spaceTop: number) {
     Text(text)
-      .fontSize(12)
+      .fontSize(12 * AppTheme.UI_SCALE)
       .fontColor(AppTheme.TEXT_TERTIARY)
       .width('100%')
       .margin({ top: spaceTop })
@@ -439,20 +439,20 @@ export struct LiteraturePage {
           text: `${this.tr('lit.openSource')}：${openSourceText(this.lang, assessment)}`,
           tone: openSourceTone(assessment)
         })
-          .margin({ left: 8 })
+          .margin({ left: 8 * AppTheme.UI_SCALE })
         StatusBadge({
           text: `${this.tr('lit.worthReproducing')}：${assessment.worth_reproducing ? this.tr('lit.worthYes') : this.tr('lit.worthNo')}`,
           tone: assessment.worth_reproducing ? 'ok' : 'muted'
         })
-          .margin({ left: 8 })
+          .margin({ left: 8 * AppTheme.UI_SCALE })
       }
       .width('100%')
 
       Text(adviceText(this.lang, assessment.verdict))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .width('100%')
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
 
       // 官方归属单独说清楚：检索源不给作者归属，所以这一项只能是「无法证明」。
       this.Muted(
@@ -463,28 +463,28 @@ export struct LiteraturePage {
       Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(reviewSignals(assessment), (signal: CandidateSignal) => {
           Text(`${signalLabel(this.lang, signal.key)} ${signalDetail(this.lang, signal)}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .backgroundColor(AppTheme.SURFACE)
-            .borderRadius(6)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .margin({ right: 8, top: 8 })
+            .borderRadius(6 * AppTheme.UI_SCALE)
+            .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
+            .margin({ right: 8 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE })
         }, (signal: CandidateSignal) => `${signal.key}-${signal.detail}`)
       }
       .width('100%')
 
       if (assessment.code_candidates.length > 0) {
         Text(this.tr('lit.codeCandidates'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
         ForEach(assessment.code_candidates, (repo: CodeCandidate) => {
           Text(this.codeCandidateText(repo))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.PRIMARY)
             .width('100%')
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }, (repo: CodeCandidate) => repo.repository)
@@ -493,12 +493,12 @@ export struct LiteraturePage {
       // 有代码才谈得上复现：这一步 clone 仓库做静态检查，执行要另走复现页的批准。
       if (assessment.has_public_code) {
         Text(this.planningId === assessment.paper_id ? this.tr('lit.buildingPlan') : this.tr('lit.buildPlan'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(Color.White)
           .backgroundColor(this.planningId.length > 0 ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
           .borderRadius(AppTheme.RADIUS_SM)
-          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-          .margin({ top: 14 })
+          .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.buildPlan(assessment.paper_id);
           })
@@ -506,20 +506,20 @@ export struct LiteraturePage {
 
       if (this.planError.length > 0) {
         Text(this.trf('lit.planError', [this.planError]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
       }
 
       this.Muted(this.trf('lit.assessedAt', [formatTimestamp(assessment.assessed_at)]), 12)
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(14)
+    .padding(14 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.PAGE_BG)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ top: 12 })
+    .margin({ top: 12 * AppTheme.UI_SCALE })
   }
 
   /** 一行候选实现仓库：仓库名 · 标题重合 · 许可 · 星数。 */
@@ -538,7 +538,7 @@ export struct LiteraturePage {
   RecordRow(item: ResearchRecord) {
     Column() {
       Text(item.title)
-        .fontSize(14)
+        .fontSize(14 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .maxLines(2)
@@ -549,22 +549,22 @@ export struct LiteraturePage {
         item.year === null ? this.tr('lit.yearUnknown') : `${item.year}`,
         item.authors.length > 0 ? item.authors.join(this.tr('lit.authorSeparator')) : this.tr('lit.authorsUnknown')
       ].join(' · '))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Row() {
         Text(this.trf('lit.relevance', [formatNumber(item.relevance_score, 3)]))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
         if (this.partsText(item).length > 0) {
           Text(this.partsText(item))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
             .layoutWeight(1)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -572,21 +572,21 @@ export struct LiteraturePage {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 10 })
+      .margin({ top: 10 * AppTheme.UI_SCALE })
 
       Row() {
         Text(this.tr('lit.decisionLabel'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
         StatusBadge({
           text: decisionText(this.lang, item.decision),
           tone: decisionTone(item.decision)
         })
-          .margin({ left: 8 })
+          .margin({ left: 8 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 12 })
+      .margin({ top: 12 * AppTheme.UI_SCALE })
 
       ChoiceChips({
         items: this.decisionChoices(),
@@ -596,7 +596,7 @@ export struct LiteraturePage {
           this.decide(item.paper_id, item.decision, key);
         }
       })
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
 
       if (item.assessment !== null) {
         this.ReviewBlock(item.assessment)
@@ -604,16 +604,16 @@ export struct LiteraturePage {
 
       if (item.url !== null && item.url.length > 0) {
         Text(item.url)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 16, bottom: 16 })
+    .padding({ top: 16 * AppTheme.UI_SCALE, bottom: 16 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -627,8 +627,8 @@ export struct LiteraturePage {
         Row() {
           TextInput({ text: this.queryDraft, placeholder: this.tr('lit.queryPlaceholder') })
             .layoutWeight(1)
-            .height(38)
-            .fontSize(13)
+            .height(38 * AppTheme.UI_SCALE)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
             .enabled(!this.busy)
@@ -637,12 +637,12 @@ export struct LiteraturePage {
             })
 
           Text(this.busy ? this.tr('lit.searching') : this.tr(this.records.length > 0 ? 'lit.rerunSearch' : 'lit.runSearch'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
             .backgroundColor(AppTheme.PRIMARY)
             .borderRadius(AppTheme.RADIUS_SM)
-            .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-            .margin({ left: 10 })
+            .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+            .margin({ left: 10 * AppTheme.UI_SCALE })
             .opacity(this.busy ? 0.6 : 1)
             .onClick(() => {
               this.runSearch();
@@ -655,63 +655,63 @@ export struct LiteraturePage {
         this.Muted(this.tr('lit.fromSpecHint'), 8)
 
         Text(this.trf('lit.query', [this.query.length > 0 ? this.query : '—']))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .width('100%')
-          .margin({ top: 18 })
+          .margin({ top: 18 * AppTheme.UI_SCALE })
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(this.trf('lit.searchedAt', [this.searchedAt]))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
 
         Row() {
           Text(this.tr('lit.dataSources'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
           ForEach(this.sources, (source: string) => {
             Text(source)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .backgroundColor(AppTheme.PAGE_BG)
-              .borderRadius(6)
-              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-              .margin({ left: 10 })
+              .borderRadius(6 * AppTheme.UI_SCALE)
+              .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
+              .margin({ left: 10 * AppTheme.UI_SCALE })
           }, (source: string) => source)
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
 
         if (this.failures.length > 0) {
           Column() {
             Text(this.tr('lit.failedSourcesHint'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.WARN_TEXT)
             ForEach(this.failures, (item: SourceFailure) => {
               Text(this.trf('lit.providerFailure', [item.provider, item.message]))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.WARN_TEXT)
-                .margin({ top: 6 })
+                .margin({ top: 6 * AppTheme.UI_SCALE })
                 .maxLines(2)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }, (item: SourceFailure) => item.provider)
           }
           .alignItems(HorizontalAlign.Start)
           .width('100%')
-          .padding(14)
+          .padding(14 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.WARN_SOFT)
           .borderRadius(AppTheme.RADIUS_SM)
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
         }
 
         if (this.actionError.length > 0) {
           Text(this.trf('lit.actionFailed', [this.actionError]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ top: 14 })
+            .margin({ top: 14 * AppTheme.UI_SCALE })
         }
       }
       .width('100%')
@@ -730,16 +730,16 @@ export struct LiteraturePage {
           Text(this.trf('lit.assessSummary', [
             `${this.counts.investigate}`, `${this.counts.discard}`, `${this.counts.assessed}`
           ]))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
 
           Text(this.busy ? this.tr('lit.assessing') : this.tr('lit.assessRun'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
             .backgroundColor(this.counts.investigate > 0 && !this.busy ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY)
             .borderRadius(AppTheme.RADIUS_SM)
-            .padding({ left: 16, right: 16, top: 9, bottom: 9 })
+            .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
             .onClick(() => {
               this.assess();
             })
@@ -749,15 +749,15 @@ export struct LiteraturePage {
 
         if (this.actionError.length > 0) {
           Text(this.trf('lit.actionFailed', [this.actionError]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         }
 
         if (this.records.length === 0) {
           EmptyHint({ text: this.tr('lit.noRecords') })
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         } else {
           if (this.counts.investigate === 0) {
             // 上一步还没做：评判只对「调研」的候选做，这里说清楚要先去上面选。
@@ -770,7 +770,7 @@ export struct LiteraturePage {
             }, (item: ResearchRecord) => `${item.paper_id}-${item.decision}-${item.assessment === null ? 'none' : 'assessed'}`)
           }
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
 
           // 「收录不等于复现或背书」是记录清单的免责说明，属于内容而不是标题注脚。
           this.Muted(this.tr('lit.recordsNote'), 16)
@@ -782,9 +782,9 @@ export struct LiteraturePage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.literature'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「文献」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -811,9 +811,9 @@ export struct LiteraturePage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

@@ -382,23 +382,23 @@ export struct LocalRulePage {
   /** 允许 / 不允许：布尔字段只能人选，未选就是没确认。 */
   @Builder
   BooleanChips(row: GateRow, index: number) {
-    Row({ space: 8 }) {
+    Row({ space: 8 * AppTheme.UI_SCALE }) {
       Text(this.tr('workflow.evidenceYes'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(row.flag === true ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
         .backgroundColor(row.flag === true ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-        .borderRadius(6)
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(6 * AppTheme.UI_SCALE)
+        .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
         .onClick(() => {
           row.flag = true;
           this.updateRow(index, row);
         })
       Text(this.tr('workflow.evidenceNo'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(row.flag === false ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
         .backgroundColor(row.flag === false ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-        .borderRadius(6)
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(6 * AppTheme.UI_SCALE)
+        .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
         .onClick(() => {
           row.flag = false;
           this.updateRow(index, row);
@@ -410,14 +410,14 @@ export struct LocalRulePage {
   /** 取值必须二选一的字段（loose_png / submit_zip、maximize / minimize）。 */
   @Builder
   ChoiceChips(row: GateRow, index: number, options: string[]) {
-    Row({ space: 8 }) {
+    Row({ space: 8 * AppTheme.UI_SCALE }) {
       ForEach(options, (option: string) => {
         Text(option)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(row.choice === option ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
           .backgroundColor(row.choice === option ? AppTheme.PRIMARY_SOFT : AppTheme.PAGE_BG)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
           .onClick(() => {
             row.choice = option;
             this.updateRow(index, row);
@@ -433,7 +433,7 @@ export struct LocalRulePage {
     Column() {
       Row() {
         Text(row.field)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -447,12 +447,12 @@ export struct LocalRulePage {
 
       Row() {
         Text(this.tr('workflow.evidenceValueColumn'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(72)
+          .width(72 * AppTheme.UI_SCALE)
         if (row.hasValue) {
           Text(row.valueText.length > 0 ? row.valueText : '—')
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .layoutWeight(1)
             .maxLines(2)
@@ -465,43 +465,43 @@ export struct LocalRulePage {
           this.ChoiceChips(row, index, DIRECTION_OPTIONS)
         } else if (row.kind === 'text') {
           TextInput({ text: row.valueDraft, placeholder: this.tr('workflow.evidenceValueHint') })
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .layoutWeight(1)
-            .height(36)
+            .height(36 * AppTheme.UI_SCALE)
             .onChange((value: string) => {
               row.valueDraft = value;
             })
         } else {
           Text(this.tr('workflow.evidenceLockedValue'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.WARN_TEXT)
             .layoutWeight(1)
         }
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 8 })
+      .margin({ top: 8 * AppTheme.UI_SCALE })
 
       Row() {
         Text(this.tr('workflow.evidenceAnchorColumn'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .width(72)
+          .width(72 * AppTheme.UI_SCALE)
         TextInput({ text: row.anchor, placeholder: this.tr('workflow.evidenceAnchorHint') })
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .layoutWeight(1)
-          .height(36)
+          .height(36 * AppTheme.UI_SCALE)
           .onChange((value: string) => {
             row.anchor = value;
           })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 6 })
+      .margin({ top: 6 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
     .border({ width: { top: 1 }, color: AppTheme.BORDER })
   }
 
@@ -511,17 +511,17 @@ export struct LocalRulePage {
     Column() {
       Row() {
         Text(`← ${this.tr('localRule.back')}`)
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY)
-          .padding({ right: 12, top: 4, bottom: 4 })
+          .padding({ right: 12 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.onBack();
           })
         Blank()
         Text(this.tr('localRule.importSpec'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(this.busy ? AppTheme.TEXT_TERTIARY : AppTheme.PRIMARY)
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .padding({ left: 12 * AppTheme.UI_SCALE, right: 12 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           .enabled(!this.busy)
           .onClick(() => {
             this.importSpec();
@@ -531,16 +531,16 @@ export struct LocalRulePage {
       .alignItems(VerticalAlign.Center)
 
       Text(this.tr('localRule.title'))
-        .fontSize(24)
+        .fontSize(24 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppTheme.TEXT_PRIMARY)
-        .margin({ top: 10 })
+        .margin({ top: 10 * AppTheme.UI_SCALE })
 
       if (this.workspaceRoot.length > 0) {
         Text(this.workspaceRoot)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -549,30 +549,30 @@ export struct LocalRulePage {
 
   build() {
     // 卡片用父容器的间距排版：CardPanel 带尾随闭包时不能再链 `.margin()`。
-    Column({ space: 18 }) {
+    Column({ space: 18 * AppTheme.UI_SCALE }) {
       this.Header()
 
       if (this.errorText.length > 0) {
         Text(this.errorText)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
       }
       if (this.doneText.length > 0) {
         Column() {
           Text(this.doneText)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.PRIMARY_DARK)
             .width('100%')
           Text(this.tr('localRule.notApproval'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .padding(14)
+        .padding(14 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(AppTheme.RADIUS)
       }
@@ -580,68 +580,68 @@ export struct LocalRulePage {
       if (this.workspaceRoot.length === 0) {
         CardPanel({ title: this.tr('localRule.title') }) {
           Text(this.tr('localRule.noWorkspaceHint'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }
       } else if (!this.specPresent) {
         CardPanel({ title: this.tr('localRule.title') }) {
           Text(this.tr('localRule.noSpecHint'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }
       } else if (!this.supported) {
         CardPanel({ title: this.tr('localRule.title') }) {
           Text(this.tr('workflow.evidenceUnsupported'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ bottom: 10 })
+            .margin({ bottom: 10 * AppTheme.UI_SCALE })
           KeyValueRow({ label: this.tr('localRule.profile'), value: this.profile })
           KeyValueRow({ label: this.tr('localRule.specFingerprint'), value: this.specHash, mono: true })
         }
       } else {
         CardPanel({ title: this.tr('localRule.sourceTitle') }) {
           Text(this.tr('workflow.evidenceGateHint'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ bottom: 10 })
+            .margin({ bottom: 10 * AppTheme.UI_SCALE })
           Text(this.tr('workflow.evidenceSourceType'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
           TextInput({ text: this.sourceType, placeholder: this.tr('workflow.evidenceSourceTypeHint') })
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .width('100%')
-            .height(38)
+            .height(38 * AppTheme.UI_SCALE)
             .onChange((value: string) => {
               this.sourceType = value;
             })
 
           Text(this.tr('workflow.evidenceSourceLocator'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 8 })
+            .margin({ top: 8 * AppTheme.UI_SCALE })
           TextInput({ text: this.sourceLocator, placeholder: this.tr('workflow.evidenceSourceLocatorHint') })
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .width('100%')
-            .height(38)
+            .height(38 * AppTheme.UI_SCALE)
             .onChange((value: string) => {
               this.sourceLocator = value;
             })
 
           Text(this.tr('workflow.evidenceReviewedAt'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 8 })
+            .margin({ top: 8 * AppTheme.UI_SCALE })
           TextInput({ text: this.reviewedAt, placeholder: this.tr('workflow.evidenceReviewedAtHint') })
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .width('100%')
-            .height(38)
+            .height(38 * AppTheme.UI_SCALE)
             .onChange((value: string) => {
               this.reviewedAt = value;
             })
@@ -660,13 +660,13 @@ export struct LocalRulePage {
             current: this.requiredCount - this.missingValue,
             total: this.requiredCount
           })
-            .margin({ bottom: 10 })
+            .margin({ bottom: 10 * AppTheme.UI_SCALE })
           ProgressBar({
             label: this.tr('workflow.anchorsFilled'),
             current: this.requiredCount - this.missingAnchor,
             total: this.requiredCount
           })
-            .margin({ bottom: 16 })
+            .margin({ bottom: 16 * AppTheme.UI_SCALE })
 
           ForEach(this.rows, (row: GateRow, index: number) => {
             this.FieldLine(row, index)
@@ -674,19 +674,19 @@ export struct LocalRulePage {
 
           if (this.evidenceError.length > 0) {
             Text(this.evidenceError)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.DANGER)
               .width('100%')
-              .margin({ top: 12 })
+              .margin({ top: 12 * AppTheme.UI_SCALE })
           }
 
-          Row({ space: 12 }) {
+          Row({ space: 12 * AppTheme.UI_SCALE }) {
             Text(this.busy ? this.tr('workflow.evidenceSubmitting') : this.tr('workflow.evidenceSubmit'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(Color.White)
               .backgroundColor(AppTheme.PRIMARY)
               .borderRadius(AppTheme.RADIUS_SM)
-              .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+              .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
               .enabled(!this.busy)
               .opacity(this.busy ? 0.6 : 1)
               .onClick(() => {
@@ -694,7 +694,7 @@ export struct LocalRulePage {
               })
           }
           .width('100%')
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
         }
 
         CardPanel({
@@ -703,36 +703,36 @@ export struct LocalRulePage {
           if (this.approvalRequired) {
             if (this.gapCount > 0) {
               Text(this.trf('localRule.approvalBlocked', [`${this.gapCount}`]))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.WARN_TEXT)
                 .width('100%')
             }
             if (this.approvalError.length > 0) {
               Text(this.approvalError)
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.DANGER)
                 .width('100%')
-                .margin({ top: 8 })
+                .margin({ top: 8 * AppTheme.UI_SCALE })
             }
             Text(this.tr('localRule.approvalNoteLabel'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
-              .margin({ top: 8 })
+              .margin({ top: 8 * AppTheme.UI_SCALE })
             TextInput({ text: this.noteDraft, placeholder: this.tr('localRule.approvalNoteHint') })
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .width('100%')
-              .height(38)
+              .height(38 * AppTheme.UI_SCALE)
               .onChange((value: string) => {
                 this.noteDraft = value;
               })
-            Row({ space: 12 }) {
+            Row({ space: 12 * AppTheme.UI_SCALE }) {
               Text(this.approving ? this.tr('localRule.approving') : this.tr('localRule.approve'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(Color.White)
                 .backgroundColor(this.gapCount === 0 ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY)
                 .borderRadius(AppTheme.RADIUS_SM)
-                .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+                .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 8 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
                 .enabled(this.gapCount === 0 && !this.approving)
                 .opacity(this.approving ? 0.6 : 1)
                 .onClick(() => {
@@ -740,37 +740,37 @@ export struct LocalRulePage {
                 })
               if (this.approvalDone.length > 0) {
                 Text(this.approvalDone)
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.PRIMARY_DARK)
                   .layoutWeight(1)
               }
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            .margin({ top: 14 })
+            .margin({ top: 14 * AppTheme.UI_SCALE })
           } else {
             Row() {
               StatusBadge({ text: this.tr('localRule.approved'), tone: 'ok' })
               Text(this.approvedAt)
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ left: 10 })
+                .margin({ left: 10 * AppTheme.UI_SCALE })
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
             if (this.approvedNote.length > 0) {
               Text(this.approvedNote)
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .width('100%')
-                .margin({ top: 8 })
+                .margin({ top: 8 * AppTheme.UI_SCALE })
             }
             // 证据一变，原来的复核结论就不成立了 —— 录入证据会把批准撤回（与后端同一套语义）。
             Text(this.tr('localRule.approvalRevokeHint'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
-              .margin({ top: 10 })
+              .margin({ top: 10 * AppTheme.UI_SCALE })
           }
         }
       }

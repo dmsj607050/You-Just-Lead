@@ -5,6 +5,7 @@
     { "name": "primary_soft", "value": "#20392E" },
     { "name": "primary_soft_alt", "value": "#1C3128" },
     { "name": "page_bg", "value": "#101513" },
+    { "name": "nav_hover", "value": "#232C27" },
     { "name": "surface", "value": "#1A211D" },
     { "name": "border", "value": "#35403A" },
     { "name": "border_soft", "value": "#2A342F" },

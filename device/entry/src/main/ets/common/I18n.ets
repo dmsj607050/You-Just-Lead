@@ -211,7 +211,6 @@ const ENTRIES: Entry[] = [
   { key: 'time.hoursMinutes', zh: '{0} 小时 {1} 分', en: '{0} h {1} min' },
 
   // ---- 工作流页 ----
-  { key: 'workflow.title', zh: '工作流', en: 'Workflow' },
   { key: 'workflow.status', zh: '阶段 {0} · {1} · 已完成实验 {2} · 阻塞项 {3}', en: 'Stage {0} · {1} · {2} completed · {3} blockers' },
   { key: 'workflow.requiredFields', zh: '必填字段', en: 'Required fields' },
   { key: 'workflow.valuesFilled', zh: '已填值', en: 'Values filled' },
@@ -254,6 +253,35 @@ const ENTRIES: Entry[] = [
   { key: 'workflow.researchSearch', zh: '研究检索', en: 'Research search' },
   { key: 'workflow.baselineRepro', zh: '基线复现', en: 'Baseline reproduction' },
   { key: 'workflow.approvalReview', zh: '候选审批', en: 'Candidate review' },
+
+  // ---- 工作流页：状态摘要条 + 流程时间线（2026-09-30 改版）----
+  // 这里不放「这一页是什么」的说明文字：副标题、环节名下面那句解释、展开提示都已删除。
+  { key: 'workflow.summary.stage', zh: '当前阶段', en: 'Current stage' },
+  { key: 'workflow.summary.experiments', zh: '已完成实验', en: 'Completed experiments' },
+  { key: 'workflow.summary.blockers', zh: '阻塞项', en: 'Blockers' },
+  { key: 'workflow.summary.confirm', zh: '需要人工确认', en: 'Awaiting confirmation' },
+  { key: 'workflow.timeline', zh: '流程时间线', en: 'Workflow timeline' },
+  { key: 'workflow.stepWaitingConfirm', zh: '等待人工确认', en: 'Awaiting human confirmation' },
+  { key: 'workflow.stepNeedConfirm', zh: '查看并确认', en: 'Review and confirm' },
+  { key: 'workflow.stepViewBlockers', zh: '查看缺失项', en: 'View what is missing' },
+  { key: 'workflow.agentState', zh: 'Agent 状态', en: 'Agent status' },
+  { key: 'workflow.agentAuto', zh: 'Agent 将自动执行下一步。', en: 'The Agent will run the next step automatically.' },
+  { key: 'workflow.agentWaitingRules', zh: '等待规则确认，通过后将自动进入下一阶段。', en: 'Waiting for the rules to be confirmed; the next stage starts on its own after that.' },
+  { key: 'workflow.blockedTitle', zh: '当前阻塞', en: 'Current blocker' },
+  { key: 'workflow.blockedNone', zh: '现在没有阻塞，Agent 会按流程继续推进。', en: 'No blockers right now; the Agent keeps the flow moving.' },
+  { key: 'workflow.blockedMissing', zh: '缺失内容', en: 'What is missing' },
+  { key: 'workflow.blockedImpact', zh: '在补齐之前，「{0}」无法开始。', en: 'Until these are filled in, "{0}" cannot start.' },
+  { key: 'workflow.blockedFill', zh: '补充材料', en: 'Add the material' },
+  { key: 'workflow.blockedCheckAgent', zh: '让 Agent 检查工作区', en: 'Have the Agent inspect the workspace' },
+  { key: 'workflow.agentCheckPrompt', zh: '请检查当前工作区还缺哪些材料，并说明补齐的顺序。', en: 'Check what material the workspace is still missing, and tell me the order to supply it in.' },
+  { key: 'workflow.nextTitle', zh: '下一步', en: 'Next step' },
+  { key: 'workflow.nextAfterCurrent', zh: '完成「{0}」后，Agent 将自动开始「{1}」。', en: 'Once "{0}" is done, the Agent starts "{1}" on its own.' },
+  { key: 'workflow.nextAuto', zh: 'Agent 将自动执行「{0}」。', en: 'The Agent will run "{0}" automatically.' },
+  { key: 'workflow.nextViewActions', zh: '查看下一步建议', en: 'See the suggested next actions' },
+  { key: 'workflow.detailState', zh: '状态', en: 'State' },
+  { key: 'workflow.detailBlocker', zh: '当前阻塞', en: 'Blocker' },
+  { key: 'workflow.detailNext', zh: '下一步', en: 'Next' },
+  { key: 'workflow.autoExecution', zh: '自动执行', en: 'Automatic execution' },
   { key: 'workflow.gateTitle', zh: '人工确认规则', en: 'Confirm the rules' },
   { key: 'workflow.gateDone', zh: '规则已人工确认', en: 'Rules confirmed by a human' },
   { key: 'workflow.gateBlocked', zh: '还有 {0} 项待办，处理完才允许确认。', en: '{0} items must be resolved before confirming.' },
@@ -927,6 +955,32 @@ const ENTRIES: Entry[] = [
   { key: 'cap.noMatch', zh: '没有匹配的适配器，换个词试试。', en: 'No adapter matches; try another word.' },
   { key: 'cap.clear', zh: '清空', en: 'Clear' },
   { key: 'cap.matchCount', zh: '匹配 {0} 个 / 共 {1} 个适配器', en: '{0} of {1} adapters match' },
+
+  // 适配器的展示文案。后端的 training/catalog.py 是一张固定的英文表（标识、类型、契约说明
+  // 全是英文），所以这一层翻译必须**按标识**对上；对不上的标识原样显示英文原文。
+  // 后端改表时，这几行要跟着改：键名是适配器/类型的标识，不是那句英文。
+  { key: 'cap.runner.syntheticBinaryClassification', zh: '合成二分类（冒烟测试）', en: 'Synthetic binary classification' },
+  { key: 'cap.runner.tabularClassification', zh: '表格分类', en: 'Tabular classification' },
+  { key: 'cap.runner.tabularRegression', zh: '表格回归', en: 'Tabular regression' },
+  { key: 'cap.runner.imageClassification', zh: '图像分类', en: 'Image classification' },
+  { key: 'cap.runner.imageSegmentation', zh: '图像分割', en: 'Image segmentation' },
+  { key: 'cap.runner.watersegExternal', zh: '水域分割（外部工程）', en: 'Water segmentation (external project)' },
+  { key: 'cap.runner.externalDetection', zh: '目标检测（外部工程）', en: 'Object detection (external project)' },
+
+  { key: 'cap.kind.infrastructureSmokeTest', zh: '链路冒烟测试', en: 'Pipeline smoke test' },
+  { key: 'cap.kind.classification', zh: '分类', en: 'Classification' },
+  { key: 'cap.kind.regression', zh: '回归', en: 'Regression' },
+  { key: 'cap.kind.imageClassification', zh: '图像分类', en: 'Image classification' },
+  { key: 'cap.kind.binarySegmentation', zh: '二值分割', en: 'Binary segmentation' },
+  { key: 'cap.kind.approvedExternalTrainingProject', zh: '已批准的外部训练工程', en: 'Approved external training project' },
+
+  { key: 'cap.contract.syntheticBinaryClassification', zh: '数据在内存里生成，只用来验证训练链路通不通，不能当作竞赛成绩。', en: 'Data is generated in memory; it only proves the pipeline runs and is never a competition score.' },
+  { key: 'cap.contract.tabularClassification', zh: '训练、测试各一份 CSV，含目标列，可选 ID 列。', en: 'A train CSV and a test CSV, with a target column and an optional ID column.' },
+  { key: 'cap.contract.tabularRegression', zh: '训练、测试各一份 CSV，目标列是数值，可选 ID 列。', en: 'A train CSV and a test CSV, with a numeric target column and an optional ID column.' },
+  { key: 'cap.contract.imageClassification', zh: '每类一个子目录放训练图，可另给一个扁平的测试图目录。', en: 'Training images in one subdirectory per class, plus an optional flat test-image folder.' },
+  { key: 'cap.contract.imageSegmentation', zh: '训练图与二值掩码分两个目录，文件名主干要一一对应；可另给测试图目录。', en: 'Train image and binary-mask folders with matching filename stems, plus an optional test-image folder.' },
+  { key: 'cap.contract.watersegExternal', zh: '已审计的图像与掩码目录，外加一份冻结的、你自有的 waterseg 源码树，以及明确批准的 CUDA 配置。', en: 'Audited image and mask folders plus a frozen, user-owned waterseg source tree and an explicitly approved CUDA configuration.' },
+  { key: 'cap.contract.externalDetection', zh: '已审计的目标检测图像树，外加一份冻结的、你自有的检测工程源码；指标直接读该工程自己产出的 Ultralytics results.csv。', en: "An audited object-detection image tree plus a frozen, user-owned detection source tree; the metric is read from that project's own Ultralytics results.csv." },
 
   { key: 'card.workflow', zh: '研究工作流', en: 'Research workflow' }
 ];

@@ -82,10 +82,10 @@ export struct ExperimentPage {
   CloudExecutionNote() {
     if (this.cloudAccount) {
       Text(this.tr('exp.cloudExecutionUnavailable'))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.WARN_TEXT)
         .width('100%')
-        .padding(12)
+        .padding(12 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.WARN_SOFT)
         .borderRadius(AppTheme.RADIUS_SM)
     }
@@ -228,20 +228,20 @@ export struct ExperimentPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   @Builder
@@ -249,21 +249,21 @@ export struct ExperimentPage {
     Row() {
       Column() {
         Text(item.id)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
         if (item.hypothesis !== null && item.hypothesis.length > 0) {
           Text(item.hypothesis)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         Text(this.trf('exp.changeType', [item.change_type !== null && item.change_type.length > 0 ? item.change_type : '—']))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -274,13 +274,13 @@ export struct ExperimentPage {
           tone: experimentStatusTone(item.status)
         })
         Text(this.trf('exp.metric', [formatNumber(item.metric, 4)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
         Text(this.trf('exp.runtime', [item.runtime_seconds === null ? '—' : formatDuration(this.lang, item.runtime_seconds)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 4 })
+          .margin({ top: 4 * AppTheme.UI_SCALE })
       }
       .alignItems(HorizontalAlign.End)
 
@@ -289,60 +289,60 @@ export struct ExperimentPage {
         Column() {
           if (item.approved) {
             Text(this.tr('exp.approved'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.PRIMARY_DARK)
               .backgroundColor(AppTheme.PRIMARY_SOFT)
-              .borderRadius(6)
-              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .borderRadius(6 * AppTheme.UI_SCALE)
+              .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             if (item.approved_at !== null) {
               Text(this.trf('exp.approvedAt', [formatTimestamp(item.approved_at)]))
-                .fontSize(11)
+                .fontSize(11 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ top: 6 })
+                .margin({ top: 6 * AppTheme.UI_SCALE })
                 .maxLines(1)
             }
           } else if (this.approvingId === item.id) {
             Text(this.tr('exp.approveHint'))
-              .fontSize(11)
+              .fontSize(11 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .maxLines(3)
               .textAlign(TextAlign.End)
             Row() {
               Text(this.tr('common.cancel'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
-                .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+                .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
                 .onClick(() => {
                   this.approvingId = '';
                 })
               Text(this.tr('exp.approveConfirm'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.DANGER)
-                .padding({ left: 8, right: 2, top: 4, bottom: 4 })
+                .padding({ left: 8 * AppTheme.UI_SCALE, right: 2 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
                 .onClick(() => {
                   this.approve(item);
                 })
             }
-            .margin({ top: 8 })
+            .margin({ top: 8 * AppTheme.UI_SCALE })
             .alignItems(VerticalAlign.Center)
           } else {
             Text(this.tr('exp.approveAction'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.PRIMARY)
-              .padding({ left: 8, right: 2, top: 4, bottom: 4 })
+              .padding({ left: 8 * AppTheme.UI_SCALE, right: 2 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
               .onClick(() => {
                 this.approvingId = item.id;
               })
           }
         }
         .alignItems(HorizontalAlign.End)
-        .width(150)
-        .margin({ left: 16 })
+        .width(150 * AppTheme.UI_SCALE)
+        .margin({ left: 16 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
-    .padding({ top: 14, bottom: 14 })
+    .padding({ top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -351,7 +351,7 @@ export struct ExperimentPage {
     Column() {
       Row() {
         Text(item.job_id)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -364,35 +364,35 @@ export struct ExperimentPage {
       .alignItems(VerticalAlign.Center)
 
       Text(workspacePathLabel(item.config_path))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Row() {
         Text(this.trf('exp.submittedAt', [formatTimestamp(item.created_at)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
         Text(this.trf('exp.metric', [formatNumber(item.validation_metric, 4)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ left: 16 })
+          .margin({ left: 16 * AppTheme.UI_SCALE })
       }
-      .margin({ top: 8 })
+      .margin({ top: 8 * AppTheme.UI_SCALE })
 
       if (item.error !== null && item.error.length > 0) {
         Text(item.error)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 14, bottom: 14 })
+    .padding({ top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -402,7 +402,7 @@ export struct ExperimentPage {
     Column() {
       Row() {
         Text(item.draft_id)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -415,20 +415,20 @@ export struct ExperimentPage {
       .alignItems(VerticalAlign.Center)
 
       Text(item.hypothesis)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.trf('exp.registeredAt', [formatTimestamp(item.created_at)]))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ top: 6 })
+        .margin({ top: 6 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 14, bottom: 14 })
+    .padding({ top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
@@ -441,8 +441,8 @@ export struct ExperimentPage {
         placeholder: this.tr('exp.hypothesisPlaceholder')
       })
         .width('100%')
-        .height(40)
-        .fontSize(14)
+        .height(40 * AppTheme.UI_SCALE)
+        .fontSize(14 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PAGE_BG)
         .onChange((value: string) => {
           this.hypothesis = value;
@@ -450,12 +450,12 @@ export struct ExperimentPage {
 
       Row() {
         Text(this.tr('exp.draftHint'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .layoutWeight(1)
         Button(this.tr('exp.registerDraft'))
-          .height(36)
-          .fontSize(14)
+          .height(36 * AppTheme.UI_SCALE)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontColor(Color.White)
           .backgroundColor(AppTheme.PRIMARY)
           .enabled(!this.submitting)
@@ -465,24 +465,24 @@ export struct ExperimentPage {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 12 })
+      .margin({ top: 12 * AppTheme.UI_SCALE })
 
       if (this.draftTooShort || this.draftError.length > 0) {
         Text(this.draftErrorText())
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
       if (this.draftId.length > 0) {
         Text(this.trf('exp.draftSubmitted', [this.draftId]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
           .width('100%')
-          .padding(12)
+          .padding(12 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.PRIMARY_SOFT)
           .borderRadius(AppTheme.RADIUS_SM)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
@@ -490,9 +490,9 @@ export struct ExperimentPage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.experiment'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「实验」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -554,17 +554,17 @@ export struct ExperimentPage {
         }) {
           if (this.approvalError.length > 0) {
             Text(this.approvalError)
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.DANGER)
-              .margin({ bottom: 12 })
+              .margin({ bottom: 12 * AppTheme.UI_SCALE })
           }
           if (this.experiments.length === 0) {
-            Column({ space: 12 }) {
+            Column({ space: 12 * AppTheme.UI_SCALE }) {
               EmptyHint({ text: this.tr('exp.ledgerEmpty') })
               this.CloudExecutionNote()
               Button(this.tr('exp.viewNextSteps'))
-                .height(38)
-                .fontSize(14)
+                .height(38 * AppTheme.UI_SCALE)
+                .fontSize(14 * AppTheme.UI_SCALE)
                 .fontColor(Color.White)
                 .backgroundColor(AppTheme.PRIMARY)
                 .onClick(() => {
@@ -586,9 +586,9 @@ export struct ExperimentPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

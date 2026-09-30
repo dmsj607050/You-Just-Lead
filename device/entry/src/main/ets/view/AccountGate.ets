@@ -22,22 +22,22 @@ export struct AccountGate {
       Blank()
       Column() {
         Text('You Just Lead')
-          .fontSize(26)
+          .fontSize(26 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
         Text(this.tr('auth.subtitle'))
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
 
         Column() {
           Text(this.tr('auth.username'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ bottom: 6 })
+            .margin({ bottom: 6 * AppTheme.UI_SCALE })
           TextInput({ text: this.username, placeholder: this.tr('auth.usernameHint') })
-            .height(44)
-            .fontSize(15)
+            .height(44 * AppTheme.UI_SCALE)
+            .fontSize(15 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
             .onChange((value: string) => {
@@ -45,13 +45,13 @@ export struct AccountGate {
             })
 
           Text(this.tr('auth.password'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ top: 14, bottom: 6 })
+            .margin({ top: 14 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           TextInput({ text: this.password, placeholder: this.tr('auth.passwordHint') })
             .type(InputType.Password)
-            .height(44)
-            .fontSize(15)
+            .height(44 * AppTheme.UI_SCALE)
+            .fontSize(15 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
             .onChange((value: string) => {
@@ -60,64 +60,64 @@ export struct AccountGate {
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .margin({ top: 24 })
+        .margin({ top: 24 * AppTheme.UI_SCALE })
 
         if (this.errorMessage.length > 0) {
           Text(this.errorMessage)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ top: 12 })
+            .margin({ top: 12 * AppTheme.UI_SCALE })
         }
 
         Button(this.busy
           ? this.tr('auth.working')
           : (this.registering ? this.tr('auth.register') : this.tr('auth.login')))
           .width('100%')
-          .height(46)
-          .fontSize(15)
+          .height(46 * AppTheme.UI_SCALE)
+          .fontSize(15 * AppTheme.UI_SCALE)
           .fontColor(Color.White)
           .backgroundColor(AppTheme.PRIMARY)
-          .margin({ top: 20 })
+          .margin({ top: 20 * AppTheme.UI_SCALE })
           .enabled(!this.busy && this.username.trim().length > 0 && this.password.length > 0)
           .onClick(() => {
             this.onSubmit(this.username.trim(), this.password, this.registering);
           })
 
         Text(this.tr('auth.creditGrant'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .textAlign(TextAlign.Center)
           .width('100%')
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
         Text(this.tr('auth.noKey'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .textAlign(TextAlign.Center)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
 
         Row() {
           Text(this.registering ? this.tr('auth.haveAccount') : this.tr('auth.needAccount'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
           Text(this.registering ? this.tr('auth.goLogin') : this.tr('auth.goRegister'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.PRIMARY_DARK)
             .fontWeight(FontWeight.Medium)
-            .margin({ left: 6 })
+            .margin({ left: 6 * AppTheme.UI_SCALE })
             .onClick(() => {
               this.registering = !this.registering;
             })
         }
         .justifyContent(FlexAlign.Center)
         .width('100%')
-        .margin({ top: 20 })
+        .margin({ top: 20 * AppTheme.UI_SCALE })
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
-      .constraintSize({ maxWidth: 440 })
-      .padding(28)
+      .constraintSize({ maxWidth: 440 * AppTheme.UI_SCALE })
+      .padding(28 * AppTheme.UI_SCALE)
       .backgroundColor(AppTheme.SURFACE)
       .borderRadius(AppTheme.RADIUS_LG)
       .border({ width: 1, color: AppTheme.BORDER })
@@ -127,7 +127,7 @@ export struct AccountGate {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
-    .padding({ left: 24, right: 24 })
+    .padding({ left: 24 * AppTheme.UI_SCALE, right: 24 * AppTheme.UI_SCALE })
     .backgroundColor(AppTheme.PAGE_BG)
   }
 }

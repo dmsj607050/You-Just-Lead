@@ -24,19 +24,19 @@ export struct RecentUpdates {
     Column() {
       Row() {
         Text(this.tr('overview.recentUpdates'))
-          .fontSize(17)
+          .fontSize(17 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
       }
       .width('100%')
-      .margin({ bottom: 8 })
+      .margin({ bottom: 8 * AppTheme.UI_SCALE })
 
       if (this.updates.length === 0) {
         Text(this.tr('overview.noRecords'))
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       } else {
         ForEach(this.updates, (item: UpdateSpec) => {
           Row() {
@@ -45,45 +45,45 @@ export struct RecentUpdates {
                 commands: IconPaths.DOC,
                 color: AppTheme.PRIMARY,
                 filled: false,
-                iconSize: 18
+                iconSize: 18 * AppTheme.UI_SCALE
               })
             }
-            .width(34)
-            .height(34)
+            .width(34 * AppTheme.UI_SCALE)
+            .height(34 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PRIMARY_SOFT)
             .borderRadius(AppTheme.RADIUS_SM)
 
             Column() {
               Text(eventTitle(this.lang, item.eventType))
-                .fontSize(14)
+                .fontSize(14 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_PRIMARY)
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
               Text(item.eventType)
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ top: 4 })
+                .margin({ top: 4 * AppTheme.UI_SCALE })
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
 
             Text(relativeTime(this.lang, item.createdAt))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
-          .padding({ top: 12, bottom: 12 })
+          .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
           .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
         }, (item: UpdateSpec, index: number) => `${index}-${item.eventType}`)
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(24)
+    .padding(24 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })

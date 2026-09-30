@@ -37,22 +37,22 @@ export struct TopBar {
       Row() {
         // 品牌标记（无文字版 logo）；旁边的文字走 i18n，所以这里不放带中文标语的那张。
         Image($r('app.media.logo_mark'))
-          .width(this.tightHeader ? 22 : (this.compactHeader ? 24 : 30))
-          .height(this.tightHeader ? 22 : (this.compactHeader ? 24 : 30))
+          .width(this.tightHeader ? 22 * AppTheme.UI_SCALE : (this.compactHeader ? 24 * AppTheme.UI_SCALE : 30 * AppTheme.UI_SCALE))
+          .height(this.tightHeader ? 22 * AppTheme.UI_SCALE : (this.compactHeader ? 24 * AppTheme.UI_SCALE : 30 * AppTheme.UI_SCALE))
           .objectFit(ImageFit.Contain)
         Text('You Just Lead')
-          .fontSize(this.tightHeader ? 14 : (this.compactHeader ? 16 : 19))
+          .fontSize(this.tightHeader ? 14 * AppTheme.UI_SCALE : (this.compactHeader ? 16 * AppTheme.UI_SCALE : 19 * AppTheme.UI_SCALE))
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ left: this.tightHeader ? 6 : (this.compactHeader ? 8 : 12) })
+          .margin({ left: this.tightHeader ? 6 * AppTheme.UI_SCALE : (this.compactHeader ? 8 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE) })
         if (!this.compactHeader) {
           Divider()
             .vertical(true)
-            .height(20)
+            .height(20 * AppTheme.UI_SCALE)
             .color(AppTheme.BORDER)
-            .margin({ left: 16, right: 16 })
+            .margin({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE })
           Text(this.tr('topbar.tagline'))
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
         }
       }
@@ -63,20 +63,22 @@ export struct TopBar {
       Row() {
         // 当前项目是侧栏那些模块的上一层容器，所以它放在顶栏，而不是侧栏里的一项。
         Row() {
-          AppIcon({ commands: IconPaths.FOLDER, color: AppTheme.PRIMARY_DARK, filled: false, iconSize: 16 })
+          AppIcon({ commands: IconPaths.FOLDER, color: AppTheme.PRIMARY_DARK, filled: false, iconSize: 16 * AppTheme.UI_SCALE })
           Text(this.projectName.length > 0 ? this.projectName : this.tr('topbar.noProject'))
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
-            .margin({ left: 8 })
+            .margin({ left: 8 * AppTheme.UI_SCALE })
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
-            .margin({ left: 6 })
+          AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
+            .margin({ left: 6 * AppTheme.UI_SCALE })
         }
-        .constraintSize({ maxWidth: this.tightHeader ? 108 : (this.compactHeader ? 148 : 228) })
-        .height(38)
-        .padding({ left: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14), right: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14) })
+        .constraintSize({
+          maxWidth: (this.tightHeader ? 108 : (this.compactHeader ? 148 : 228)) * AppTheme.UI_SCALE
+        })
+        .height(38 * AppTheme.UI_SCALE)
+        .padding({ left: this.tightHeader ? 7 * AppTheme.UI_SCALE : (this.compactHeader ? 10 * AppTheme.UI_SCALE : 14 * AppTheme.UI_SCALE), right: this.tightHeader ? 7 * AppTheme.UI_SCALE : (this.compactHeader ? 10 * AppTheme.UI_SCALE : 14 * AppTheme.UI_SCALE) })
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(AppTheme.RADIUS_SM)
         .alignItems(VerticalAlign.Center)
@@ -94,16 +96,16 @@ export struct TopBar {
             })
             if (this.blockerCount > 0) {
               Text(this.blockerCount > 9 ? '9+' : `${this.blockerCount}`)
-                .fontSize(8)
+                .fontSize(8 * AppTheme.UI_SCALE)
                 .fontColor(Color.White)
                 .backgroundColor(AppTheme.DANGER)
-                .borderRadius(7)
-                .padding({ left: 3, right: 3, top: 1, bottom: 1 })
+                .borderRadius(7 * AppTheme.UI_SCALE)
+                .padding({ left: 3 * AppTheme.UI_SCALE, right: 3 * AppTheme.UI_SCALE, top: 1 * AppTheme.UI_SCALE, bottom: 1 * AppTheme.UI_SCALE })
             }
           }
-          .width(30)
-          .height(30)
-          .margin({ left: this.compactHeader ? 6 : 16 })
+          .width(30 * AppTheme.UI_SCALE)
+          .height(30 * AppTheme.UI_SCALE)
+          .margin({ left: this.compactHeader ? 6 * AppTheme.UI_SCALE : 16 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.onNotificationsClick();
           })
@@ -112,15 +114,15 @@ export struct TopBar {
         // 账户入口：软绿圆底上放品牌标记，和左边整块品牌区区分开。
         Stack({ alignContent: Alignment.Center }) {
           Image($r('app.media.logo_mark'))
-            .width(22)
-            .height(22)
+            .width(22 * AppTheme.UI_SCALE)
+            .height(22 * AppTheme.UI_SCALE)
             .objectFit(ImageFit.Contain)
         }
-        .width(34)
-        .height(34)
+        .width(34 * AppTheme.UI_SCALE)
+        .height(34 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PRIMARY_SOFT)
-        .borderRadius(17)
-        .margin({ left: this.tightHeader ? 6 : (this.compactHeader ? 8 : 12) })
+        .borderRadius(17 * AppTheme.UI_SCALE)
+        .margin({ left: this.tightHeader ? 6 * AppTheme.UI_SCALE : (this.compactHeader ? 8 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE) })
         .onClick(() => {
           this.onAvatarClick();
         })
@@ -129,7 +131,7 @@ export struct TopBar {
     }
     .width('100%')
     .height(AppTheme.TOPBAR_HEIGHT)
-    .padding({ left: this.tightHeader ? 10 : (this.compactHeader ? 12 : 24), right: this.tightHeader ? 10 : (this.compactHeader ? 12 : 24) })
+    .padding({ left: this.tightHeader ? 10 * AppTheme.UI_SCALE : (this.compactHeader ? 12 * AppTheme.UI_SCALE : 24 * AppTheme.UI_SCALE), right: this.tightHeader ? 10 * AppTheme.UI_SCALE : (this.compactHeader ? 12 * AppTheme.UI_SCALE : 24 * AppTheme.UI_SCALE) })
     .backgroundColor(AppTheme.SURFACE)
     .alignItems(VerticalAlign.Center)
     .onAreaChange((_oldArea: Area, newArea: Area) => {

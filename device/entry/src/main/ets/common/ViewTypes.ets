@@ -13,6 +13,36 @@ export interface NavItem {
   icon: string;
 }
 
+/** 侧栏一级功能域。 */
+export interface NavGroupSpec {
+  key: string;
+  /** 与二级项不重复：一级的图标要一眼能认出是哪一类工作，二级的图标说的是具体页面。 */
+  icon: string;
+}
+
+/**
+ * 侧栏的三个一级功能域，顺序即侧栏顺序。
+ *
+ * 二级页面**不在**这里重复列一遍 —— 它们仍由 `NAV_ITEMS` 的 `group` 字段归属，
+ * 两级共用同一份事实。要加一个页面：往 `NAV_ITEMS` 里加一行就够了。
+ */
+export const NAV_GROUPS: NavGroupSpec[] = [
+  { key: 'workspace', icon: IconPaths.FOLDER },
+  { key: 'research', icon: IconPaths.SEARCH },
+  { key: 'outputs', icon: IconPaths.DOC }
+];
+
+/** 当前页属于哪个功能域；不在任何域里（例如设置）返回空串。 */
+export function groupOfNavItem(navKey: string): string {
+  const found: NavItem | undefined = NAV_ITEMS.find((item: NavItem) => item.key === navKey);
+  return found === undefined ? '' : found.group;
+}
+
+/** 某个功能域下的页面，顺序即导航表顺序。 */
+export function navItemsOf(groupKey: string): NavItem[] {
+  return NAV_ITEMS.filter((item: NavItem) => item.group === groupKey);
+}
+
 /** 工作流步骤。 */
 export interface StepSpec {
   label: string;

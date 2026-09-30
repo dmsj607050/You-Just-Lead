@@ -16,9 +16,9 @@ import {
 } from '../common/BackendClient';
 import { forgetSession, persistSession, restoreSession } from '../common/AuthSession';
 import AppTheme from '../common/AppTheme';
-import { priorityLabel, relativeTime, stageLabel } from '../common/Format';
+import { priorityLabel, relativeTime, runnerLabel, stageLabel } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
-import { StepSpec, UpdateSpec } from '../common/ViewTypes';
+import { StepSpec, UpdateSpec, groupOfNavItem } from '../common/ViewTypes';
 import { WorkflowStepper, deriveSteps, initialSteps } from '../view/WorkflowStepper';
 import { TopBar } from '../view/TopBar';
 import { ProjectGate } from '../view/ProjectGate';
@@ -63,9 +63,15 @@ struct Index {
   @State creditBalance: number = 0;
   @State errorText: string = '';
   /** 侧栏当前页。项目不是侧栏项，所以默认落在概览。 */
-  @State activeNav: string = 'overview';
-  /** 窄窗口收缩工作区内容最小宽度，避免侧栏和内容区挤出屏幕。 */
-  @State compactWorkspace: boolean = true;
+  @State @Watch('syncNavToPage') activeNav: string = 'overview';
+  /**
+   * 侧栏里展开着的功能域；空串＝三个都收起。
+   *
+   * 面板那一版曾把它拆成 `panelGroup` + `panelOpen` 两个状态（图标栏常驻、面板可收）。
+   * 现在侧栏是一列两层，展开哪个域就是哪个域，一个状态够了。
+   * 页面换到别的域时才跟着走（见 `syncNavToPage`），点「设置」不动它 —— 设置不属于任何域。
+   */
+  @State openGroup: string = 'workspace';
   /** 设置页在中等窗口宽度下切换为双列状态卡片。 */
   @State compactSettings: boolean = true;
   /** 从空项目概览进入工作流时，直接落到规则证据页。 */
@@ -111,6 +117,30 @@ struct Index {
   @State completedExperiments: number = 0;
   /** 最新一条事件的原始时间戳，相对时间在渲染时才格式化。 */
   @State lastUpdatedAt: string = '';
+
+  /**
+   * 页面换到别的功能域时，侧栏跟着把那个域展开。
+   *
+   * 设置不属于任何域（`groupOfNavItem` 返回空串），展开状态保持不动 —— 总不能让侧栏
+   * 因为点了设置就变成一片空白。
+   */
+  private syncNavToPage(): void {
+    const group: string = groupOfNavItem(this.activeNav);
+    if (group.length > 0) {
+      this.openGroup = group;
+    }
+  }
+
+  /** 点一级行：它已经展开就收起，否则展开它（同时收起别的域）。 */
+  private toggleGroup(groupKey: string): void {
+    this.openGroup = this.openGroup === groupKey ? '' : groupKey;
+  }
+
+  /** 选一个页面。 */
+  private selectPage(key: string): void {
+    this.workflowInitialSection = 'status';
+    this.activeNav = key;
+  }
 
   aboutToAppear(): void {
     // 冷启动时 @StorageLink 一上来就带着值，@Watch 不会触发，这里补一次。
@@ -448,9 +478,9 @@ struct Index {
    */
   @Builder
   OverviewBody() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.overview'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「概览」。
         status: this.overviewStatus(),
         onRefresh: () => {
           this.load();
@@ -486,17 +516,17 @@ struct Index {
       CardPanel({ title: this.tr('overview.section.project') }) {
         if (key.endsWith('-empty')) {
           Text(this.tr('overview.emptyProjectTitle'))
-            .fontSize(17)
+            .fontSize(17 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
           Text(this.tr('overview.emptyProjectBody'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 8, bottom: 16 })
+            .margin({ top: 8 * AppTheme.UI_SCALE, bottom: 16 * AppTheme.UI_SCALE })
           Button(this.tr('overview.configureRules'))
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontColor(Color.White)
             .backgroundColor(AppTheme.PRIMARY)
             .onClick(() => {
@@ -517,7 +547,8 @@ struct Index {
           })
           KeyValueRow({
             label: this.tr('overview.field.adapter'),
-            value: this.runner
+            // 这里与「内置能力」那张卡片是同一个适配器标识，两边必须用同一个译法。
+            value: this.runner.length > 0 ? runnerLabel(this.lang, this.runner) : ''
           })
           KeyValueRow({
             label: this.tr('overview.field.lastUpdated'),
@@ -530,11 +561,11 @@ struct Index {
             current: this.ruleTotal - this.ruleMissing,
             total: this.ruleTotal
           })
-            .margin({ top: 16 })
+            .margin({ top: 16 * AppTheme.UI_SCALE })
 
           Row() {
             Text(this.tr('overview.field.blockers'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .layoutWeight(1)
             StatusBadge({
@@ -544,7 +575,7 @@ struct Index {
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
-          .margin({ top: 18 })
+          .margin({ top: 18 * AppTheme.UI_SCALE })
         }
       }
     }, (key: string) => key)
@@ -556,23 +587,23 @@ struct Index {
     CardPanel({ title: this.tr('card.workflow') }) {
       Row() {
         Text(this.tr('overview.nextStep'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
           .backgroundColor(AppTheme.PRIMARY_SOFT)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
 
         Text(this.nextActionText().length > 0 ? this.nextActionText() : this.tr('overview.noPendingActions'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(this.nextActionText().length > 0 ? AppTheme.TEXT_PRIMARY : AppTheme.TEXT_TERTIARY)
           .layoutWeight(1)
-          .margin({ left: 12 })
+          .margin({ left: 12 * AppTheme.UI_SCALE })
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         if (this.nextActionText().length > 0) {
           Text(priorityLabel(this.lang, this.actions[0].priority))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
         }
       }
@@ -584,8 +615,8 @@ struct Index {
         WorkflowStepper({ steps: this.steps })
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: 18, bottom: 12 })
-      .margin({ top: 18 })
+      .padding({ left: 20 * AppTheme.UI_SCALE, right: 20 * AppTheme.UI_SCALE, top: 18 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
+      .margin({ top: 18 * AppTheme.UI_SCALE })
       .backgroundColor(AppTheme.PAGE_BG)
       .borderRadius(AppTheme.RADIUS)
     }
@@ -600,7 +631,7 @@ struct Index {
     if (!this.authReady) {
       Column() {
         Text(this.tr('auth.loading'))
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
       }
       .width('100%')
@@ -660,7 +691,7 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
         .width('100%')
         .constraintSize({ maxWidth: AppTheme.CONTENT_MAX_WIDTH })
-        .padding({ left: 32, right: 32, top: 26, bottom: 40 })
+        .padding({ left: 32 * AppTheme.UI_SCALE, right: 32 * AppTheme.UI_SCALE, top: 26 * AppTheme.UI_SCALE, bottom: 40 * AppTheme.UI_SCALE })
       }
       .layoutWeight(1)
       .align(Alignment.Top)
@@ -686,7 +717,7 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
         .width('100%')
         .constraintSize({ maxWidth: AppTheme.CONTENT_MAX_WIDTH })
-        .padding({ left: 32, right: 32, top: 26, bottom: 40 })
+        .padding({ left: 32 * AppTheme.UI_SCALE, right: 32 * AppTheme.UI_SCALE, top: 26 * AppTheme.UI_SCALE, bottom: 40 * AppTheme.UI_SCALE })
       }
       .layoutWeight(1)
       .align(Alignment.Top)
@@ -719,13 +750,17 @@ struct Index {
         })
         Divider().color(AppTheme.BORDER)
 
-        SideBarContainer(SideBarContainerType.Embed) {
+        Row() {
+          // 侧栏：一列两层（功能域 / 页面），设置固定在底部。
           SideNav({
             activeKey: this.activeNav,
+            openGroup: this.openGroup,
             blockerCount: this.blockers.length,
+            onToggleGroup: (key: string) => {
+              this.toggleGroup(key);
+            },
             onSelect: (key: string) => {
-              this.workflowInitialSection = 'status';
-              this.activeNav = key;
+              this.selectPage(key);
             }
           })
 
@@ -734,20 +769,20 @@ struct Index {
               if (this.errorText.length > 0) {
                 Column() {
                   Text(this.tr('common.connectionFailed'))
-                    .fontSize(16)
+                    .fontSize(16 * AppTheme.UI_SCALE)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(AppTheme.DANGER)
                   Text(this.errorText)
-                    .fontSize(13)
+                    .fontSize(13 * AppTheme.UI_SCALE)
                     .fontColor(AppTheme.DANGER)
-                    .margin({ top: 8 })
+                    .margin({ top: 8 * AppTheme.UI_SCALE })
                 }
                 .alignItems(HorizontalAlign.Start)
                 .width('100%')
-                .padding(20)
+                .padding(20 * AppTheme.UI_SCALE)
                 .backgroundColor(AppTheme.DANGER_SOFT)
                 .borderRadius(AppTheme.RADIUS)
-                .margin({ bottom: 20 })
+                .margin({ bottom: 20 * AppTheme.UI_SCALE })
               }
 
               ForEach(this.activePageKeys(), (key: string) => {
@@ -756,28 +791,23 @@ struct Index {
 
               if (this.loading) {
                 Text(this.tr('common.loading'))
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.TEXT_TERTIARY)
-                  .margin({ top: 12 })
+                  .margin({ top: 12 * AppTheme.UI_SCALE })
               }
             }
             .alignItems(HorizontalAlign.Start)
             .width('100%')
             .constraintSize({ maxWidth: AppTheme.CONTENT_MAX_WIDTH })
-            .padding({ left: 32, right: 32, top: 26, bottom: 40 })
+            .padding({ left: 32 * AppTheme.UI_SCALE, right: 32 * AppTheme.UI_SCALE, top: 26 * AppTheme.UI_SCALE, bottom: 40 * AppTheme.UI_SCALE })
           }
           .layoutWeight(1)
           .align(Alignment.Top)
           .scrollBar(BarState.Auto)
         }
+        .width('100%')
         .layoutWeight(1)
-        .autoHide(true)
-        .sideBarWidth(AppTheme.SIDEBAR_WIDTH)
-        .minSideBarWidth(180)
-        .maxSideBarWidth(240)
-        .minContentWidth(this.compactWorkspace ? 260 : 420)
-        .showControlButton(true)
-        .divider({ strokeWidth: 1, color: AppTheme.BORDER })
+        .alignItems(VerticalAlign.Top)
       }
       .width('100%')
       .height('100%')
@@ -812,14 +842,12 @@ struct Index {
             this.signOut();
           }
         })
-          .margin({ top: AppTheme.TOPBAR_HEIGHT + 8, right: 24 })
+          .margin({ top: AppTheme.TOPBAR_HEIGHT + 8, right: 24 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
     .height('100%')
     .onAreaChange((_oldArea: Area, newArea: Area) => {
-      const compact = Number(newArea.width) < 680;
-      if (this.compactWorkspace !== compact) this.compactWorkspace = compact;
       const settingsCompact = Number(newArea.width) < 960;
       if (this.compactSettings !== settingsCompact) this.compactSettings = settingsCompact;
     })

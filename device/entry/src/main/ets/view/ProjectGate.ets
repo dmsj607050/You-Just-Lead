@@ -140,47 +140,47 @@ export struct ProjectGate {
     Row() {
       Row() {
         Stack({ alignContent: Alignment.Center }) {
-          AppIcon({ commands: IconPaths.FOLDER, color: AppTheme.PRIMARY, filled: true, iconSize: 22 })
+          AppIcon({ commands: IconPaths.FOLDER, color: AppTheme.PRIMARY, filled: true, iconSize: 22 * AppTheme.UI_SCALE })
         }
-        .width(38)
-        .height(38)
+        .width(38 * AppTheme.UI_SCALE)
+        .height(38 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(AppTheme.RADIUS_SM)
 
         Column() {
           Row() {
             Text(project.name)
-              .fontSize(15)
+              .fontSize(15 * AppTheme.UI_SCALE)
               .fontWeight(FontWeight.Medium)
               .fontColor(AppTheme.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             if (project.current) {
               Text(this.tr('gate.current'))
-                .fontSize(11)
+                .fontSize(11 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.PRIMARY_DARK)
                 .backgroundColor(AppTheme.PRIMARY_SOFT)
-                .borderRadius(6)
-                .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-                .margin({ left: 8 })
+                .borderRadius(6 * AppTheme.UI_SCALE)
+                .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 2 * AppTheme.UI_SCALE, bottom: 2 * AppTheme.UI_SCALE })
+                .margin({ left: 8 * AppTheme.UI_SCALE })
             }
           }
           .alignItems(VerticalAlign.Center)
 
           Text(this.trf('gate.createdAt', [formatTimestamp(project.created_at)]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
-        .margin({ left: 12 })
+        .margin({ left: 12 * AppTheme.UI_SCALE })
 
         Text(this.tr('gate.enter'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY)
-        AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.PRIMARY, filled: false, iconSize: 14 })
-          .margin({ left: 4 })
+        AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.PRIMARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
+          .margin({ left: 4 * AppTheme.UI_SCALE })
       }
       .layoutWeight(1)
       .alignItems(VerticalAlign.Center)
@@ -190,31 +190,31 @@ export struct ProjectGate {
 
       if (this.pendingDeleteId === project.id) {
         Text(this.tr('common.cancel'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.pendingDeleteId = '';
           })
         Text(this.tr('gate.deleteConfirm'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
-          .padding({ left: 10, right: 2, top: 6, bottom: 6 })
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 2 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.remove(project);
           })
       } else {
         Text(this.tr('gate.delete'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .padding({ left: 14, right: 2, top: 6, bottom: 6 })
+          .padding({ left: 14 * AppTheme.UI_SCALE, right: 2 * AppTheme.UI_SCALE, top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
           .onClick(() => {
             this.pendingDeleteId = project.id;
           })
       }
     }
     .width('100%')
-    .padding({ top: 14, bottom: 14 })
+    .padding({ top: 14 * AppTheme.UI_SCALE, bottom: 14 * AppTheme.UI_SCALE })
     .alignItems(VerticalAlign.Center)
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
@@ -224,22 +224,22 @@ export struct ProjectGate {
       Row() {
         // 品牌标记（无文字版 logo）；标语走 i18n，切换语言时才不会留着中文。
         Image($r('app.media.logo_mark'))
-          .width(this.tightHeader ? 24 : 30)
-          .height(this.tightHeader ? 24 : 30)
+          .width(this.tightHeader ? 24 * AppTheme.UI_SCALE : 30 * AppTheme.UI_SCALE)
+          .height(this.tightHeader ? 24 * AppTheme.UI_SCALE : 30 * AppTheme.UI_SCALE)
           .objectFit(ImageFit.Contain)
         Text('You Just Lead')
-          .fontSize(this.tightHeader ? 16 : (this.compactHeader ? 17 : 19))
+          .fontSize(this.tightHeader ? 16 * AppTheme.UI_SCALE : (this.compactHeader ? 17 * AppTheme.UI_SCALE : 19 * AppTheme.UI_SCALE))
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ left: this.tightHeader ? 8 : 12 })
+          .margin({ left: this.tightHeader ? 8 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE })
         if (!this.compactHeader) {
           Divider()
             .vertical(true)
-            .height(20)
+            .height(20 * AppTheme.UI_SCALE)
             .color(AppTheme.BORDER)
-            .margin({ left: 16, right: 16 })
+            .margin({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE })
           Text(this.tr('topbar.tagline'))
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
         }
 
@@ -249,12 +249,12 @@ export struct ProjectGate {
         Row() {
           AppIcon({ commands: IconPaths.GLOBE, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: this.tightHeader ? 16 : 18 })
           Text(langName(this.lang))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ left: this.tightHeader ? 6 : 8 })
+            .margin({ left: this.tightHeader ? 6 * AppTheme.UI_SCALE : 8 * AppTheme.UI_SCALE })
         }
-        .height(34)
-        .padding({ left: this.tightHeader ? 8 : 12, right: this.tightHeader ? 8 : 12 })
+        .height(34 * AppTheme.UI_SCALE)
+        .padding({ left: this.tightHeader ? 8 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE, right: this.tightHeader ? 8 * AppTheme.UI_SCALE : 12 * AppTheme.UI_SCALE })
         .borderRadius(AppTheme.RADIUS_SM)
         .alignItems(VerticalAlign.Center)
         .onClick(() => {
@@ -263,7 +263,7 @@ export struct ProjectGate {
       }
       .width('100%')
       .height(AppTheme.TOPBAR_HEIGHT)
-      .padding({ left: this.tightHeader ? 12 : (this.compactHeader ? 16 : 24), right: this.tightHeader ? 12 : (this.compactHeader ? 16 : 24) })
+      .padding({ left: this.tightHeader ? 12 * AppTheme.UI_SCALE : (this.compactHeader ? 16 * AppTheme.UI_SCALE : 24 * AppTheme.UI_SCALE), right: this.tightHeader ? 12 * AppTheme.UI_SCALE : (this.compactHeader ? 16 * AppTheme.UI_SCALE : 24 * AppTheme.UI_SCALE) })
       .backgroundColor(AppTheme.SURFACE)
       .alignItems(VerticalAlign.Center)
       .onAreaChange((_oldArea: Area, newArea: Area) => {
@@ -284,27 +284,27 @@ export struct ProjectGate {
         Column() {
           Column() {
             Text(this.tr('gate.title'))
-              .fontSize(26)
+              .fontSize(26 * AppTheme.UI_SCALE)
               .fontWeight(FontWeight.Bold)
               .fontColor(AppTheme.TEXT_PRIMARY)
 
             Row() {
               Column() {
                 Text(this.accountUsername)
-                  .fontSize(14)
+                  .fontSize(14 * AppTheme.UI_SCALE)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(AppTheme.TEXT_PRIMARY)
                 Text(`${this.tr('auth.balance')}：${this.creditBalance.toFixed(2)}`)
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.TEXT_TERTIARY)
-                  .margin({ top: 4 })
+                  .margin({ top: 4 * AppTheme.UI_SCALE })
               }
               .alignItems(HorizontalAlign.Start)
 
               Blank()
 
               Text(this.tr('auth.signOut'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.PRIMARY_DARK)
                 .onClick(() => {
                   this.onSignOut();
@@ -312,8 +312,8 @@ export struct ProjectGate {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            .padding(16)
-            .margin({ top: 16 })
+            .padding(16 * AppTheme.UI_SCALE)
+            .margin({ top: 16 * AppTheme.UI_SCALE })
             .backgroundColor(AppTheme.SURFACE)
             .borderRadius(AppTheme.RADIUS)
             .border({ width: 1, color: AppTheme.BORDER })
@@ -321,59 +321,59 @@ export struct ProjectGate {
             if (this.errorText.length > 0) {
               Column() {
                 Text(this.tr('common.connectionFailed'))
-                  .fontSize(14)
+                  .fontSize(14 * AppTheme.UI_SCALE)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(AppTheme.DANGER)
                 Text(this.errorText)
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.DANGER)
-                  .margin({ top: 6 })
+                  .margin({ top: 6 * AppTheme.UI_SCALE })
                 Text(this.tr('common.retry'))
-                  .fontSize(13)
+                  .fontSize(13 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.PRIMARY)
-                  .margin({ top: 10 })
+                  .margin({ top: 10 * AppTheme.UI_SCALE })
                   .onClick(() => {
                     this.load();
                   })
               }
               .alignItems(HorizontalAlign.Start)
               .width('100%')
-              .padding(16)
+              .padding(16 * AppTheme.UI_SCALE)
               .backgroundColor(AppTheme.DANGER_SOFT)
               .borderRadius(AppTheme.RADIUS)
-              .margin({ top: 22 })
+              .margin({ top: 22 * AppTheme.UI_SCALE })
             }
 
             Column() {
               if (this.projects.length === 0 && !this.loading) {
                 Text(this.tr('gate.empty'))
-                  .fontSize(13)
+                  .fontSize(13 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.TEXT_TERTIARY)
                   .width('100%')
-                  .padding({ top: 4, bottom: 4 })
+                  .padding({ top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
               }
               ForEach(this.projects, (project: ProjectSummary) => {
                 this.ProjectRow(project)
               }, (project: ProjectSummary) => project.id)
             }
             .width('100%')
-            .margin({ top: 18 })
-            .padding({ left: 20, right: 20 })
+            .margin({ top: 18 * AppTheme.UI_SCALE })
+            .padding({ left: 20 * AppTheme.UI_SCALE, right: 20 * AppTheme.UI_SCALE })
             .backgroundColor(AppTheme.SURFACE)
             .borderRadius(AppTheme.RADIUS_LG)
             .border({ width: 1, color: AppTheme.BORDER })
 
             Column() {
               Text(this.tr('gate.newTitle'))
-                .fontSize(15)
+                .fontSize(15 * AppTheme.UI_SCALE)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(AppTheme.TEXT_PRIMARY)
 
               Row() {
                 TextInput({ text: this.newName, placeholder: this.tr('gate.namePlaceholder') })
                   .layoutWeight(1)
-                  .height(38)
-                  .fontSize(13)
+                  .height(38 * AppTheme.UI_SCALE)
+                  .fontSize(13 * AppTheme.UI_SCALE)
                   .backgroundColor(AppTheme.PAGE_BG)
                   .borderRadius(AppTheme.RADIUS_SM)
                   .onChange((value: string) => {
@@ -381,36 +381,36 @@ export struct ProjectGate {
                     this.nameError = '';
                   })
                 Button(this.creating ? this.tr('gate.creating') : this.tr('gate.create'))
-                  .height(38)
-                  .fontSize(13)
+                  .height(38 * AppTheme.UI_SCALE)
+                  .fontSize(13 * AppTheme.UI_SCALE)
                   .fontColor(Color.White)
                   .backgroundColor(AppTheme.PRIMARY)
-                  .margin({ left: 10 })
+                  .margin({ left: 10 * AppTheme.UI_SCALE })
                   .enabled(!this.creating)
                   .onClick(() => {
                     this.createAndEnter();
                   })
               }
               .width('100%')
-              .margin({ top: 14 })
+              .margin({ top: 14 * AppTheme.UI_SCALE })
               .alignItems(VerticalAlign.Center)
 
               if (this.nameError.length > 0) {
                 Text(this.nameError)
-                  .fontSize(12)
+                  .fontSize(12 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.DANGER)
-                  .margin({ top: 8 })
+                  .margin({ top: 8 * AppTheme.UI_SCALE })
               }
 
               Text(this.tr('gate.hint'))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ top: 12 })
+                .margin({ top: 12 * AppTheme.UI_SCALE })
             }
             .alignItems(HorizontalAlign.Start)
             .width('100%')
-            .padding(20)
-            .margin({ top: 20 })
+            .padding(20 * AppTheme.UI_SCALE)
+            .margin({ top: 20 * AppTheme.UI_SCALE })
             .backgroundColor(AppTheme.SURFACE)
             .borderRadius(AppTheme.RADIUS_LG)
             .border({ width: 1, color: AppTheme.BORDER })
@@ -420,25 +420,25 @@ export struct ProjectGate {
               Row() {
                 Column() {
                   Text(this.tr('gate.localToolsTitle'))
-                    .fontSize(14)
+                    .fontSize(14 * AppTheme.UI_SCALE)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(AppTheme.TEXT_SECONDARY)
                   Text(this.tr('gate.localToolsHint'))
-                    .fontSize(12)
+                    .fontSize(12 * AppTheme.UI_SCALE)
                     .fontColor(AppTheme.TEXT_TERTIARY)
-                    .margin({ top: 4 })
+                    .margin({ top: 4 * AppTheme.UI_SCALE })
                 }
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
 
                 Text(this.localToolsExpanded ? this.tr('gate.localToolsCollapse') : this.tr('gate.localToolsExpand'))
-                  .fontSize(13)
+                  .fontSize(13 * AppTheme.UI_SCALE)
                   .fontColor(AppTheme.PRIMARY)
-                  .margin({ left: 12 })
+                  .margin({ left: 12 * AppTheme.UI_SCALE })
               }
               .width('100%')
               .alignItems(VerticalAlign.Center)
-              .padding(16)
+              .padding(16 * AppTheme.UI_SCALE)
               .onClick(() => {
                 this.localToolsExpanded = !this.localToolsExpanded;
               })
@@ -446,21 +446,21 @@ export struct ProjectGate {
               ForEach(this.localToolsKeys(), (key: string) => {
                 if (key === 'expanded') {
                   LocalWorkspaceCard()
-                    .margin({ top: 12 })
+                    .margin({ top: 12 * AppTheme.UI_SCALE })
                 }
               }, (key: string) => key)
             }
             .width('100%')
-            .margin({ top: 20 })
+            .margin({ top: 20 * AppTheme.UI_SCALE })
             .backgroundColor(AppTheme.SURFACE)
             .borderRadius(AppTheme.RADIUS_LG)
             .border({ width: 1, color: AppTheme.BORDER })
 
             if (this.loading) {
               Text(this.tr('common.loading'))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ top: 14 })
+                .margin({ top: 14 * AppTheme.UI_SCALE })
             }
           }
           .alignItems(HorizontalAlign.Start)
@@ -469,7 +469,7 @@ export struct ProjectGate {
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center)
-        .padding({ left: 32, right: 32, top: 44, bottom: 44 })
+        .padding({ left: 32 * AppTheme.UI_SCALE, right: 32 * AppTheme.UI_SCALE, top: 44 * AppTheme.UI_SCALE, bottom: 44 * AppTheme.UI_SCALE })
       }
       .layoutWeight(1)
       .align(Alignment.Top)

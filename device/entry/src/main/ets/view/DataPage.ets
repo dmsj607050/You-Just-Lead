@@ -147,20 +147,20 @@ export struct DataPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   /** 文件类型分布，给分布条用。 */
@@ -217,9 +217,9 @@ export struct DataPage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.data'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「数据」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -243,14 +243,14 @@ export struct DataPage {
       if (this.audit === null) {
         if (this.errorText.length === 0) {
           CardPanel({ title: this.tr('data.auditSource') }) {
-            Column({ space: 14 }) {
+            Column({ space: 14 * AppTheme.UI_SCALE }) {
               EmptyHint({ text: this.tr('data.noAuditReport') })
               Text(this.tr('data.cloudAuditUnavailable'))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_TERTIARY)
                 .width('100%')
               Button(this.tr('data.viewNextSteps'))
-                .fontSize(14)
+                .fontSize(14 * AppTheme.UI_SCALE)
                 .fontColor(Color.White)
                 .backgroundColor(AppTheme.PRIMARY)
                 .onClick(() => {
@@ -323,10 +323,10 @@ export struct DataPage {
 
             if (this.channelBars().length > 0) {
               Text(this.tr('data.channelDistribution'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .width('100%')
-                .margin({ top: 16, bottom: 12 })
+                .margin({ top: 16 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
               BarList({ items: this.channelBars() })
             }
           }
@@ -334,7 +334,7 @@ export struct DataPage {
         }
       } else if (this.section === 'kinds') {
 
-        Row({ space: 20 }) {
+        Row({ space: 20 * AppTheme.UI_SCALE }) {
           CardPanel({
             title: this.tr('data.fileKinds'),
             weight: 1
@@ -370,28 +370,28 @@ export struct DataPage {
               ForEach(this.audit.exact_duplicate_groups, (group: string[], index: number) => {
                 Column() {
                   Text(this.trf('data.duplicateGroup', [`${index + 1}`]))
-                    .fontSize(13)
+                    .fontSize(13 * AppTheme.UI_SCALE)
                     .fontColor(AppTheme.TEXT_PRIMARY)
                   ForEach(group, (file: string) => {
                     Text(file)
-                      .fontSize(12)
+                      .fontSize(12 * AppTheme.UI_SCALE)
                       .fontColor(AppTheme.TEXT_TERTIARY)
-                      .margin({ top: 6 })
+                      .margin({ top: 6 * AppTheme.UI_SCALE })
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                   }, (file: string) => file)
                 }
                 .alignItems(HorizontalAlign.Start)
                 .width('100%')
-                .padding({ top: 12, bottom: 12 })
+                .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
               }, (group: string[], index: number) => `${index}`)
             }
 
             if (this.audit !== null && this.audit.tables.length > 0) {
               Text(this.trf('data.tableFiles', [`${this.audit.tables.length}`]))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
-                .margin({ top: 12 })
+                .margin({ top: 12 * AppTheme.UI_SCALE })
             }
           }
           .width('100%')
@@ -400,9 +400,9 @@ export struct DataPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

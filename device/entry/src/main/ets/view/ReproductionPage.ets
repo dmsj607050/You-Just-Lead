@@ -279,17 +279,17 @@ export struct ReproductionPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
   }
@@ -298,10 +298,10 @@ export struct ReproductionPage {
   @Builder
   EngineBanner() {
     Text(this.trf('repro.engineMissingDetail', [this.dockerReason.length > 0 ? this.dockerReason : '?']))
-      .fontSize(13)
+      .fontSize(13 * AppTheme.UI_SCALE)
       .fontColor(AppTheme.WARN_TEXT)
       .width('100%')
-      .padding(16)
+      .padding(16 * AppTheme.UI_SCALE)
       .backgroundColor(AppTheme.WARN_SOFT)
       .borderRadius(AppTheme.RADIUS)
   }
@@ -331,11 +331,11 @@ export struct ReproductionPage {
 
         Row() {
           Text(this.tr('repro.image'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .width(150)
+            .width(150 * AppTheme.UI_SCALE)
           Text(plan.image)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .layoutWeight(1)
             .maxLines(1)
@@ -348,7 +348,7 @@ export struct ReproductionPage {
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .padding({ top: 9, bottom: 9 })
+        .padding({ top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
 
         KeyValueRow({
           label: this.tr('repro.resources'),
@@ -358,11 +358,11 @@ export struct ReproductionPage {
         })
 
         Text(this.tr('repro.commands'))
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .width('100%')
-          .margin({ top: 18, bottom: 10 })
+          .margin({ top: 18 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
 
         ChoiceChips({
           items: this.commandChoices(plan),
@@ -380,34 +380,34 @@ export struct ReproductionPage {
         if (editing) {
           // 批准的是下面这一行，所以命令原文与出处必须同时显示出来给人核对。
           Text(this.trf('repro.commandSource', [commandSource]))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
 
           TextInput({ text: commandDraft })
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .width('100%')
-            .height(38)
+            .height(38 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
-            .margin({ top: 8 })
+            .margin({ top: 8 * AppTheme.UI_SCALE })
             .enabled(!busy)
             .onChange((value: string) => {
               this.commandDraft = value;
             })
 
           Text(this.tr('repro.commandHint'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
-            .margin({ top: 8 })
+            .margin({ top: 8 * AppTheme.UI_SCALE })
 
           Row() {
             TextInput({ text: noteDraft, placeholder: this.tr('repro.notePlaceholder') })
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .layoutWeight(1)
-              .height(38)
+              .height(38 * AppTheme.UI_SCALE)
               .backgroundColor(AppTheme.PAGE_BG)
               .borderRadius(AppTheme.RADIUS_SM)
               .enabled(!busy)
@@ -417,27 +417,27 @@ export struct ReproductionPage {
               })
 
             Text(busy ? this.tr('repro.submitting') : this.tr('repro.approveAndRun'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(Color.White)
               .backgroundColor(dockerAvailable && !busy ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY)
               .borderRadius(AppTheme.RADIUS_SM)
-              .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-              .margin({ left: 10 })
+              .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+              .margin({ left: 10 * AppTheme.UI_SCALE })
               .onClick(() => {
                 this.approveAndRun();
               })
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
         }
 
         // 批准前要说清容器能碰什么：这两行是审批的依据，不是脚注。
         Text(this.tr('repro.policy'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 16 })
+          .margin({ top: 16 * AppTheme.UI_SCALE })
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
@@ -449,7 +449,7 @@ export struct ReproductionPage {
   PhaseRow(title: string, phase: ReproductionPhase) {
     Row() {
       Text(title)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .layoutWeight(1)
       StatusBadge({
@@ -457,17 +457,17 @@ export struct ReproductionPage {
         tone: phase.network === 'none' ? 'ok' : 'warn'
       })
       Text(this.trf('repro.exitCode', [`${phase.exit_code}`]))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(phase.timed_out || phase.exit_code !== 0 ? AppTheme.DANGER : AppTheme.TEXT_SECONDARY)
-        .margin({ left: 10 })
+        .margin({ left: 10 * AppTheme.UI_SCALE })
       Text(this.trf('repro.duration', [formatNumber(phase.duration_seconds, 1)]))
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .margin({ left: 10 })
+        .margin({ left: 10 * AppTheme.UI_SCALE })
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding({ top: 6, bottom: 6 })
+    .padding({ top: 6 * AppTheme.UI_SCALE, bottom: 6 * AppTheme.UI_SCALE })
   }
 
   /** 运行卡：状态 + 命令 + 两个阶段 + 产物 + 日志尾部。 */
@@ -481,31 +481,31 @@ export struct ReproductionPage {
           StatusBadge({ text: runStatusText(this.lang, run.status), tone: runStatusTone(run.status) })
           if (run.command_overridden) {
             StatusBadge({ text: this.tr('repro.rewritten'), tone: 'muted' })
-              .margin({ left: 8 })
+              .margin({ left: 8 * AppTheme.UI_SCALE })
           }
           Text(formatTimestamp(run.created_at))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
             .layoutWeight(1)
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
         Text(run.command)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
           .maxLines(3)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         if (run.error !== null && run.error.length > 0) {
           Text(run.error)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.DANGER)
             .width('100%')
-            .margin({ top: 10 })
+            .margin({ top: 10 * AppTheme.UI_SCALE })
         }
 
         // 阶段顺序本身就是隔离的说明：先下载（有网），再安装并运行（无网）。
@@ -518,19 +518,19 @@ export struct ReproductionPage {
           }, (phase: ReproductionPhase) => `${phase.phase}-${phase.network}-${phase.exit_code}`)
         }
         .width('100%')
-        .margin({ top: 12 })
+        .margin({ top: 12 * AppTheme.UI_SCALE })
 
         if (this.hasOutputs(run)) {
           Text(this.tr('repro.outputs'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
-            .margin({ top: 16, bottom: 8 })
+            .margin({ top: 16 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
 
           if (this.outputSummaries(run).length === 0) {
             Text(this.outputFilesText(run).length > 0 ? this.outputFilesText(run) : this.tr('repro.outputsEmpty'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
               .maxLines(4)
@@ -539,16 +539,16 @@ export struct ReproductionPage {
             // JSON/CSV 摘要写在前：指标就在这些键里。
             ForEach(this.outputSummaries(run), (item: ReproductionOutputSummary) => {
               Text(this.summaryText(item))
-                .fontSize(12)
+                .fontSize(12 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .width('100%')
-                .margin({ bottom: 6 })
+                .margin({ bottom: 6 * AppTheme.UI_SCALE })
                 .maxLines(2)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }, (item: ReproductionOutputSummary) => item.file)
 
             Text(this.outputFilesText(run))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
               .maxLines(4)
@@ -558,16 +558,16 @@ export struct ReproductionPage {
 
         if (run.log_tail.length > 0) {
           Text(this.tr('repro.logTail'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
-            .margin({ top: 16, bottom: 8 })
+            .margin({ top: 16 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
           Text(run.log_tail)
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .padding(12)
+            .padding(12 * AppTheme.UI_SCALE)
             .backgroundColor(AppTheme.PAGE_BG)
             .borderRadius(AppTheme.RADIUS_SM)
             .maxLines(16)
@@ -580,9 +580,9 @@ export struct ReproductionPage {
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.reproduction'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「复现」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -599,7 +599,7 @@ export struct ReproductionPage {
 
       if (this.actionError.length > 0) {
         Text(this.trf('repro.actionFailed', [this.actionError]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
       }
@@ -618,7 +618,7 @@ export struct ReproductionPage {
             EmptyHint({ text: this.tr('repro.noRuns') })
           }
         } else {
-          Column({ space: 16 }) {
+          Column({ space: 16 * AppTheme.UI_SCALE }) {
             ForEach(this.runs, (run: ReproductionRun) => {
               this.RunBlock(run)
             }, (run: ReproductionRun) => `${run.run_id}-${run.status}-${this.lang}`)
@@ -631,7 +631,7 @@ export struct ReproductionPage {
             EmptyHint({ text: this.tr('repro.noPlans') })
           }
         } else {
-          Column({ space: 16 }) {
+          Column({ space: 16 * AppTheme.UI_SCALE }) {
             ForEach(this.plans, (plan: ReproductionPlan) => {
               // 参数按值传：选中态一变，卡片就重建，批准表单才会出现 / 收起。
               this.PlanBlock(plan, this.editing(plan), this.commandDraft, this.activeCommandSource,
@@ -646,9 +646,9 @@ export struct ReproductionPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

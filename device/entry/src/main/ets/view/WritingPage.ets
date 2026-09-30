@@ -88,20 +88,20 @@ export struct WritingPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-    .margin({ bottom: 20 })
+    .margin({ bottom: 20 * AppTheme.UI_SCALE })
   }
 
   @Builder
@@ -110,22 +110,22 @@ export struct WritingPage {
       ForEach(this.pkg === null ? [] : this.pkg.sections, (title: string, index: number) => {
         Row() {
           Text(`${index + 1}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.PRIMARY_DARK)
             .backgroundColor(AppTheme.PRIMARY_SOFT)
-            .borderRadius(11)
-            .width(22)
-            .height(22)
+            .borderRadius(11 * AppTheme.UI_SCALE)
+            .width(22 * AppTheme.UI_SCALE)
+            .height(22 * AppTheme.UI_SCALE)
             .textAlign(TextAlign.Center)
           Text(title)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .layoutWeight(1)
-            .margin({ left: 12 })
+            .margin({ left: 12 * AppTheme.UI_SCALE })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
-        .padding({ top: 10, bottom: 10 })
+        .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
         .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
       }, (title: string, index: number) => `${index}-${title}`)
     }
@@ -138,19 +138,19 @@ export struct WritingPage {
       ForEach(this.pkg === null ? [] : this.pkg.claims, (claim: PaperClaim) => {
         Column() {
           Text(claim.claim)
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
           Text(`${claim.experiment_id} · ${workspacePathLabel(claim.result_path, this.pkg === null ? null : this.pkg.package_dir)}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .padding({ top: 12, bottom: 12 })
+        .padding({ top: 12 * AppTheme.UI_SCALE, bottom: 12 * AppTheme.UI_SCALE })
         .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
       }, (claim: PaperClaim) => claim.claim)
     }
@@ -162,21 +162,21 @@ export struct WritingPage {
     Row() {
       ForEach(this.pkg === null ? [] : this.pkg.submission.required_files, (file: string) => {
         Text(file)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .backgroundColor(AppTheme.PAGE_BG)
-          .borderRadius(6)
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .margin({ right: 8 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
+          .margin({ right: 8 * AppTheme.UI_SCALE })
       }, (file: string) => file)
     }
     .width('100%')
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.writing'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「写作」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -196,7 +196,7 @@ export struct WritingPage {
       })
 
       if (this.section === 'structure') {
-        Row({ space: 20 }) {
+        Row({ space: 20 * AppTheme.UI_SCALE }) {
           CardPanel({
             title: this.tr('writing.sectionStructure'),
             weight: 1
@@ -257,9 +257,9 @@ export struct WritingPage {
                 : this.pkg.submission.validation_profile
             })
             Text(this.tr('writing.requiredFiles'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
-              .margin({ top: 12, bottom: 10 })
+              .margin({ top: 12 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
             if (this.pkg === null || this.pkg.submission.required_files.length === 0) {
               EmptyHint({ text: this.tr('writing.noRequiredFiles') })
             } else {
@@ -274,11 +274,11 @@ export struct WritingPage {
           title: this.tr('writing.paperPackage')
         }) {
           if (this.pkg === null || !this.pkg.available) {
-            Column({ space: 12 }) {
+            Column({ space: 12 * AppTheme.UI_SCALE }) {
               EmptyHint({ text: this.tr('writing.noPackage') })
               Button(this.tr('writing.viewNextSteps'))
-                .height(38)
-                .fontSize(14)
+                .height(38 * AppTheme.UI_SCALE)
+                .fontSize(14 * AppTheme.UI_SCALE)
                 .fontColor(Color.White)
                 .backgroundColor(AppTheme.PRIMARY)
                 .onClick(() => {
@@ -321,9 +321,9 @@ export struct WritingPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

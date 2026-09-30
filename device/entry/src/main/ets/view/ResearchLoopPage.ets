@@ -412,17 +412,17 @@ export struct ResearchLoopPage {
   ErrorBanner() {
     Column() {
       Text(this.tr('common.connectionFailed'))
-        .fontSize(15)
+        .fontSize(15 * AppTheme.UI_SCALE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
       Text(this.errorText)
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.DANGER)
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(20)
+    .padding(20 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
   }
@@ -430,13 +430,13 @@ export struct ResearchLoopPage {
   /** 当前段：五个数字 + 下一步 + 操作 + 最近的推进。 */
   @Builder
   NowSection() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       // 五个数字。后两个分开数：一个是欠着的活，一个是走不通的路。
       //
       // 这里用 `MetricCard`（@Prop）而不是给 @Builder 传参：@Builder 的参数按值取，
       // 参数变了不会刷新 UI —— 真机上就是这五个数字一直停在初始的 0，而同一批状态算出来的
       // 现状行是对的。`layoutWeight` 必须写在调用处，组件内部加权重管不到父容器。
-      Row({ space: 12 }) {
+      Row({ space: 12 * AppTheme.UI_SCALE }) {
         MetricCard({
           label: this.tr('loop.metric.hypotheses'),
           value: `${this.hypothesisTotal}`,
@@ -470,16 +470,16 @@ export struct ResearchLoopPage {
         Column() {
           Row() {
             Text(this.tr('overview.nextStep'))
-              .fontSize(12)
+              .fontSize(12 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.PRIMARY_DARK)
               .backgroundColor(AppTheme.PRIMARY_SOFT)
-              .borderRadius(6)
-              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .borderRadius(6 * AppTheme.UI_SCALE)
+              .padding({ left: 10 * AppTheme.UI_SCALE, right: 10 * AppTheme.UI_SCALE, top: 4 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
             Text(this.actionLabel(this.nextActionName))
-              .fontSize(16)
+              .fontSize(16 * AppTheme.UI_SCALE)
               .fontWeight(FontWeight.Bold)
               .fontColor(AppTheme.TEXT_PRIMARY)
-              .margin({ left: 12 })
+              .margin({ left: 12 * AppTheme.UI_SCALE })
               .layoutWeight(1)
           }
           .width('100%')
@@ -487,63 +487,63 @@ export struct ResearchLoopPage {
 
           if (this.nextActionReason.length > 0) {
             Text(this.nextActionReason)
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width('100%')
-              .margin({ top: 10 })
+              .margin({ top: 10 * AppTheme.UI_SCALE })
           }
 
           Row() {
             if (this.runningJob.length > 0) {
               // 后端已经收了这一步，正在跑。这个块是状态不是按钮，所以不给它 onClick。
               Text(this.trf('loop.stepping', [this.runningJob]))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .backgroundColor(AppTheme.PAGE_BG)
                 .borderRadius(AppTheme.RADIUS_SM)
-                .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-                .margin({ right: 10, bottom: 8 })
+                .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+                .margin({ right: 10 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
             } else {
               Text(this.tr('loop.stepOne'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(this.busy ? AppTheme.TEXT_SECONDARY : Color.White)
                 .backgroundColor(this.busy ? AppTheme.PAGE_BG : AppTheme.PRIMARY)
                 .borderRadius(AppTheme.RADIUS_SM)
-                .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-                .margin({ right: 10, bottom: 8 })
+                .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+                .margin({ right: 10 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
                 .onClick(() => {
                   this.step(1);
                 })
 
               Text(this.tr('loop.stepThree'))
-                .fontSize(13)
+                .fontSize(13 * AppTheme.UI_SCALE)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .backgroundColor(AppTheme.PAGE_BG)
                 .borderRadius(AppTheme.RADIUS_SM)
-                .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-                .margin({ right: 10, bottom: 8 })
+                .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+                .margin({ right: 10 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
                 .onClick(() => {
                   this.step(3);
                 })
             }
 
             Text(this.tr('loop.backfill'))
-              .fontSize(13)
+              .fontSize(13 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .backgroundColor(AppTheme.PAGE_BG)
               .borderRadius(AppTheme.RADIUS_SM)
-              .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-              .margin({ right: 10, bottom: 8 })
+              .padding({ left: 16 * AppTheme.UI_SCALE, right: 16 * AppTheme.UI_SCALE, top: 9 * AppTheme.UI_SCALE, bottom: 9 * AppTheme.UI_SCALE })
+              .margin({ right: 10 * AppTheme.UI_SCALE, bottom: 8 * AppTheme.UI_SCALE })
               .onClick(() => {
                 this.backfill();
               })
           }
           .width('100%')
-          .margin({ top: 14 })
+          .margin({ top: 14 * AppTheme.UI_SCALE })
           .alignItems(VerticalAlign.Center)
 
           Text(this.tr('loop.hint'))
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')
         }
@@ -557,7 +557,7 @@ export struct ResearchLoopPage {
         }
       } else {
         CardPanel({ title: this.tr('loop.recent') }) {
-          Column({ space: 16 }) {
+          Column({ space: 16 * AppTheme.UI_SCALE }) {
             ForEach(this.jobs, (job: ResearchLoopJob) => {
               this.JobBlock(job)
             }, (job: ResearchLoopJob) => `${job.job_id}-${job.status}-${job.steps.length}-${job.pending_approvals.length}-${this.lang}`)
@@ -577,46 +577,46 @@ export struct ResearchLoopPage {
       Row() {
         StatusBadge({ text: this.statusLabel(job.status), tone: this.toneOf(job.status) })
         Text(this.trf('loop.jobMax', [`${job.max_steps}`]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ left: 10 })
+          .margin({ left: 10 * AppTheme.UI_SCALE })
           .layoutWeight(1)
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
       Text(job.job_id)
-        .fontSize(11)
+        .fontSize(11 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .width('100%')
-        .margin({ top: 6 })
+        .margin({ top: 6 * AppTheme.UI_SCALE })
 
       if (job.stopped_because.length > 0) {
         Text(this.trf('loop.jobStopped', [job.stopped_because]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
 
       if (job.error.length > 0) {
         Text(job.error)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
 
       if (job.pending_approvals.length > 0) {
         // 它们没被执行，但也没挡住其他路线 —— 两件事都要说清楚。
         Text(this.trf('loop.pending', [this.pendingText(job)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
           .width('100%')
-          .padding(12)
+          .padding(12 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.WARN_SOFT)
           .borderRadius(AppTheme.RADIUS_SM)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
 
       ForEach(job.steps, (step: ResearchLoopStep, index: number) => {
@@ -625,7 +625,7 @@ export struct ResearchLoopPage {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
+    .padding(16 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.PAGE_BG)
     .borderRadius(AppTheme.RADIUS)
   }
@@ -635,24 +635,24 @@ export struct ResearchLoopPage {
   StepRow(index: number, step: ResearchLoopStep) {
     Row() {
       Text(`${index}`)
-        .fontSize(11)
+        .fontSize(11 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
-        .width(20)
-        .margin({ top: 2 })
+        .width(20 * AppTheme.UI_SCALE)
+        .margin({ top: 2 * AppTheme.UI_SCALE })
 
       Column() {
         Row() {
           Text(this.actionLabel(step.decision.action))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
           StatusBadge({ text: this.statusLabel(step.status), tone: this.toneOf(step.status) })
-            .margin({ left: 8 })
+            .margin({ left: 8 * AppTheme.UI_SCALE })
           if (step.decision.target_id !== null && step.decision.target_id.length > 0) {
             Text(step.decision.target_id)
-              .fontSize(11)
+              .fontSize(11 * AppTheme.UI_SCALE)
               .fontColor(AppTheme.TEXT_TERTIARY)
-              .margin({ left: 8 })
+              .margin({ left: 8 * AppTheme.UI_SCALE })
               .layoutWeight(1)
           }
         }
@@ -661,10 +661,10 @@ export struct ResearchLoopPage {
 
         if (step.detail.length > 0) {
           Text(step.detail)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 6 })
+            .margin({ top: 6 * AppTheme.UI_SCALE })
             .maxLines(4)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -674,7 +674,7 @@ export struct ResearchLoopPage {
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
   }
 
   /** 假设段：每条假设的状态、预测、反证条件与（如果有）跑不起来的理由。 */
@@ -684,7 +684,7 @@ export struct ResearchLoopPage {
       if (this.hypotheses.length === 0) {
         EmptyHint({ text: this.tr('loop.noHypotheses') })
       } else {
-        Column({ space: 16 }) {
+        Column({ space: 16 * AppTheme.UI_SCALE }) {
           ForEach(this.hypotheses, (item: ResearchHypothesis) => {
             this.HypothesisBlock(item)
           }, (item: ResearchHypothesis) => `${item.hypothesis_id}-${item.status}-${item.statement}-${item.predictions.join('|')}-${item.falsifiers.join('|')}-${this.lang}`)
@@ -700,14 +700,14 @@ export struct ResearchLoopPage {
     Column() {
       Row() {
         Text(item.hypothesis_id)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
         Text(item.statement)
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
-          .margin({ left: 10 })
+          .margin({ left: 10 * AppTheme.UI_SCALE })
           .maxLines(3)
       }
       .width('100%')
@@ -718,11 +718,11 @@ export struct ResearchLoopPage {
         if (!item.falsifiable) {
           // 可证伪的判据由后端给出，界面不自己拿两个数组的长度去算。
           StatusBadge({ text: this.tr('loop.unfalsifiable'), tone: 'warn' })
-            .margin({ left: 8 })
+            .margin({ left: 8 * AppTheme.UI_SCALE })
         }
       }
       .width('100%')
-      .margin({ top: 10 })
+      .margin({ top: 10 * AppTheme.UI_SCALE })
 
       this.TextList(this.tr('loop.predictions'), item.predictions)
       this.TextList(this.tr('loop.falsifiers'), item.falsifiers)
@@ -730,26 +730,26 @@ export struct ResearchLoopPage {
 
       if (!item.falsifiable) {
         Text(this.tr('loop.unfalsifiableHint'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .width('100%')
-          .margin({ top: 8 })
+          .margin({ top: 8 * AppTheme.UI_SCALE })
       }
 
       if (this.blockedReason(item.hypothesis_id).length > 0) {
         Text(this.trf('loop.blocked', [this.blockedReason(item.hypothesis_id)]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.WARN_TEXT)
           .width('100%')
-          .padding(12)
+          .padding(12 * AppTheme.UI_SCALE)
           .backgroundColor(AppTheme.WARN_SOFT)
           .borderRadius(AppTheme.RADIUS_SM)
-          .margin({ top: 10 })
+          .margin({ top: 10 * AppTheme.UI_SCALE })
       }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
+    .padding(16 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -760,20 +760,20 @@ export struct ResearchLoopPage {
   TextList(title: string, items: string[]) {
     if (items.length > 0) {
       Text(title)
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .width('100%')
-        .margin({ top: 12 })
-      Column({ space: 4 }) {
+        .margin({ top: 12 * AppTheme.UI_SCALE })
+      Column({ space: 4 * AppTheme.UI_SCALE }) {
         ForEach(items, (line: string) => {
           Text(`· ${line}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
         }, (line: string) => `${title}-${line}`)
       }
       .width('100%')
-      .margin({ top: 4 })
+      .margin({ top: 4 * AppTheme.UI_SCALE })
     }
   }
 
@@ -784,7 +784,7 @@ export struct ResearchLoopPage {
       if (this.evidence.length === 0) {
         EmptyHint({ text: this.tr('loop.noEvidence') })
       } else {
-        Column({ space: 16 }) {
+        Column({ space: 16 * AppTheme.UI_SCALE }) {
           ForEach(this.evidence, (item: ResearchEvidence) => {
             this.EvidenceBlock(item)
           }, (item: ResearchEvidence) => `${item.evidence_id}-${item.verdict}-${this.lang}`)
@@ -800,46 +800,46 @@ export struct ResearchLoopPage {
     Column() {
       Row() {
         Text(item.experiment_id)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
         Text(this.verdictLabel(item.verdict))
-          .fontSize(14)
+          .fontSize(14 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.TEXT_PRIMARY)
           .layoutWeight(1)
-          .margin({ left: 10 })
+          .margin({ left: 10 * AppTheme.UI_SCALE })
         StatusBadge({ text: this.verdictLabel(item.verdict), tone: this.toneOf(item.verdict) })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Column({ space: 6 }) {
+      Column({ space: 6 * AppTheme.UI_SCALE }) {
         ForEach(item.checks, (check: ResearchCheckValue) => {
           this.CheckRow(check)
         }, (check: ResearchCheckValue) => `${check.name}-${check.value}`)
       }
       .width('100%')
-      .margin({ top: 12 })
+      .margin({ top: 12 * AppTheme.UI_SCALE })
 
       if (item.notes.length > 0) {
         Text(item.notes)
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
           .maxLines(6)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
 
       Text(formatTimestamp(item.recorded_at))
-        .fontSize(11)
+        .fontSize(11 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .width('100%')
-        .margin({ top: 8 })
+        .margin({ top: 8 * AppTheme.UI_SCALE })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
+    .padding(16 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
@@ -850,7 +850,7 @@ export struct ResearchLoopPage {
   CheckRow(check: ResearchCheckValue) {
     Row() {
       Text(this.checkTitle(check.name))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
         .layoutWeight(1)
         .maxLines(1)
@@ -888,23 +888,23 @@ export struct ResearchLoopPage {
       Column() {
         Row() {
           Text(this.actionLabel(item.action))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
           Text(this.listText(item.target_id === null ? '' : item.target_id))
-            .fontSize(11)
+            .fontSize(11 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ left: 10 })
+            .margin({ left: 10 * AppTheme.UI_SCALE })
             .layoutWeight(1)
         }
         .width('100%')
 
         if (item.reason.length > 0) {
           Text(item.reason)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
             .width('100%')
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
             .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -914,13 +914,13 @@ export struct ResearchLoopPage {
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 10 * AppTheme.UI_SCALE, bottom: 10 * AppTheme.UI_SCALE })
   }
 
   build() {
-    Column({ space: 20 }) {
+    Column({ space: 20 * AppTheme.UI_SCALE }) {
       PageHeader({
-        title: this.tr('nav.loop'),
+        // 标题不再放页面顶部：左侧面板里高亮的那一项已经写着「研究循环」。
         status: this.statusText(),
         onRefresh: () => {
           this.load();
@@ -933,7 +933,7 @@ export struct ResearchLoopPage {
 
       if (this.actionError.length > 0) {
         Text(this.trf('loop.actionFailed', [this.actionError]))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.DANGER)
           .width('100%')
       }
@@ -958,9 +958,9 @@ export struct ResearchLoopPage {
 
       if (this.loading) {
         Text(this.tr('common.loading'))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 12 })
+          .margin({ top: 12 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')

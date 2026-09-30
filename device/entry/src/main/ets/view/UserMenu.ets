@@ -73,22 +73,22 @@ export struct UserMenu {
   @Builder
   EntryRow(commands: string, labelKey: string, valueKey: string, valueColor: ResourceColor, onTap: () => void) {
     Row() {
-      AppIcon({ commands: commands, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 })
+      AppIcon({ commands: commands, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 * AppTheme.UI_SCALE })
       Text(this.tr(labelKey))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
-        .margin({ left: 10 })
+        .margin({ left: 10 * AppTheme.UI_SCALE })
         .layoutWeight(1)
       if (valueKey.length > 0) {
         Text(this.tr(valueKey))
-          .fontSize(12)
+          .fontSize(12 * AppTheme.UI_SCALE)
           .fontColor(valueColor)
-          .margin({ right: 6 })
+          .margin({ right: 6 * AppTheme.UI_SCALE })
       }
-      AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
+      AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
     }
     .width('100%')
-    .height(38)
+    .height(38 * AppTheme.UI_SCALE)
     .onClick(() => {
       onTap();
     })
@@ -98,20 +98,20 @@ export struct UserMenu {
   @Builder
   LangRow() {
     Row() {
-      AppIcon({ commands: IconPaths.GLOBE, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 })
+      AppIcon({ commands: IconPaths.GLOBE, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 * AppTheme.UI_SCALE })
       Text(this.tr('menu.language'))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
-        .margin({ left: 10 })
+        .margin({ left: 10 * AppTheme.UI_SCALE })
         .layoutWeight(1)
       Text(this.currentLangName())
-        .fontSize(12)
+        .fontSize(12 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ right: 6 })
-      AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
+        .margin({ right: 6 * AppTheme.UI_SCALE })
+      AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
     }
     .width('100%')
-    .height(38)
+    .height(38 * AppTheme.UI_SCALE)
     .onClick(() => {
       this.langExpanded = !this.langExpanded;
     })
@@ -122,16 +122,16 @@ export struct UserMenu {
   LangOption(value: string) {
     Row() {
       Text(langName(value))
-        .fontSize(13)
+        .fontSize(13 * AppTheme.UI_SCALE)
         .fontColor(AppTheme.TEXT_PRIMARY)
         .layoutWeight(1)
       if (this.lang === value) {
-        AppIcon({ commands: IconPaths.CHECK, color: AppTheme.PRIMARY, filled: false, iconSize: 14 })
+        AppIcon({ commands: IconPaths.CHECK, color: AppTheme.PRIMARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
       }
     }
     .width('100%')
-    .height(34)
-    .padding({ left: 40 })
+    .height(34 * AppTheme.UI_SCALE)
+    .padding({ left: 40 * AppTheme.UI_SCALE })
     .onClick(() => {
       setLang(value);
       this.onClose();
@@ -143,50 +143,50 @@ export struct UserMenu {
       Row() {
         Stack({ alignContent: Alignment.Center }) {
           Image($r('app.media.logo_mark'))
-            .width(26)
-            .height(26)
+            .width(26 * AppTheme.UI_SCALE)
+            .height(26 * AppTheme.UI_SCALE)
             .objectFit(ImageFit.Contain)
         }
-        .width(40)
-        .height(40)
+        .width(40 * AppTheme.UI_SCALE)
+        .height(40 * AppTheme.UI_SCALE)
         .backgroundColor(AppTheme.PRIMARY_SOFT)
-        .borderRadius(12)
+        .borderRadius(12 * AppTheme.UI_SCALE)
         Column() {
           Text(this.accountUsername)
-            .fontSize(14)
+            .fontSize(14 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
           Text(`${this.tr('auth.balance')}：${this.accountCredits.toFixed(2)}`)
-            .fontSize(12)
+            .fontSize(12 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_TERTIARY)
-            .margin({ top: 4 })
+            .margin({ top: 4 * AppTheme.UI_SCALE })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
-        .margin({ left: 12 })
+        .margin({ left: 12 * AppTheme.UI_SCALE })
 
         Text(this.tr('menu.badge'))
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.PRIMARY_DARK)
           .backgroundColor(AppTheme.PRIMARY_SOFT)
-          .borderRadius(6)
-          .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+          .borderRadius(6 * AppTheme.UI_SCALE)
+          .padding({ left: 8 * AppTheme.UI_SCALE, right: 8 * AppTheme.UI_SCALE, top: 3 * AppTheme.UI_SCALE, bottom: 3 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
       Row() {
         Text(this.tr('menu.refresh'))
-          .fontSize(13)
+          .fontSize(13 * AppTheme.UI_SCALE)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppTheme.PRIMARY_DARK)
       }
       .width('100%')
-      .height(36)
+      .height(36 * AppTheme.UI_SCALE)
       .justifyContent(FlexAlign.Center)
       .backgroundColor(AppTheme.PRIMARY_SOFT)
       .borderRadius(AppTheme.RADIUS_SM)
-      .margin({ top: 16 })
+      .margin({ top: 16 * AppTheme.UI_SCALE })
       .onClick(() => {
         this.onRefresh();
         this.onClose();
@@ -195,29 +195,29 @@ export struct UserMenu {
       Column() {
         Row() {
           Text(this.tr('menu.blockedTitle'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_SECONDARY)
           Blank()
           Text(this.blockerCount > 0
             ? this.trf('menu.blockedUnit', [`${this.blockerCount}`])
             : this.tr('menu.blockedNone'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.blockerCount > 0 ? AppTheme.DANGER : AppTheme.PRIMARY_DARK)
         }
         .width('100%')
 
         Text(this.tr('menu.blockedHint'))
-          .fontSize(11)
+          .fontSize(11 * AppTheme.UI_SCALE)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
+          .margin({ top: 6 * AppTheme.UI_SCALE })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
-      .padding(12)
+      .padding(12 * AppTheme.UI_SCALE)
       .backgroundColor(AppTheme.PAGE_BG)
       .borderRadius(AppTheme.RADIUS_SM)
-      .margin({ top: 12 })
+      .margin({ top: 12 * AppTheme.UI_SCALE })
 
       Column() {
         this.EntryRow(IconPaths.FOLDER, 'menu.switchProject', '', AppTheme.TEXT_SECONDARY, () => {
@@ -240,25 +240,25 @@ export struct UserMenu {
           })
 
         Row() {
-          AppIcon({ commands: IconPaths.BELL, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 })
+          AppIcon({ commands: IconPaths.BELL, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 * AppTheme.UI_SCALE })
           Text(this.tr('menu.messages'))
-            .fontSize(13)
+            .fontSize(13 * AppTheme.UI_SCALE)
             .fontColor(AppTheme.TEXT_PRIMARY)
-            .margin({ left: 10 })
+            .margin({ left: 10 * AppTheme.UI_SCALE })
             .layoutWeight(1)
           if (this.blockerCount > 0) {
             Text(`${this.blockerCount}`)
-              .fontSize(11)
+              .fontSize(11 * AppTheme.UI_SCALE)
               .fontColor(Color.White)
               .backgroundColor(AppTheme.DANGER)
-              .borderRadius(9)
-              .padding({ left: 6, right: 6, top: 1, bottom: 1 })
-              .margin({ right: 6 })
+              .borderRadius(9 * AppTheme.UI_SCALE)
+              .padding({ left: 6 * AppTheme.UI_SCALE, right: 6 * AppTheme.UI_SCALE, top: 1 * AppTheme.UI_SCALE, bottom: 1 * AppTheme.UI_SCALE })
+              .margin({ right: 6 * AppTheme.UI_SCALE })
           }
-          AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
+          AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 * AppTheme.UI_SCALE })
         }
         .width('100%')
-        .height(38)
+        .height(38 * AppTheme.UI_SCALE)
         .onClick(() => {
           this.onNavigate('workflow');
           this.onClose();
@@ -270,19 +270,19 @@ export struct UserMenu {
         })
       }
       .width('100%')
-      .margin({ top: 10 })
+      .margin({ top: 10 * AppTheme.UI_SCALE })
 
       Divider()
         .color(AppTheme.BORDER)
-        .margin({ top: 8, bottom: 4 })
+        .margin({ top: 8 * AppTheme.UI_SCALE, bottom: 4 * AppTheme.UI_SCALE })
 
       this.EntryRow(IconPaths.LOGOUT, 'auth.signOut', '', AppTheme.TEXT_SECONDARY, () => {
         this.onLogout();
       })
     }
     .alignItems(HorizontalAlign.Start)
-    .width(300)
-    .padding(16)
+    .width(300 * AppTheme.UI_SCALE)
+    .padding(16 * AppTheme.UI_SCALE)
     .backgroundColor(AppTheme.SURFACE)
     .borderRadius(AppTheme.RADIUS_LG)
     .border({ width: 1, color: AppTheme.BORDER })
