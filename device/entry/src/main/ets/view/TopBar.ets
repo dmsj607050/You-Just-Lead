@@ -74,7 +74,7 @@ export struct TopBar {
           AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
             .margin({ left: 6 })
         }
-        .constraintSize({ maxWidth: this.tightHeader ? 108 : (this.compactHeader ? 148 : 280) })
+        .constraintSize({ maxWidth: this.tightHeader ? 108 : (this.compactHeader ? 148 : 228) })
         .height(38)
         .padding({ left: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14), right: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14) })
         .backgroundColor(AppTheme.PRIMARY_SOFT)

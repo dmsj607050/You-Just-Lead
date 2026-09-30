@@ -224,6 +224,7 @@ const LOADERS = {
 
 const State = {
   nav: 'overview',
+  expandedNavGroup: 'workspace',
   data: {},
   errors: {},
   loading: {},
@@ -244,7 +245,7 @@ const State = {
     trace: 'rule',
     reproduction: 'plans',
     loop: 'now',
-    settings: 'workspace',
+    settings: 'overview',
   },
   // 各页的输入草稿：重渲染后要能原样回到输入框里。
   drafts: {},
@@ -267,13 +268,15 @@ const NAV_ITEMS = [
 
 function sidebarHtml() {
   const groups = [
-    { key: 'workspace', label: '工作区' },
-    { key: 'research', label: '研究' },
-    { key: 'outputs', label: '产出' },
+    { key: 'workspace', label: '工作区', icon: 'grid' },
+    { key: 'research', label: '研究', icon: 'chart' },
+    { key: 'outputs', label: '产出', icon: 'pen' },
   ];
   const items = groups.map((group) => {
     const groupItems = NAV_ITEMS.filter((item) => item.group === group.key);
-    const buttons = groupItems.map((item) => {
+    const expanded = State.expandedNavGroup === group.key;
+    const active = groupItems.some((item) => item.key === State.nav);
+    const buttons = expanded ? groupItems.map((item) => {
       const active = item.key === State.nav ? ' active' : '';
       const current = item.key === State.nav ? ' aria-current="page"' : '';
       return (
@@ -281,9 +284,12 @@ function sidebarHtml() {
         ` aria-label="${UI.esc(item.label)}" title="${UI.esc(item.label)}"${current}>` +
         `${UI.icon(item.icon)}<span>${UI.esc(item.label)}</span></button>`
       );
-    }).join('');
+    }).join('') : '';
     return `<div class="sidebar-section" role="group" aria-label="${group.label}">` +
-      `<div class="sidebar-section-label" aria-hidden="true">${group.label}</div>${buttons}</div>`;
+      `<button class="nav-group-toggle${expanded ? ' expanded' : ''}${active ? ' active' : ''}" data-action="nav-group" data-key="${group.key}"` +
+      ` aria-expanded="${expanded}" aria-controls="nav-items-${group.key}">` +
+      `${UI.icon(group.icon)}<span>${group.label}</span><span class="nav-group-chevron" aria-hidden="true"></span></button>` +
+      `<div class="nav-group-items" id="nav-items-${group.key}"${expanded ? '' : ' hidden'}>${buttons}</div></div>`;
   }).join('');
   const settingsActive = State.nav === 'settings' ? ' active' : '';
   const settingsCurrent = State.nav === 'settings' ? ' aria-current="page"' : '';
@@ -458,8 +464,16 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'nav-group') {
+    State.expandedNavGroup = State.expandedNavGroup === key ? '' : key;
+    render();
+    return;
+  }
+
   if (action === 'nav') {
     State.nav = key;
+    const selected = NAV_ITEMS.find((item) => item.key === key);
+    if (selected) State.expandedNavGroup = selected.group;
     if (window.location.hash !== `#${key}`) window.location.hash = key;
     render();
     load(key);
@@ -536,6 +550,8 @@ window.addEventListener('hashchange', () => {
   const key = navFromHash();
   if (key === State.nav) return;
   State.nav = key;
+  const selected = NAV_ITEMS.find((item) => item.key === key);
+  if (selected) State.expandedNavGroup = selected.group;
   render();
   load(key);
 });
@@ -565,6 +581,8 @@ async function loadContract() {
 
 async function boot() {
   State.nav = navFromHash();
+  const selected = NAV_ITEMS.find((item) => item.key === State.nav);
+  if (selected) State.expandedNavGroup = selected.group;
   document.body.innerHTML = `<div class="app">${TOPBAR}<div class="body">
     <div class="sidebar" id="sidebar"></div>
     <div class="content"><div class="content-inner" id="content"></div></div>

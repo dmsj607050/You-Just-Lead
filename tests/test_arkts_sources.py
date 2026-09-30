@@ -301,7 +301,7 @@ class ResponsiveHeaderTests(unittest.TestCase):
 
 
 class GroupedNavigationTests(unittest.TestCase):
-    """端侧侧栏按科研流程分组，并保证中英文都有分组标题。"""
+    """端侧侧栏按科研流程分组，并支持图标分组的展开与收起。"""
 
     def test_side_navigation_renders_all_shared_groups_and_items(self) -> None:
         root = _device_root()
@@ -317,7 +317,11 @@ class GroupedNavigationTests(unittest.TestCase):
 
         self.assertIn("return ['workspace', 'research', 'outputs'];", side_nav)
         self.assertIn("this.tr(`nav.group.${groupKey}`)", side_nav)
-        self.assertIn("ForEach(this.itemsForGroup(groupKey)", side_nav)
+        self.assertIn("@State expandedGroup: string = 'workspace';", side_nav)
+        self.assertIn("this.expandedGroup === groupKey ? this.itemsForGroup(groupKey) : []", side_nav)
+        self.assertIn("this.expandedGroup = this.expandedGroup === groupKey ? '' : groupKey;", side_nav)
+        self.assertIn("private isActiveGroup(groupKey: string): boolean", side_nav)
+        self.assertIn("this.isActiveGroup(groupKey) ? AppTheme.PRIMARY_SOFT", side_nav)
         self.assertIn("this.onSelect(item.key);", side_nav)
         self.assertIn("item.key === 'workflow' && this.blockerCount > 0", side_nav)
         self.assertIn(".scrollBar(BarState.Auto)", side_nav)

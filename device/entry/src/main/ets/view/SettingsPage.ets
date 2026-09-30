@@ -16,17 +16,21 @@ import {
 } from '../common/BackendClient';
 import { ACCESS_TOKEN, BASE_URL } from '../common/BackendConfig';
 import AppTheme from '../common/AppTheme';
+import IconPaths from '../common/IconPaths';
 import { tFor, tfFor } from '../common/I18n';
 import {
   CardPanel,
+  ChipButton,
   ChoiceChips,
   ChoiceSpec,
   EmptyHint,
+  InfoRow,
   KeyValueRow,
-  PageHeader,
   RailItemSpec,
+  SectionCard,
   SectionRail,
-  StatusBadge
+  StatusBadge,
+  StatusTile
 } from './Widgets';
 import { LocalWorkspaceCard } from './LocalWorkspaceCard';
 
@@ -51,18 +55,18 @@ export struct SettingsPage {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  /** 父布局在窄窗口下传入，用于把环境卡片堆叠显示。 */
+  @Prop compact: boolean = false;
   @State loading: boolean = false;
   @State errorText: string = '';
   @State health: HealthInfo | null = null;
   @State providers: ProviderSettings | null = null;
   @State runtime: RuntimeSnapshot | null = null;
   /**
-   * 当前分段：workspace / backend / model / runtime。
-   *
-   * 设置页原先也是「一排统计块 + 三张卡堆一列」。现在一次只看一段，
-   * 「连没连上、模型是什么、有没有 GPU」写在标题下面一行里。
+   * 当前分段：overview / model / runtime / advanced。
+   * 总览持续展示服务和运行环境状态，模型、运行环境详情可分别进入。
    */
-  @State section: string = 'workspace';
+  @State section: string = 'overview';
 
   /** 正在编辑的来源 id；空串＝没在编辑，`new`＝新增。 */
   @State providerEditId: string = '';
@@ -108,35 +112,85 @@ export struct SettingsPage {
     }
   }
 
-  /** 一行现状：后端连接 · 模型 · GPU · Conda。 */
-  private statusText(): string {
-    const connected: string = this.health === null ? this.tr('settings.notConnected') : this.tr('menu.backendOk');
-    const model: string = this.providers === null || this.providers.model.length === 0
-      ? '—'
-      : this.providers.model;
-    const gpu: string = this.runtime === null
-      ? '—'
-      : (this.runtime.gpu_available
-        ? this.trf('settings.gpuCount', [`${this.runtime.gpus.length}`])
-        : this.tr('settings.unavailable'));
-    const conda: string = this.runtime === null
-      ? '—'
-      : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable'));
-    return this.trf('settings.status', [connected, model, gpu, conda]);
+  private backendReady(): boolean {
+    return this.health !== null;
+  }
+
+  private modelReady(): boolean {
+    return this.providers !== null && this.providers.configured;
+  }
+
+  private missingRuntimeCount(): number {
+    if (this.runtime === null) {
+      return 0;
+    }
+    let count: number = 0;
+    if (!this.runtime.gpu_available) count += 1;
+    if (!this.runtime.conda_available) count += 1;
+    return count;
+  }
+
+  private readinessTitle(): string {
+    if (this.loading && (this.health === null || this.providers === null)) {
+      return this.tr('settings.checking');
+    }
+    if (!this.backendReady() || !this.modelReady()) {
+      return this.tr('settings.verdictBlocked');
+    }
+    return this.missingRuntimeCount() > 0
+      ? this.tr('settings.verdictLimited')
+      : this.tr('settings.verdictReady');
+  }
+
+  private readinessNote(): string {
+    if (this.loading && (this.health === null || this.providers === null)) {
+      return this.tr('settings.checkingNote');
+    }
+    if (!this.backendReady()) {
+      return this.tr('settings.readiness.backendUnavailable');
+    }
+    if (!this.modelReady()) {
+      return this.tr('settings.readiness.modelUnavailable');
+    }
+    if (this.missingRuntimeCount() > 0) {
+      return this.tr('settings.readiness.limited');
+    }
+    return this.tr('settings.readiness.ready');
+  }
+
+  private readinessTone(): string {
+    if (!this.backendReady()) {
+      return this.loading && this.errorText.length === 0 ? 'muted' : 'danger';
+    }
+    if (!this.modelReady()) {
+      return this.providers === null && this.loading ? 'muted' : 'warn';
+    }
+    return this.missingRuntimeCount() > 0 ? 'warn' : 'ok';
+  }
+
+  private runtimeGapText(): string {
+    const gaps: string[] = [];
+    if (this.runtime !== null && !this.runtime.gpu_available) {
+      gaps.push(this.tr('settings.gpuCuda'));
+    }
+    if (this.runtime !== null && !this.runtime.conda_available) {
+      gaps.push(this.tr('settings.condaEnv'));
+    }
+    return gaps.join('、');
   }
 
   /** 分段导航的项。色点说的是这一段通不通，不是它有多少条。 */
   private railItems(): RailItemSpec[] {
     const modelConfigured: boolean = this.providers !== null && this.providers.configured;
     return [
-      { key: 'workspace', label: this.tr('settings.section.workspace'), tone: 'muted' },
-      { key: 'backend', label: this.tr('settings.section.backend'), tone: this.health === null ? 'warn' : 'ok' },
+      { key: 'overview', label: this.tr('settings.section.overview'), tone: this.readinessTone() },
       { key: 'model', label: this.tr('settings.section.model'), tone: modelConfigured ? 'ok' : 'warn' },
       {
         key: 'runtime',
         label: this.tr('settings.section.runtime'),
         tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn')
-      }
+      },
+      { key: 'advanced', label: this.tr('settings.section.advanced'), tone: 'muted' }
     ];
   }
 
@@ -346,7 +400,7 @@ export struct SettingsPage {
   @Builder
   ErrorBanner() {
     Column() {
-      Text(this.tr('common.connectionFailed'))
+      Text(this.tr('settings.statusReadFailed'))
         .fontSize(15)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.DANGER)
@@ -697,19 +751,291 @@ export struct SettingsPage {
     .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
+  /** 页面抬头保持克制，让紧随其后的运行就绪结论成为视觉焦点。 */
+  @Builder
+  SettingsHeading() {
+    Column() {
+      Text(this.tr('nav.settings'))
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+      Text(this.tr('settings.pageDesc'))
+        .fontSize(12)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .margin({ top: 3 })
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+  }
+
+  /** 总览顶部：服务与模型是能否连上服务的关键；GPU / Conda 只影响对应的计算能力。 */
+  @Builder
+  ReadinessPanel() {
+    Column() {
+      Row() {
+        Column() {
+          Text(this.tr('settings.readiness.title'))
+            .fontSize(11)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+          Text(this.readinessTitle())
+            .fontSize(19)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.readinessTone() === 'danger'
+              ? AppTheme.DANGER
+              : (this.readinessTone() === 'warn' ? AppTheme.WARN_TEXT : AppTheme.TEXT_PRIMARY))
+            .margin({ top: 4 })
+          Text(this.readinessNote())
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+            .maxLines(2)
+            .margin({ top: 4 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        ChipButton({
+          icon: IconPaths.REFRESH,
+          label: this.loading ? this.tr('settings.checking') : this.tr('settings.recheckAll'),
+          tone: 'primary',
+          active: !this.loading,
+          onTap: () => {
+            this.load();
+          }
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      if (this.missingRuntimeCount() > 0) {
+        Column() {
+          Row() {
+            Text(this.trf('settings.limitedTitle', [`${this.missingRuntimeCount()}`]))
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(AppTheme.WARN_TEXT)
+              .layoutWeight(1)
+            Text(this.tr('settings.section.runtime'))
+              .fontSize(12)
+              .fontColor(AppTheme.WARN_TEXT)
+              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+              .onClick(() => {
+                this.section = 'runtime';
+              })
+          }
+          .width('100%')
+          Text(this.trf('settings.limitedBody', [this.runtimeGapText()]))
+            .fontSize(12)
+            .fontColor(AppTheme.WARN_TEXT)
+            .width('100%')
+            .margin({ top: 4 })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 12, right: 12, top: 9, bottom: 9 })
+        .backgroundColor(AppTheme.WARN_SOFT)
+        .borderRadius(AppTheme.RADIUS_SM)
+        .margin({ top: 12 })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(18)
+    .backgroundColor(AppTheme.SURFACE)
+    .borderRadius(AppTheme.RADIUS_LG)
+    .border({ width: 1, color: this.readinessTone() === 'warn' ? AppTheme.WARN_SOFT : AppTheme.BORDER })
+  }
+
+  @Builder
+  StatusTilesFirstRow() {
+    Row({ space: 12 }) {
+      StatusTile({
+        icon: IconPaths.SERVER,
+        title: this.tr('settings.tile.backend'),
+        subtitle: this.tr('settings.tile.backend'),
+        tone: this.backendReady() ? 'ok' : (this.health === null && this.loading ? 'muted' : 'danger'),
+        pill: this.backendReady() ? this.tr('settings.pillNormal') : (this.loading ? this.tr('settings.checking') : this.tr('settings.notConnected')),
+        value: this.backendReady() ? this.tr('menu.backendOk') : '',
+        note: this.backendReady() ? this.tr('settings.tile.noteBackendOk') : this.tr('settings.tile.noteBackendDown')
+      }).layoutWeight(1)
+      StatusTile({
+        icon: IconPaths.BRAIN,
+        title: this.tr('settings.tile.model'),
+        subtitle: this.providers !== null && this.providers.managed ? this.tr('settings.managedByPlatform') : this.tr('settings.section.model'),
+        tone: this.modelReady() ? 'ok' : (this.providers === null && this.loading ? 'muted' : 'warn'),
+        pill: this.modelReady() ? this.tr('settings.pillNormal') : (this.loading ? this.tr('settings.checking') : this.tr('settings.pillUnconfigured')),
+        value: this.providers === null ? '' : (this.providers.model.length > 0 ? this.providers.model : '—'),
+        note: this.modelReady() ? this.tr('settings.tile.noteModelOk') : this.tr('settings.tile.noteModelMissing')
+      }).layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  StatusTilesSecondRow() {
+    Row({ space: 12 }) {
+      StatusTile({
+        icon: IconPaths.BOX,
+        title: this.tr('settings.gpuCuda'),
+        subtitle: 'GPU / CUDA',
+        tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn'),
+        pill: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.gpu_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+        value: this.runtime !== null && this.runtime.gpus.length > 0 ? this.runtime.gpus[0].name : '',
+        note: this.runtime === null ? this.tr('settings.checkingNote') : (this.runtime.gpu_available ? this.tr('settings.tile.noteGpuOk') : this.tr('settings.tile.noteGpuMissing') )
+      }).layoutWeight(1)
+      StatusTile({
+        icon: IconPaths.SLIDERS,
+        title: this.tr('settings.condaEnv'),
+        subtitle: 'Conda',
+        tone: this.runtime === null ? 'muted' : (this.runtime.conda_available ? 'ok' : 'warn'),
+        pill: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.conda_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+        value: this.runtime !== null && this.runtime.conda_available ? this.tr('settings.available') : '',
+        note: this.runtime === null ? this.tr('settings.checkingNote') : (this.runtime.conda_available ? this.tr('settings.tile.noteCondaOk') : this.tr('settings.tile.noteCondaMissing'))
+      }).layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  StatusTilesWideRow() {
+    Row({ space: 12 }) {
+      StatusTile({
+        icon: IconPaths.SERVER,
+        title: this.tr('settings.tile.backend'),
+        subtitle: 'API',
+        tone: this.backendReady() ? 'ok' : (this.health === null && this.loading ? 'muted' : 'danger'),
+        pill: this.backendReady() ? this.tr('settings.pillNormal') : (this.loading ? this.tr('settings.checking') : this.tr('settings.notConnected')),
+        value: this.backendReady() ? this.tr('menu.backendOk') : '',
+        note: this.backendReady() ? this.tr('settings.tile.noteBackendOk') : this.tr('settings.tile.noteBackendDown')
+      }).layoutWeight(1)
+      StatusTile({
+        icon: IconPaths.BRAIN,
+        title: this.tr('settings.tile.model'),
+        subtitle: this.providers !== null && this.providers.managed ? this.tr('settings.managedByPlatform') : this.tr('settings.section.model'),
+        tone: this.modelReady() ? 'ok' : (this.providers === null && this.loading ? 'muted' : 'warn'),
+        pill: this.modelReady() ? this.tr('settings.pillNormal') : (this.loading ? this.tr('settings.checking') : this.tr('settings.pillUnconfigured')),
+        value: this.providers === null ? '' : (this.providers.model.length > 0 ? this.providers.model : '—'),
+        note: this.modelReady() ? this.tr('settings.tile.noteModelOk') : this.tr('settings.tile.noteModelMissing')
+      }).layoutWeight(1)
+      StatusTile({
+        icon: IconPaths.BOX,
+        title: this.tr('settings.gpuCuda'),
+        subtitle: 'GPU / CUDA',
+        tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn'),
+        pill: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.gpu_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+        value: this.runtime !== null && this.runtime.gpus.length > 0 ? this.runtime.gpus[0].name : '',
+        note: this.runtime === null ? this.tr('settings.checkingNote') : (this.runtime.gpu_available ? this.tr('settings.tile.noteGpuOk') : this.tr('settings.tile.noteGpuMissing'))
+      }).layoutWeight(1)
+      StatusTile({
+        icon: IconPaths.SLIDERS,
+        title: this.tr('settings.condaEnv'),
+        subtitle: 'Conda',
+        tone: this.runtime === null ? 'muted' : (this.runtime.conda_available ? 'ok' : 'warn'),
+        pill: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.conda_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+        value: this.runtime !== null && this.runtime.conda_available ? this.tr('settings.available') : '',
+        note: this.runtime === null ? this.tr('settings.checkingNote') : (this.runtime.conda_available ? this.tr('settings.tile.noteCondaOk') : this.tr('settings.tile.noteCondaMissing'))
+      }).layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  ModelRuntimeSummary() {
+    SectionCard({
+      title: this.tr('settings.card.modelRuntime'),
+      subtitle: this.tr('settings.card.modelRuntimeSub'),
+      icon: IconPaths.BOX,
+      iconTone: this.modelReady() ? 'ok' : 'warn',
+      weight: this.compact ? 0 : 1,
+      actionLabel: this.providers !== null && this.providers.managed
+        ? this.tr('settings.viewModelInfo')
+        : this.tr('settings.section.model'),
+      onAction: () => {
+        this.section = 'model';
+      }
+    }) {
+      Column() {
+        InfoRow({
+          label: this.tr('settings.modelProvider'),
+          value: this.providers !== null && this.providers.managed ? this.tr('settings.deepseekManaged') : this.currentNameText()
+        })
+        InfoRow({
+          label: this.tr('settings.modelName'),
+          value: this.providers === null ? '—' : this.providers.model
+        })
+        InfoRow({
+          label: this.tr('settings.pythonInterpreter'),
+          value: this.runtime === null ? '—' : this.runtime.python,
+          mono: true
+        })
+        InfoRow({
+          label: this.tr('settings.condaEnv'),
+          value: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable')),
+          pill: this.runtime === null ? '' : (this.runtime.conda_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+          tone: this.runtime === null ? 'muted' : (this.runtime.conda_available ? 'ok' : 'warn')
+        })
+        InfoRow({
+          label: this.tr('settings.gpuCuda'),
+          value: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.gpu_available ? this.trf('settings.gpuCount', [`${this.runtime.gpus.length}`]) : this.tr('settings.unavailable')),
+          pill: this.runtime === null ? '' : (this.runtime.gpu_available ? this.tr('settings.pillNormal') : this.tr('settings.pillNotDetected')),
+          tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn')
+        })
+        Text(this.providers !== null && this.providers.managed
+          ? this.tr('settings.managedModelHint')
+          : this.tr('settings.localModelHint'))
+          .fontSize(11)
+          .fontColor(AppTheme.TEXT_TERTIARY)
+          .width('100%')
+          .margin({ top: 8 })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+    }
+  }
+
+  @Builder
+  OverviewSection() {
+    Column({ space: 12 }) {
+      if (this.compact) {
+        this.StatusTilesFirstRow()
+        this.StatusTilesSecondRow()
+      } else {
+        this.StatusTilesWideRow()
+      }
+      if (this.compact) {
+        Column({ space: 12 }) {
+          LocalWorkspaceCard()
+          this.ModelRuntimeSummary()
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      } else {
+        Row({ space: 12 }) {
+          LocalWorkspaceCard()
+            .layoutWeight(1)
+          this.ModelRuntimeSummary()
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
   build() {
     Column({ space: 20 }) {
-      PageHeader({
-        title: this.tr('nav.settings'),
-        status: this.statusText(),
-        onRefresh: () => {
-          this.load();
-        }
-      })
+      this.SettingsHeading()
 
       if (this.errorText.length > 0) {
         this.ErrorBanner()
       }
+
+      this.ReadinessPanel()
 
       SectionRail({
         items: this.railItems(),
@@ -719,32 +1045,8 @@ export struct SettingsPage {
         }
       })
 
-      if (this.section === 'backend') {
-        CardPanel({
-          title: this.tr('menu.backend')
-        }) {
-          Column() {
-            KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
-            KeyValueRow({
-              label: this.health !== null && this.health.mode === 'cloud'
-                ? this.tr('settings.accountAuth')
-                : this.tr('settings.sharedToken'),
-              value: this.health !== null && this.health.mode === 'cloud'
-                ? this.tr('settings.accountAuthActive')
-                : (ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured'))
-            })
-            KeyValueRow({
-              label: this.tr('settings.health'),
-              value: this.health === null ? '—' : this.health.status
-            })
-            KeyValueRow({
-              label: this.tr('settings.workspace'),
-              value: this.health === null ? '—' : (this.health.workspace || '—'),
-              mono: true
-            })
-          }
-          .width('100%')
-        }
+      if (this.section === 'overview') {
+        this.OverviewSection()
       } else if (this.section === 'model') {
         if (this.providers !== null && this.providers.managed === true) {
           this.ManagedModelSection()
@@ -766,18 +1068,61 @@ export struct SettingsPage {
               label: 'Python',
               value: this.runtime === null ? '—' : this.runtime.python
             })
+            KeyValueRow({
+              label: this.tr('settings.condaEnv'),
+              value: this.runtime === null ? this.tr('settings.notProbed') : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable'))
+            })
             if (this.runtime === null || this.runtime.gpus.length === 0) {
-              EmptyHint({ text: this.tr('settings.noGpu') })
+              EmptyHint({ text: this.runtime === null ? this.tr('settings.notProbed') : this.tr('settings.tile.noteGpuMissing') })
             } else {
               ForEach(this.runtime.gpus, (item: GpuDevice) => {
                 this.GpuRow(item)
               }, (item: GpuDevice) => item.name)
             }
+            Text(this.tr('settings.runtimeManagementHint'))
+              .fontSize(12)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .width('100%')
+              .margin({ top: 12 })
           }
           .width('100%')
         }
-      } else {
-        LocalWorkspaceCard()
+      } else if (this.section === 'advanced') {
+        Column({ space: 12 }) {
+          CardPanel({ title: this.tr('settings.card.advanced') }) {
+            Column() {
+              KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
+              KeyValueRow({
+                label: this.health !== null && this.health.mode === 'cloud'
+                  ? this.tr('settings.accountAuth')
+                  : this.tr('settings.sharedToken'),
+                value: this.health !== null && this.health.mode === 'cloud'
+                  ? this.tr('settings.accountAuthActive')
+                  : (ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured'))
+              })
+              KeyValueRow({ label: this.tr('settings.health'), value: this.health === null ? '—' : this.health.status })
+              KeyValueRow({
+                label: this.tr('settings.workspace'),
+                value: this.health === null ? '—' : (this.health.workspace || '—'),
+                mono: true
+              })
+              Text(this.tr('settings.advancedHint'))
+                .fontSize(12)
+                .fontColor(AppTheme.TEXT_SECONDARY)
+                .width('100%')
+                .margin({ top: 12 })
+            }
+            .width('100%')
+          }
+          CardPanel({ title: this.tr('settings.card.permissions') }) {
+            Text(this.tr('settings.agentPermissionsHint'))
+              .fontSize(12)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
       }
 
       if (this.loading) {

@@ -29,8 +29,8 @@ export default class AppTheme {
   static readonly WARN_SOFT = $r('app.color.warn_soft');
 
   /** 顶栏与侧栏尺寸。 */
-  static readonly TOPBAR_HEIGHT: number = 64;
-  static readonly SIDEBAR_WIDTH: number = 232;
+  static readonly TOPBAR_HEIGHT: number = 56;
+  static readonly SIDEBAR_WIDTH: number = 198;
 
   /** 内容区最大宽度。宽屏下上限，普通 2in1 窗口内不生效，保持内容铺满。 */
   static readonly CONTENT_MAX_WIDTH: number = 1440;

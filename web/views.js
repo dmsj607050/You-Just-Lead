@@ -1041,34 +1041,98 @@ Views.settings = function (data) {
   const health = data.health || {};
   const models = data.providers || {};
   const runtime = data.runtime || {};
+  const gpus = runtime.gpus || [];
+  const backendReady = health.status === 'ok';
+  const modelReady = models.configured === true;
+  const gpuReady = runtime.gpu_available === true || gpus.length > 0;
+  const condaReady = runtime.conda_available === true;
+  const missing = [!gpuReady && 'GPU / CUDA', !condaReady && 'Conda'].filter(Boolean);
   const sections = [
-    { key: 'workspace', label: '工作区', tone: health.workspace ? 'ok' : 'warn' },
-    { key: 'backend', label: '后端', tone: health.status === 'ok' ? 'ok' : 'danger' },
-    { key: 'model', label: '模型', tone: models.configured ? 'ok' : 'warn' },
-    { key: 'runtime', label: '运行时', tone: 'muted' },
+    { key: 'overview', label: '系统状态', tone: backendReady && modelReady ? (missing.length ? 'warn' : 'ok') : 'danger' },
+    { key: 'model', label: '模型设置', tone: modelReady ? 'ok' : 'warn' },
+    { key: 'runtime', label: '运行环境', tone: gpuReady && condaReady ? 'ok' : 'warn' },
+    { key: 'advanced', label: '高级诊断', tone: 'muted' },
   ];
   const section = State.sections.settings;
-  const status = `后端 ${text(health.status)} · 工作区 ${text(health.workspace)}`;
+  const statusCard = (title, state, note, toneName, detail = '') =>
+    '<section class="settings-status-card ' + toneName + '">' +
+    '<div class="settings-status-head"><span>' + UI.esc(title) + '</span>' +
+    UI.Badge(state, toneName) + '</div>' +
+    (detail ? '<div class="settings-status-value">' + UI.esc(detail) + '</div>' : '') +
+    '<div class="settings-status-note">' + UI.esc(note) + '</div></section>';
+
+  const overview = () => {
+    const ready = backendReady && modelReady;
+    const verdict = ready
+      ? (missing.length ? '系统可运行，部分计算能力未配置' : '系统就绪')
+      : '系统尚未就绪';
+    const explanation = ready
+      ? (missing.length
+        ? `后端与模型可用。${missing.join('、')} 未就绪；依赖这些环境的训练或依赖管理会受影响。`
+        : '后端、模型与运行环境均已检测可用。')
+      : '请先确认后端连接和模型配置，再开始使用。';
+    const warnings = missing.length
+      ? '<div class="settings-warning">当前检测到 ' + missing.map(UI.esc).join('、') +
+        ' 未就绪。它们会影响训练加速或科研环境管理；请在部署后端的运行环境中检查，客户端不能远程安装这些组件。</div>'
+      : '';
+    const workspace = UI.Card('工作区',
+      UI.KeyValueRow('当前目录', health.workspace, { mono: true }) +
+      '<div class="settings-supporting">科研文件与证据记录保存在当前工作区。</div>');
+    const modelRuntime = UI.Card('模型与运行环境',
+      UI.KeyValueRow('模型', models.model || '—') +
+      UI.KeyValueRow('Python', runtime.python || '—', { mono: true }) +
+      UI.KeyValueRow('Conda', condaReady ? '可用' : '未检测到') +
+      UI.KeyValueRow('GPU / CUDA', gpuReady ? `${gpus.length || 1} 个设备` : '未检测到') +
+      (models.managed
+        ? '<div class="settings-supporting">模型由平台托管，密钥不下发到客户端。</div>'
+        : '<button class="btn ghost" data-action="section" data-key="model">管理模型来源</button>'));
+    const policy = UI.Notice(
+      '研究规则、数据与实验操作应保留证据；涉及外部数据、长时间训练、删除历史或竞赛提交时，按项目约定由人确认。',
+      ''
+    );
+    return '<section class="settings-readiness ' + (ready ? (missing.length ? 'limited' : 'ready') : 'blocked') + '">' +
+      '<div class="settings-readiness-copy"><div class="settings-eyebrow">SYSTEM READINESS</div>' +
+      '<h2>' + UI.esc(verdict) + '</h2><p>' + UI.esc(explanation) + '</p></div>' +
+      '<div class="settings-actions"><button class="btn" data-action="refresh">重新检测环境</button>' +
+      '<button class="btn ghost" data-action="section" data-key="model">模型设置</button></div></section>' +
+      '<div class="settings-status-grid">' +
+      statusCard('后端服务', backendReady ? '正常' : (health.status || '未连接'), backendReady ? 'API 服务可响应请求；具体功能以当前接入能力为准。' : '检查网络连接与服务状态。', backendReady ? 'ok' : 'danger') +
+      statusCard('当前模型', modelReady ? '可用' : '未配置', modelReady ? (models.managed ? '平台托管，客户端只读。' : '已配置，可在模型设置中测试连接。') : '尚无可用模型来源。', modelReady ? 'ok' : 'warn', models.model || '') +
+      statusCard('GPU / CUDA', gpuReady ? '可用' : '未检测到', gpuReady ? '可用于计算加速。' : '需要 GPU 的训练与科学计算将无法加速。', gpuReady ? 'ok' : 'warn') +
+      statusCard('Conda 环境', condaReady ? '可用' : '未检测到', condaReady ? '可用于科研环境与依赖管理。' : '自动创建环境与管理依赖会受影响。', condaReady ? 'ok' : 'warn') +
+      '</div>' + warnings +
+      '<div class="settings-detail-grid">' + workspace + modelRuntime + '</div>' + policy;
+  };
 
   const bodies = {
-    workspace: () => UI.Card('工作区', UI.KeyValueRow('路径', health.workspace, { mono: true })),
-    backend: () =>
-      UI.Card(
-        '后端',
-        UI.KeyValueRow('服务地址', window.location.origin, { mono: true }) +
-          UI.KeyValueRow('健康状态', health.status) +
-          UI.KeyValueRow('工作区', health.workspace, { mono: true })
-      ),
-    model: () => Views._modelSection(data.providers || {}),
-    runtime: () =>
-      UI.Card(
-        '运行时',
-        UI.KeyValueRow('平台', runtime.platform) +
-          UI.KeyValueRow('Python', runtime.python) +
-          UI.KeyValueRow('GPU', (runtime.gpus || []).length ? `${(runtime.gpus || []).length} 块` : '无')
-      ),
+    overview,
+    model: () => models.managed
+      ? UI.Card('平台托管模型',
+          UI.KeyValueRow('提供方', 'DeepSeek（平台托管）') +
+          UI.KeyValueRow('模型', models.model || '—') +
+          UI.Notice('模型密钥由平台保管，不会下发到客户端；该模式下不能在客户端切换提供商或录入 API Key。', ''))
+      : Views._modelSection(models),
+    runtime: () => UI.Card('运行环境',
+      UI.KeyValueRow('平台', runtime.platform) +
+      UI.KeyValueRow('Python 解释器', runtime.python, { mono: true }) +
+      UI.KeyValueRow('Conda', condaReady ? '可用' : '未检测到') +
+      UI.KeyValueRow('GPU / CUDA', gpuReady ? `${gpus.length || 1} 个设备` : '未检测到') +
+      (gpus.length ? gpus.map((gpu) => UI.KeyValueRow('GPU', gpu.name + (gpu.memory_total_mb ? ` · ${(gpu.memory_total_mb / 1024).toFixed(1)} GB` : ''))).join('') : '') +
+      UI.Notice('此处展示 API 返回的运行环境状态。安装或变更 Python、Conda、GPU 驱动需要在运行后端的设备上完成。', '')),
+    advanced: () => UI.Card('高级诊断',
+      UI.KeyValueRow('服务地址', window.location.origin, { mono: true }) +
+      UI.KeyValueRow('连接状态', health.status) +
+      UI.KeyValueRow('运行模式', health.mode || '—') +
+      UI.KeyValueRow('后端工作区', health.workspace, { mono: true }) +
+      UI.Notice('该区域用于定位连接与部署问题。规则内容、证据记录与账本事件请在对应研究页面查看。', '')) +
+      UI.Card('Agent 操作边界', UI.Notice(
+        '当前版本没有开放自动安装依赖、修改代码或自动训练的权限开关。涉及外部数据、运行陌生代码、高成本训练、删除记录或竞赛提交等关键操作，仍须按项目约定由人确认。',
+        'warn'
+      )),
   };
-  return UI.PageHeader('设置', status) + UI.Rail(sections, section) + (bodies[section] || (() => ''))();
+  const heading = '<div class="settings-page-heading"><div><div class="settings-eyebrow">SETTINGS</div>' +
+    '<h1>设置</h1><p>查看服务、模型与运行环境，并进入可用的配置项。</p></div></div>';
+  return heading + UI.Rail(sections, section) + (bodies[section] || overview)();
 };
 
 /**

@@ -66,6 +66,8 @@ struct Index {
   @State activeNav: string = 'overview';
   /** 窄窗口收缩工作区内容最小宽度，避免侧栏和内容区挤出屏幕。 */
   @State compactWorkspace: boolean = true;
+  /** 设置页在中等窗口宽度下切换为双列状态卡片。 */
+  @State compactSettings: boolean = true;
   /** 从空项目概览进入工作流时，直接落到规则证据页。 */
   @State workflowInitialSection: string = 'status';
   /**
@@ -431,7 +433,7 @@ struct Index {
       // 研究循环：这套编排框架的正面。与 Windows 端是同一页（同样的四段、同样的顺序）。
       ResearchLoopPage()
     } else if (this.activeNav === 'settings') {
-      SettingsPage()
+      SettingsPage({ compact: this.compactSettings })
     } else {
       this.OverviewBody()
     }
@@ -771,8 +773,8 @@ struct Index {
         .layoutWeight(1)
         .autoHide(true)
         .sideBarWidth(AppTheme.SIDEBAR_WIDTH)
-        .minSideBarWidth(200)
-        .maxSideBarWidth(280)
+        .minSideBarWidth(180)
+        .maxSideBarWidth(240)
         .minContentWidth(this.compactWorkspace ? 260 : 420)
         .showControlButton(true)
         .divider({ strokeWidth: 1, color: AppTheme.BORDER })
@@ -818,6 +820,8 @@ struct Index {
     .onAreaChange((_oldArea: Area, newArea: Area) => {
       const compact = Number(newArea.width) < 680;
       if (this.compactWorkspace !== compact) this.compactWorkspace = compact;
+      const settingsCompact = Number(newArea.width) < 960;
+      if (this.compactSettings !== settingsCompact) this.compactSettings = settingsCompact;
     })
   }
 }

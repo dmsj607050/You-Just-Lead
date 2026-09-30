@@ -169,12 +169,12 @@ class LoopViewRenderTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, f"溯源渲染探针失败：{result.stderr}")
         return json.loads(result.stdout)
 
-    def _render_named_view(self, mode: str, snapshot: dict) -> dict[str, str]:
+    def _render_named_view(self, mode: str, snapshot: dict, section: str | None = None) -> dict[str, str]:
         with tempfile.TemporaryDirectory() as temporary:
             snapshot_path = Path(temporary) / "view.json"
             snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
             result = subprocess.run(
-                ["node", str(PROBE), mode, str(snapshot_path)],
+                ["node", str(PROBE), mode, str(snapshot_path), *([section] if section else [])],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -459,6 +459,47 @@ class LoopViewRenderTests(unittest.TestCase):
             with self.subTest(section=section):
                 for fragment in FORBIDDEN_FRAGMENTS:
                     self.assertNotIn(fragment, html)
+
+    def test_settings_overview_surfaces_readiness_and_runtime_limits(self) -> None:
+        data = {
+            "health": {"status": "ok", "workspace": "C:/work/project", "mode": "local"},
+            "providers": {"managed": False, "configured": True, "model": "deepseek-v4-pro", "providers": []},
+            "runtime": {
+                "platform": "Windows",
+                "python": "C:/Python/python.exe",
+                "conda_available": False,
+                "gpu_available": False,
+                "gpus": [],
+            },
+        }
+        html = self._render_named_view("--settings", data)["settings"]
+
+        self.assertIn("系统可运行，部分计算能力未配置", html)
+        self.assertIn("GPU / CUDA", html)
+        self.assertIn("Conda", html)
+        self.assertIn("会影响训练加速或科研环境管理", html)
+        self.assertIn('data-action="refresh"', html)
+        self.assertIn('data-action="section" data-key="model"', html)
+        self.assertNotIn("让 Agent 自动修复", html)
+
+    def test_managed_model_settings_are_read_only(self) -> None:
+        data = {
+            "health": {"status": "ok", "workspace": "/srv/work", "mode": "cloud"},
+            "providers": {
+                "managed": True,
+                "configured": True,
+                "model": "deepseek-v4-pro",
+                "providers": [],
+            },
+            "runtime": {"platform": "Linux", "python": "/usr/bin/python3", "conda_available": False,
+                        "gpu_available": False, "gpus": []},
+        }
+        html = self._render_named_view("--settings", data, "model")["settings"]
+
+        self.assertIn("平台托管模型", html)
+        self.assertIn("deepseek-v4-pro", html)
+        self.assertNotIn('data-action="provider-new"', html)
+        self.assertNotIn('data-action="provider-edit"', html)
 
 
 if __name__ == "__main__":

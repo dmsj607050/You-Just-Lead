@@ -26,6 +26,7 @@ const THEME_MODE = process.argv[2] === '--theme';
 const WORKFLOW_MODE = process.argv[2] === '--workflow';
 const WORKFLOW_STATUS_MODE = process.argv[2] === '--workflow-status';
 const OVERVIEW_MODE = process.argv[2] === '--overview';
+const SETTINGS_MODE = process.argv[2] === '--settings';
 const bundleDir = OFFLINE_MODE ? process.argv[3] : webRoot;
 const scriptRoot = OFFLINE_MODE ? bundleDir : webRoot;
 
@@ -103,6 +104,10 @@ if (!OFFLINE_MODE) {
     const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
     State.sections.overview = 'project';
     process.stdout.write(JSON.stringify({ overview: Views.overview(data) }));
+  } else if (SETTINGS_MODE) {
+    const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    State.sections.settings = process.argv[4] || 'overview';
+    process.stdout.write(JSON.stringify({ settings: Views.settings(data) }));
   } else {
   Contract.data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   Contract.offline = false;

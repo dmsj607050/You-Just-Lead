@@ -27,8 +27,24 @@ export struct SideNav {
     return NAV_ITEMS.filter((item: NavItem) => item.group === groupKey);
   }
 
+  private groupIcon(groupKey: string): string {
+    if (groupKey === 'workspace') return IconPaths.FOLDER;
+    if (groupKey === 'research') return IconPaths.CHART;
+    return IconPaths.PEN;
+  }
+
+  private isActiveGroup(groupKey: string): boolean {
+    const items = this.itemsForGroup(groupKey);
+    for (const item of items) {
+      if (item.key === this.activeKey) return true;
+    }
+    return false;
+  }
+
   /** 当前选中的导航 key。 */
   @Prop activeKey: string = 'project';
+  /** 当前展开的导航分组。工作区默认展开。 */
+  @State expandedGroup: string = 'workspace';
   /** 阻塞项数量，大于 0 时在工作流项上显示角标。 */
   @Prop blockerCount: number = 0;
   /** 点击导航项。 */
@@ -41,22 +57,49 @@ export struct SideNav {
         Column() {
           ForEach(this.navGroupKeys(), (groupKey: string) => {
             Column() {
-              Text(this.tr(`nav.group.${groupKey}`))
-                .fontSize(11)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(AppTheme.TEXT_TERTIARY)
-                .margin({ left: 12, bottom: 6 })
+              // 分组激活跟随当前页面；展开状态只控制子菜单是否显示，两者互不覆盖。
+              Row() {
+                AppIcon({
+                  commands: this.groupIcon(groupKey),
+                  color: this.isActiveGroup(groupKey) ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
+                  filled: false,
+                  iconSize: 20
+                })
+                Text(this.tr(`nav.group.${groupKey}`))
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.isActiveGroup(groupKey) ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
+                  .margin({ left: 10 })
+                  .layoutWeight(1)
+                Text(this.expandedGroup === groupKey ? '⌄' : '›')
+                  .fontSize(16)
+                  .fontColor(AppTheme.TEXT_TERTIARY)
+              }
+              .width('100%')
+              .height(44)
+              .padding({ left: 10, right: 10 })
+              .backgroundColor(this.isActiveGroup(groupKey) ? AppTheme.PRIMARY_SOFT :
+                this.expandedGroup === groupKey ? AppTheme.PAGE_BG : Color.Transparent)
+              .border({
+                width: { left: this.isActiveGroup(groupKey) ? 3 : 0 },
+                color: AppTheme.PRIMARY
+              })
+              .borderRadius(AppTheme.RADIUS_SM)
+              .onClick(() => {
+                this.expandedGroup = this.expandedGroup === groupKey ? '' : groupKey;
+              })
 
-              ForEach(this.itemsForGroup(groupKey), (item: NavItem) => {
+              // 列表随展开状态增删，确保 ArkUI 重建折叠区的子节点。
+              ForEach(this.expandedGroup === groupKey ? this.itemsForGroup(groupKey) : [], (item: NavItem) => {
                 Row() {
                   AppIcon({
                     commands: item.icon,
                     color: this.activeKey === item.key ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
                     filled: false,
-                    iconSize: 24
+                    iconSize: 20
                   })
                   Text(this.tr(`nav.${item.key}`))
-                    .fontSize(15)
+                    .fontSize(14)
                     .fontWeight(this.activeKey === item.key ? FontWeight.Medium : FontWeight.Normal)
                     .fontColor(this.activeKey === item.key ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
                     .margin({ left: 12 })
@@ -72,11 +115,16 @@ export struct SideNav {
                 }
                 .width('100%')
                 .height(44)
-                .padding({ left: 12, right: 12 })
+                .padding({ left: 18, right: 12 })
                 .backgroundColor(this.activeKey === item.key ? AppTheme.PRIMARY_SOFT : Color.Transparent)
+                .border({
+                  width: { left: this.activeKey === item.key ? 2 : 0 },
+                  color: AppTheme.PRIMARY
+                })
                 .borderRadius(AppTheme.RADIUS_SM)
                 .margin({ bottom: 4 })
                 .onClick(() => {
+                  this.expandedGroup = groupKey;
                   this.onSelect(item.key);
                 })
               }, (item: NavItem) => item.key)
@@ -110,6 +158,10 @@ export struct SideNav {
       .height(44)
       .padding({ left: 12, right: 12 })
       .backgroundColor(this.activeKey === 'settings' ? AppTheme.PRIMARY_SOFT : Color.Transparent)
+      .border({
+        width: { left: this.activeKey === 'settings' ? 3 : 0 },
+        color: AppTheme.PRIMARY
+      })
       .borderRadius(AppTheme.RADIUS_SM)
       .onClick(() => {
         this.onSelect('settings');
