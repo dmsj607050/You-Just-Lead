@@ -1,5 +1,3 @@
-import { common } from '@kit.AbilityKit';
-import { preferences } from '@kit.ArkData';
 import {
   deleteProvider,
   fetchHealth,
@@ -18,26 +16,19 @@ import {
 } from '../common/BackendClient';
 import { ACCESS_TOKEN, BASE_URL } from '../common/BackendConfig';
 import AppTheme from '../common/AppTheme';
-import { describeError } from '../common/Format';
-import IconPaths from '../common/IconPaths';
 import { tFor, tfFor } from '../common/I18n';
 import {
-  LocalWorkspaceReport,
-  emptyReport,
-  inspectLocalWorkspace
-} from '../common/LocalWorkspaceState';
-import { LocalWorkspaceCard } from './LocalWorkspaceCard';
-import {
-  ChipButton,
+  CardPanel,
   ChoiceChips,
   ChoiceSpec,
   EmptyHint,
-  InfoRow,
-  SectionCard,
-  StatusPill,
-  StatusTile,
-  ToggleRow
+  KeyValueRow,
+  PageHeader,
+  RailItemSpec,
+  SectionRail,
+  StatusBadge
 } from './Widgets';
+import { LocalWorkspaceCard } from './LocalWorkspaceCard';
 
 /** 显存容量转成 GB 描述。 */
 function memoryGb(mb: number): string {
@@ -45,31 +36,13 @@ function memoryGb(mb: number): string {
 }
 
 /**
- * 两栏并排需要的最小宽度。
+ * 设置页：连接、模型与运行环境。
  *
- * 900 太高了：这一页住在侧栏右边，2in1 窗口下的可用宽度只有 800 左右 vp，
- * 按 900 判就会在桌面上也退成单栏 —— 参考稿本来就是两栏。720 以上按两栏排，
- * 手机上（360~420）自然落回单栏。
- */
-const WIDE_MIN_WIDTH: number = 720;
-
-/** 权限偏好与语言共用同一个偏好文件（端侧设置就这一处）。 */
-const PREF_STORE: string = 'youjustlead_settings';
-const PREF_PERM_DEPS: string = 'perm_install_deps';
-const PREF_PERM_CODE: string = 'perm_edit_code';
-const PREF_PERM_EXPERIMENT: string = 'perm_run_experiments';
-const PREF_PERM_CONFIRM: string = 'perm_confirm_key_steps';
-
-/**
- * 设置页：先回答「现在能不能用」，再给配置入口。
+ * 「模型」这一段是**可改的**：可以存几套来源（DeepSeek / OpenAI / Kimi / 百炼 / 本地 Ollama /
+ * 自定义），随时切一套当「当前使用」，也可以逐套测连接。密钥只往系统凭据管理器里写，
+ * 端侧界面既不显示也不会把它读回来 —— 编辑时密钥框留空就是「不改已存的那把」。
  *
- * 版式按参考稿重排成一块一块：就绪状态在最上面（用户第一眼要的是结论，不是一堆字段），
- * 下面四张状态磁贴说清每项能力，再接两栏配置卡片与权限、高级信息。
- * 原来的分段导航（本地工作区 / 后端 / 模型 / 运行时）去掉了 —— 它把「系统到底行不行」
- * 拆成了四次点击，而且每次只看得到四分之一。
- *
- * 模型来源那一段仍是可改的（云端模式下由平台托管、端侧只读）：
- * 密钥只往系统凭据管理器里写，界面既不显示也不会把它读回来。
+ * 后端地址与令牌仍然是构建期常量，这里只做展示，改配置请改 BackendConfig。
  */
 @Component
 export struct SettingsPage {
@@ -78,40 +51,18 @@ export struct SettingsPage {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
-  /** 是否已打开端侧规则检查（整页）。与工作区卡片同一套全局标记。 */
-  @StorageLink('localGateOpen') gateOpen: boolean = false;
-  /** 是否已打开离线记录（整页）。 */
-  @StorageLink('localStatusOpen') statusOpen: boolean = false;
-
   @State loading: boolean = false;
   @State errorText: string = '';
   @State health: HealthInfo | null = null;
   @State providers: ProviderSettings | null = null;
   @State runtime: RuntimeSnapshot | null = null;
-  /** 内容区够宽吗（不够就单栏）。由根节点的 onAreaChange 维护。 */
-  @State compact: boolean = false;
-
-  /** 端侧工作区自检结果。工作区卡片自己会显示目录，这里这一份供「高级信息」用。 */
-  @State localReport: LocalWorkspaceReport = emptyReport();
-  @State localError: string = '';
   /**
-   * 端侧自检的刷新计数。
+   * 当前分段：workspace / backend / model / runtime。
    *
-   * 工作区卡片有自己的状态，页面的「重新检测」不该只刷新一半 —— 把计数放进 `ForEach`
-   * 的 key 里，点一次就把它整块重建一次，卡片会重新自检。
+   * 设置页原先也是「一排统计块 + 三张卡堆一列」。现在一次只看一段，
+   * 「连没连上、模型是什么、有没有 GPU」写在标题下面一行里。
    */
-  @State localRevision: number = 0;
-
-  /** Agent 权限：端侧保存的约定，见卡片脚注。 */
-  @State permDeps: boolean = true;
-  @State permCode: boolean = true;
-  @State permExperiment: boolean = true;
-  @State permConfirm: boolean = false;
-  @State permBusy: boolean = false;
-
-  /** 「模型与运行时」卡片里测试连接的结果（与来源卡片的消息分开，各自贴着自己的操作）。 */
-  @State modelTestText: string = '';
-  @State modelTestTone: string = '';
+  @State section: string = 'workspace';
 
   /** 正在编辑的来源 id；空串＝没在编辑，`new`＝新增。 */
   @State providerEditId: string = '';
@@ -140,14 +91,6 @@ export struct SettingsPage {
 
   aboutToAppear(): void {
     this.load();
-    this.loadLocal();
-    this.loadPermissions();
-  }
-
-  /** 重新检测：后端三项 + 端侧工作区一次全刷。 */
-  async recheckAll(): Promise<void> {
-    await this.load();
-    await this.loadLocal();
   }
 
   async load(): Promise<void> {
@@ -160,128 +103,41 @@ export struct SettingsPage {
     } catch (err) {
       const error = err as Error;
       this.errorText = error.message;
-      // 后端不在时不能留着上一次的数字装作还活着：清掉，磁贴会显示「未连接」。
-      this.health = null;
-      this.providers = null;
-      this.runtime = null;
     } finally {
       this.loading = false;
     }
   }
 
-  // ---- 端侧工作区（不经后端）----
-
-  private abilityContext(): common.UIAbilityContext {
-    return this.getUIContext().getHostContext() as common.UIAbilityContext;
+  /** 一行现状：后端连接 · 模型 · GPU · Conda。 */
+  private statusText(): string {
+    const connected: string = this.health === null ? this.tr('settings.notConnected') : this.tr('menu.backendOk');
+    const model: string = this.providers === null || this.providers.model.length === 0
+      ? '—'
+      : this.providers.model;
+    const gpu: string = this.runtime === null
+      ? '—'
+      : (this.runtime.gpu_available
+        ? this.trf('settings.gpuCount', [`${this.runtime.gpus.length}`])
+        : this.tr('settings.unavailable'));
+    const conda: string = this.runtime === null
+      ? '—'
+      : (this.runtime.conda_available ? this.tr('settings.available') : this.tr('settings.unavailable'));
+    return this.trf('settings.status', [connected, model, gpu, conda]);
   }
 
-  async loadLocal(): Promise<void> {
-    this.localError = '';
-    try {
-      this.localReport = await inspectLocalWorkspace(this.abilityContext());
-      this.localRevision = this.localRevision + 1;
-    } catch (err) {
-      this.localError = describeError(err as Object);
-    }
-  }
-
-  /** 工作区卡片的 key：带上刷新计数，让「重新检测」能把它一起刷新。 */
-  private workspaceKeys(): string[] {
-    return [`workspace-${this.localRevision}`];
-  }
-
-  // ---- Agent 权限（端侧偏好）----
-
-  async loadPermissions(): Promise<void> {
-    try {
-      const store: preferences.Preferences = await preferences.getPreferences(this.abilityContext(), PREF_STORE);
-      const deps: preferences.ValueType = await store.get(PREF_PERM_DEPS, true);
-      const code: preferences.ValueType = await store.get(PREF_PERM_CODE, true);
-      const experiment: preferences.ValueType = await store.get(PREF_PERM_EXPERIMENT, true);
-      const confirm: preferences.ValueType = await store.get(PREF_PERM_CONFIRM, false);
-      this.permDeps = deps === true;
-      this.permCode = code === true;
-      this.permExperiment = experiment === true;
-      this.permConfirm = confirm === true;
-    } catch (err) {
-      // 读不到就用默认值，不打断设置页。
-    }
-  }
-
-  private async savePermission(key: string, value: boolean): Promise<void> {
-    this.permBusy = true;
-    try {
-      const store: preferences.Preferences = await preferences.getPreferences(this.abilityContext(), PREF_STORE);
-      await store.put(key, value);
-      await store.flush();
-    } catch (err) {
-      // 存不下来只影响下次启动的默认值，界面上的开关仍按用户刚点的那个值显示。
-    } finally {
-      this.permBusy = false;
-    }
-  }
-
-  // ---- 就绪状态 ----
-
-  /** 后端通不通。 */
-  private backendOk(): boolean {
-    return this.health !== null;
-  }
-
-  /** 有没有一套能用的模型来源（云端托管时以 configured 为准）。 */
-  private modelOk(): boolean {
-    return this.providers !== null && this.providers.configured;
-  }
-
-  private gpuOk(): boolean {
-    return this.runtime !== null && this.runtime.gpu_available;
-  }
-
-  private condaOk(): boolean {
-    return this.runtime !== null && this.runtime.conda_available;
-  }
-
-  /** 探测到的显卡列表。写成方法是为了不在模板里对 `this.runtime` 反复做空判断。 */
-  private gpuList(): GpuDevice[] {
-    return this.runtime === null ? [] : this.runtime.gpus;
-  }
-
-  /** 受限的能力有哪几项（名字已本地化，用来拼提示语）。 */
-  private limitedNames(): string[] {
-    const names: string[] = [];
-    if (!this.modelOk()) {
-      names.push(this.tr('settings.tile.model'));
-    }
-    if (!this.gpuOk()) {
-      names.push(this.tr('settings.gpuCuda'));
-    }
-    if (!this.condaOk()) {
-      names.push(this.tr('settings.condaEnv'));
-    }
-    return names;
-  }
-
-  private verdict(): string {
-    if (!this.backendOk()) {
-      return this.tr('settings.verdictBlocked');
-    }
-    return this.limitedNames().length > 0 ? this.tr('settings.verdictLimited') : this.tr('settings.verdictReady');
-  }
-
-  private verdictNote(): string {
-    if (!this.backendOk()) {
-      return this.tr('settings.verdictBlockedNote');
-    }
-    return this.limitedNames().length > 0
-      ? this.tr('settings.verdictLimitedNote')
-      : this.tr('settings.verdictReadyNote');
-  }
-
-  private verdictTone(): string {
-    if (!this.backendOk()) {
-      return 'danger';
-    }
-    return this.limitedNames().length > 0 ? 'warn' : 'ok';
+  /** 分段导航的项。色点说的是这一段通不通，不是它有多少条。 */
+  private railItems(): RailItemSpec[] {
+    const modelConfigured: boolean = this.providers !== null && this.providers.configured;
+    return [
+      { key: 'workspace', label: this.tr('settings.section.workspace'), tone: 'muted' },
+      { key: 'backend', label: this.tr('settings.section.backend'), tone: this.health === null ? 'warn' : 'ok' },
+      { key: 'model', label: this.tr('settings.section.model'), tone: modelConfigured ? 'ok' : 'warn' },
+      {
+        key: 'runtime',
+        label: this.tr('settings.section.runtime'),
+        tone: this.runtime === null ? 'muted' : (this.runtime.gpu_available ? 'ok' : 'warn')
+      }
+    ];
   }
 
   /** 当前使用的那套；一套都没有时返回 null。 */
@@ -473,61 +329,18 @@ export struct SettingsPage {
     }
   }
 
-  /** 「模型与运行时」卡片里的测试连接：测的是当前使用的那套。 */
-  private async checkCurrent(): Promise<void> {
-    const current: ModelProvider | null = this.currentProvider();
-    if (current === null) {
-      this.modelTestTone = 'warn';
-      this.modelTestText = this.tr('settings.noSource');
-      return;
-    }
-    this.providerBusy = true;
-    this.modelTestTone = '';
-    this.modelTestText = this.tr('settings.testing');
-    try {
-      const result: ProviderTestResult = await testProvider(current.id);
-      const model: string = result.model === undefined ? current.model : result.model;
-      if (result.ok) {
-        this.modelTestTone = 'ok';
-        this.modelTestText = this.trf('settings.testOk', [model]);
-      } else {
-        this.modelTestTone = 'danger';
-        this.modelTestText = this.trf('settings.testFailed', [result.message]);
-      }
-    } catch (err) {
-      const error = err as Error;
-      this.modelTestTone = 'danger';
-      this.modelTestText = error.message;
-    } finally {
-      this.providerBusy = false;
-    }
-  }
-
-  // ---- 版式 ----
-
-  /** 页头：中文大标题 + 英文副标题 + 一行说明。 */
+  /** 提示行。色调只影响文字色，不占额外高度。 */
   @Builder
-  Head() {
-    Column() {
-      Row() {
-        Text(this.tr('nav.settings'))
-          .fontSize(26)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppTheme.TEXT_PRIMARY)
-        Text(this.tr('settings.pageSubtitle'))
-          .fontSize(13)
-          .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ left: 10, top: 8 })
-      }
-      .alignItems(VerticalAlign.Bottom)
-
-      Text(this.tr('settings.pageDesc'))
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .margin({ top: 8 })
+  MessageLine() {
+    if (this.providerMessage.length > 0) {
+      Text(this.providerMessage)
+        .fontSize(12)
+        .fontColor(this.providerMessageTone === 'ok'
+          ? AppTheme.PRIMARY_DARK
+          : (this.providerMessageTone === 'danger' ? AppTheme.DANGER : AppTheme.TEXT_TERTIARY))
+        .width('100%')
+        .margin({ top: 12 })
     }
-    .alignItems(HorizontalAlign.Start)
-    .width('100%')
   }
 
   @Builder
@@ -547,344 +360,7 @@ export struct SettingsPage {
     .padding(20)
     .backgroundColor(AppTheme.DANGER_SOFT)
     .borderRadius(AppTheme.RADIUS)
-  }
-
-  /** 提示行。色调只影响文字色，不占额外高度。 */
-  @Builder
-  MessageLine() {
-    if (this.providerMessage.length > 0) {
-      Text(this.providerMessage)
-        .fontSize(12)
-        .fontColor(this.providerMessageTone === 'ok'
-          ? AppTheme.PRIMARY_DARK
-          : (this.providerMessageTone === 'danger' ? AppTheme.DANGER : AppTheme.TEXT_TERTIARY))
-        .width('100%')
-        .margin({ top: 12 })
-    }
-  }
-
-  /** 就绪状态：一句结论 + 一句补充 + 两个入口。全页的视觉焦点。 */
-  @Builder
-  ReadinessCard() {
-    SectionCard({
-      title: this.tr('settings.readiness.title'),
-      subtitle: 'System readiness',
-      icon: IconPaths.SHIELD_CHECK,
-      iconTone: this.verdictTone()
-    }) {
-      Row() {
-        StatusPill({ label: this.verdict(), tone: this.verdictTone() })
-      }
-      .width('100%')
-
-      Text(this.verdictNote())
-        .fontSize(13)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .width('100%')
-        .margin({ top: 10 })
-
-      Row({ space: 12 }) {
-        ChipButton({
-          icon: IconPaths.REFRESH,
-          label: this.loading ? this.tr('settings.working') : this.tr('settings.recheckAll'),
-          tone: 'primary',
-          active: !this.loading,
-          onTap: () => {
-            this.recheckAll();
-          }
-        })
-        ChipButton({
-          icon: IconPaths.DOC,
-          label: this.tr('settings.offlineRecords'),
-          tone: 'outline',
-          active: true,
-          onTap: () => {
-            this.statusOpen = true;
-          }
-        })
-      }
-      .width('100%')
-      .margin({ top: 16 })
-    }
-  }
-
-  @Builder
-  BackendTile(weight: number) {
-    StatusTile({
-      icon: IconPaths.SERVER,
-      title: this.tr('settings.tile.backend'),
-      subtitle: 'Backend Service',
-      tone: this.backendOk() ? 'ok' : 'danger',
-      pill: this.backendOk() ? this.tr('settings.pillNormal') : this.tr('settings.notConnected'),
-      value: '',
-      note: this.backendOk() ? this.tr('settings.tile.noteBackendOk') : this.tr('settings.tile.noteBackendDown')
-    })
-      .layoutWeight(weight)
-  }
-
-  @Builder
-  ModelTile(weight: number) {
-    StatusTile({
-      icon: IconPaths.BRAIN,
-      title: this.tr('settings.tile.model'),
-      subtitle: 'AI Model',
-      tone: this.modelOk() ? 'ok' : 'warn',
-      pill: this.modelOk() ? this.tr('settings.available') : this.tr('settings.pillUnconfigured'),
-      value: this.providers === null || this.providers.model.length === 0 ? '' : this.providers.model,
-      note: this.modelOk() ? this.tr('settings.tile.noteModelOk') : this.tr('settings.tile.noteModelMissing')
-    })
-      .layoutWeight(weight)
-  }
-
-  @Builder
-  GpuTile(weight: number) {
-    StatusTile({
-      icon: IconPaths.CHIP,
-      title: this.tr('settings.gpuCuda'),
-      subtitle: 'Compute',
-      tone: this.gpuOk() ? 'ok' : 'warn',
-      pill: this.runtime === null
-        ? this.tr('settings.pillNotDetected')
-        : (this.gpuOk() ? this.tr('settings.available') : this.tr('settings.pillUnconfigured')),
-      value: this.gpuOk() && this.gpuList().length > 0 ? this.gpuList()[0].name : '',
-      note: this.gpuOk() ? this.tr('settings.tile.noteGpuOk') : this.tr('settings.tile.noteGpuMissing')
-    })
-      .layoutWeight(weight)
-  }
-
-  @Builder
-  CondaTile(weight: number) {
-    StatusTile({
-      icon: IconPaths.BOX,
-      title: this.tr('settings.condaEnv'),
-      subtitle: 'Environments',
-      tone: this.condaOk() ? 'ok' : 'warn',
-      pill: this.runtime === null
-        ? this.tr('settings.pillNotDetected')
-        : (this.condaOk() ? this.tr('settings.available') : this.tr('settings.pillUnconfigured')),
-      value: '',
-      note: this.condaOk() ? this.tr('settings.tile.noteCondaOk') : this.tr('settings.tile.noteCondaMissing')
-    })
-      .layoutWeight(weight)
-  }
-
-  /** 四张状态磁贴。宽屏一行四个，窄屏两行两个（一行四个在手机上会挤成一条）。 */
-  @Builder
-  TileGrid() {
-    if (this.compact) {
-      Column({ space: 12 }) {
-        Row({ space: 12 }) {
-          this.BackendTile(1)
-          this.ModelTile(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-
-        Row({ space: 12 }) {
-          this.GpuTile(1)
-          this.CondaTile(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-      }
-      .width('100%')
-    } else {
-      Row({ space: 12 }) {
-        this.BackendTile(1)
-        this.ModelTile(1)
-        this.GpuTile(1)
-        this.CondaTile(1)
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Top)
-    }
-  }
-
-  /** 能力受限时的横条：说清缺什么、影响什么。 */
-  @Builder
-  LimitedStrip() {
-    if (this.backendOk() && this.limitedNames().length > 0) {
-      Row() {
-        StatusPill({ label: this.trf('settings.limitedTitle', [`${this.limitedNames().length}`]), tone: 'warn' })
-        Text(this.trf('settings.limitedBody', [this.limitedNames().join('、')]))
-          .fontSize(12)
-          .fontColor(AppTheme.WARN_TEXT)
-          .layoutWeight(1)
-          .margin({ left: 12 })
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-      .backgroundColor(AppTheme.WARN_SOFT)
-      .borderRadius(AppTheme.RADIUS)
-    }
-  }
-
-  /**
-   * 工作区设置：直接挂 `LocalWorkspaceCard`。
-   *
-   * 不在这里重画一遍 —— 启动页（项目选择）挂的是同一张卡片，两处必须一模一样；
-   * 而且它承载的是「后端不在时仍然能用」那条支线，不能有第二份实现。
-   * key 里带上刷新计数：点「重新检测」时把它重建一次，卡片会跟着重新自检。
-   */
-  @Builder
-  WorkspaceSection(weight: number) {
-    Column() {
-      ForEach(this.workspaceKeys(), (key: string) => {
-        LocalWorkspaceCard()
-      }, (key: string) => key)
-    }
-    .width('100%')
-    .layoutWeight(weight)
-  }
-
-  /** 模型与运行时配置：当前模型 + 三项运行时能力。 */
-  @Builder
-  ModelRuntimeCard(weight: number) {
-    SectionCard({
-      title: this.tr('settings.card.modelRuntime'),
-      subtitle: 'Model & Runtime',
-      weight: weight,
-      icon: IconPaths.SLIDERS,
-      iconTone: 'muted'
-    }) {
-      Column() {
-        InfoRow({
-          label: this.tr('settings.modelProvider'),
-          value: this.currentNameText(),
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.modelName'),
-          value: this.providers === null ? '' : this.providers.model,
-          labelWidth: 108
-        })
-
-        Row({ space: 10 }) {
-          ChipButton({
-            icon: IconPaths.LINK,
-            label: this.providerBusy ? this.tr('settings.testing') : this.tr('settings.testConnection'),
-            tone: 'outline',
-            active: !this.providerBusy && this.currentProvider() !== null,
-            onTap: () => {
-              this.checkCurrent();
-            }
-          })
-        }
-        .width('100%')
-        .margin({ bottom: 6 })
-
-        if (this.modelTestText.length > 0) {
-          Text(this.modelTestText)
-            .fontSize(12)
-            .fontColor(this.modelTestTone === 'ok'
-              ? AppTheme.PRIMARY_DARK
-              : (this.modelTestTone === 'danger' ? AppTheme.DANGER : AppTheme.TEXT_TERTIARY))
-            .width('100%')
-            .margin({ bottom: 6 })
-        }
-
-        Divider()
-          .color(AppTheme.BORDER_SOFT)
-          .margin({ top: 6, bottom: 6 })
-
-        InfoRow({
-          label: this.tr('settings.pythonInterpreter'),
-          value: this.runtime === null ? '' : this.runtime.python,
-          mono: true,
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.condaEnv'),
-          value: '',
-          labelWidth: 108,
-          pill: this.runtime === null
-            ? this.tr('settings.pillNotDetected')
-            : (this.condaOk() ? this.tr('settings.available') : this.tr('settings.pillUnconfigured')),
-          tone: this.condaOk() ? 'ok' : 'warn'
-        })
-        InfoRow({
-          label: this.tr('settings.gpuCuda'),
-          value: this.gpuOk() && this.gpuList().length > 0 ? this.gpuList()[0].name : '',
-          labelWidth: 108,
-          pill: this.runtime === null
-            ? this.tr('settings.pillNotDetected')
-            : (this.gpuOk() ? this.tr('settings.available') : this.tr('settings.pillUnconfigured')),
-          tone: this.gpuOk() ? 'ok' : 'warn'
-        })
-
-        if (this.providers !== null && this.providers.managed === true) {
-          Text(this.tr('settings.managedByPlatform'))
-            .fontSize(12)
-            .fontColor(AppTheme.TEXT_TERTIARY)
-            .width('100%')
-            .margin({ top: 10 })
-        }
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-    }
-  }
-
-  /** 模型来源：列表 + 预设 + 表单。云端托管时退化成只读说明。 */
-  @Builder
-  ProviderCard(weight: number) {
-    SectionCard({
-      title: this.tr('settings.sourceList'),
-      subtitle: 'Model sources',
-      weight: weight,
-      icon: IconPaths.BRAIN,
-      iconTone: 'muted',
-      actionLabel: this.providers !== null && this.providers.managed === true ? '' : this.tr('settings.newSource'),
-      actionActive: !this.providerBusy,
-      onAction: () => {
-        this.openNew();
-      }
-    }) {
-      Column() {
-        if (this.providers !== null && this.providers.managed === true) {
-          // 云端托管：来源由平台统一维护，端侧不给编辑入口，也不接触服务器密钥。
-          InfoRow({ label: this.tr('settings.currentName'), value: this.tr('settings.deepseekManaged'), labelWidth: 108 })
-          InfoRow({
-            label: this.tr('settings.currentModel'),
-            value: this.providers.model,
-            labelWidth: 108
-          })
-          Text(this.tr('settings.managedModelHint'))
-            .fontSize(12)
-            .fontColor(AppTheme.TEXT_SECONDARY)
-            .width('100%')
-            .margin({ top: 10 })
-        } else {
-          InfoRow({ label: this.tr('settings.keySource'), value: this.keySourceText(), labelWidth: 108 })
-
-          ForEach(this.providers === null ? [] : this.providers.providers, (item: ModelProvider) => {
-            this.ProviderRow(item)
-          }, (item: ModelProvider) => `${item.id}-${item.model}-${item.has_key}-${this.pendingDelete === item.id}`)
-
-          if (this.providers === null || this.providers.providers.length === 0) {
-            EmptyHint({ text: this.tr('settings.noSource') })
-          }
-
-          this.MessageLine()
-        }
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-    }
-  }
-
-  /** 表单单独一张卡：它出现在列表下面，和列表挤在一张卡里会被当成列表的一部分。 */
-  @Builder
-  ProviderFormCard() {
-    SectionCard({
-      title: this.providerEditId === 'new' ? this.tr('settings.newSource') : this.tr('settings.editSource'),
-      subtitle: 'Model source',
-      icon: IconPaths.SLIDERS,
-      iconTone: 'muted'
-    }) {
-      this.ProviderForm()
-    }
+    .margin({ bottom: 20 })
   }
 
   /** 一条已存的来源：名字、模型、地址，以及它可以做的几个动作。 */
@@ -900,9 +376,9 @@ export struct SettingsPage {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         if (item.id === (this.providers === null ? '' : this.providers.active)) {
-          StatusPill({ label: this.tr('settings.activeTag'), tone: 'ok' })
+          StatusBadge({ text: this.tr('settings.activeTag'), tone: 'ok' })
         } else if (item.key_required && !item.has_key) {
-          StatusPill({ label: this.tr('settings.needKey'), tone: 'warn' })
+          StatusBadge({ text: this.tr('settings.needKey'), tone: 'warn' })
         }
       }
       .width('100%')
@@ -994,273 +470,210 @@ export struct SettingsPage {
   /** 新增 / 编辑表单。密钥框不显示已存的值，留空即不修改。 */
   @Builder
   ProviderForm() {
-    Column() {
-      Text(this.tr('settings.preset'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .width('100%')
-      ChoiceChips({
-        items: this.presetChoices(),
-        active: this.formPreset,
-        disabled: this.providerBusy,
-        onSelect: (key: string) => {
-          this.applyPreset(key);
+    CardPanel({
+      title: this.providerEditId === 'new' ? this.tr('settings.newSource') : this.tr('settings.editSource')
+    }) {
+      Column() {
+        Text(this.tr('settings.preset'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+        ChoiceChips({
+          items: this.presetChoices(),
+          active: this.formPreset,
+          disabled: this.providerBusy,
+          onSelect: (key: string) => {
+            this.applyPreset(key);
+          }
+        })
+          .margin({ top: 8 })
+
+        Text(this.tr('settings.fieldName'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .margin({ top: 8 })
+        TextInput({ text: this.formName, placeholder: this.tr('settings.fieldNameHint') })
+          .fontSize(13)
+          .width('100%')
+          .height(38)
+          .onChange((value: string) => {
+            this.formName = value;
+          })
+
+        Text(this.tr('settings.fieldBaseUrl'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .margin({ top: 8 })
+        TextInput({ text: this.formBaseUrl, placeholder: this.tr('settings.fieldBaseUrlHint') })
+          .fontSize(13)
+          .width('100%')
+          .height(38)
+          .onChange((value: string) => {
+            this.formBaseUrl = value;
+          })
+
+        Text(this.tr('settings.fieldModel'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .margin({ top: 8 })
+        TextInput({ text: this.formModel, placeholder: this.tr('settings.fieldModelHint') })
+          .fontSize(13)
+          .width('100%')
+          .height(38)
+          .onChange((value: string) => {
+            this.formModel = value;
+          })
+
+        Text(this.tr('settings.fieldApiKey'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .margin({ top: 8 })
+        TextInput({ text: this.formApiKey, placeholder: this.apiKeyHint() })
+          .type(InputType.Password)
+          .fontSize(13)
+          .width('100%')
+          .height(38)
+          .onChange((value: string) => {
+            this.formApiKey = value;
+          })
+
+        Row({ space: 12 }) {
+          Text(this.providerBusy ? this.tr('settings.saving') : this.tr('settings.save'))
+            .fontSize(13)
+            .fontColor(Color.White)
+            .backgroundColor(AppTheme.PRIMARY)
+            .borderRadius(AppTheme.RADIUS_SM)
+            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+            .opacity(this.providerBusy ? 0.6 : 1)
+            .enabled(!this.providerBusy)
+            .onClick(() => {
+              this.save();
+            })
+          Text(this.tr('common.cancel'))
+            .fontSize(13)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .padding({ left: 8, right: 8, top: 8, bottom: 8 })
+            .onClick(() => {
+              if (!this.providerBusy) {
+                this.closeForm();
+              }
+            })
         }
-      })
-        .margin({ top: 8 })
-
-      Text(this.tr('settings.fieldName'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
         .width('100%')
-        .margin({ top: 8 })
-      TextInput({ text: this.formName, placeholder: this.tr('settings.fieldNameHint') })
-        .fontSize(13)
-        .width('100%')
-        .height(38)
-        .onChange((value: string) => {
-          this.formName = value;
-        })
-
-      Text(this.tr('settings.fieldBaseUrl'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .width('100%')
-        .margin({ top: 8 })
-      TextInput({ text: this.formBaseUrl, placeholder: this.tr('settings.fieldBaseUrlHint') })
-        .fontSize(13)
-        .width('100%')
-        .height(38)
-        .onChange((value: string) => {
-          this.formBaseUrl = value;
-        })
-
-      Text(this.tr('settings.fieldModel'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .width('100%')
-        .margin({ top: 8 })
-      TextInput({ text: this.formModel, placeholder: this.tr('settings.fieldModelHint') })
-        .fontSize(13)
-        .width('100%')
-        .height(38)
-        .onChange((value: string) => {
-          this.formModel = value;
-        })
-
-      Text(this.tr('settings.fieldApiKey'))
-        .fontSize(12)
-        .fontColor(AppTheme.TEXT_SECONDARY)
-        .width('100%')
-        .margin({ top: 8 })
-      TextInput({ text: this.formApiKey, placeholder: this.apiKeyHint() })
-        .type(InputType.Password)
-        .fontSize(13)
-        .width('100%')
-        .height(38)
-        .onChange((value: string) => {
-          this.formApiKey = value;
-        })
-
-      Row({ space: 12 }) {
-        ChipButton({
-          icon: IconPaths.CHECK,
-          label: this.providerBusy ? this.tr('settings.saving') : this.tr('settings.save'),
-          tone: 'primary',
-          active: !this.providerBusy,
-          onTap: () => {
-            this.save();
-          }
-        })
-        ChipButton({
-          label: this.tr('common.cancel'),
-          tone: 'outline',
-          active: !this.providerBusy,
-          onTap: () => {
-            this.closeForm();
-          }
-        })
+        .margin({ top: 16 })
       }
       .width('100%')
-      .margin({ top: 16 })
+      .alignItems(HorizontalAlign.Start)
+    }
+  }
+
+  /** 模型来源这一段：当前用哪套、还有哪几套、怎么加一套。`key` 只用来触发重建。 */
+  @Builder
+  ModelSection(key: string) {
+    Column({ space: 20 }) {
+      CardPanel({
+        title: this.tr('settings.currentSource')
+      }) {
+        Column() {
+          if (this.providers === null || this.providers.providers.length === 0) {
+            Text(this.tr('settings.noSource'))
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .margin({ bottom: 4 })
+          } else {
+            KeyValueRow({
+              label: this.tr('settings.currentName'),
+              value: this.currentNameText()
+            })
+            KeyValueRow({
+              label: this.tr('settings.currentModel'),
+              value: this.providers === null || this.providers.model.length === 0 ? '—' : this.providers.model
+            })
+          }
+          KeyValueRow({ label: this.tr('settings.keySource'), value: this.keySourceText() })
+          KeyValueRow({
+            label: this.tr('settings.secureStorage'),
+            value: this.providers === null
+              ? '—'
+              : (this.providers.secure_storage_available ? this.tr('settings.available') : this.tr('settings.unavailable'))
+          })
+          KeyValueRow({
+            label: this.tr('settings.apiKeyEnv'),
+            value: this.providers === null ? '—' : this.providers.api_key_env,
+            mono: true
+          })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+
+      CardPanel({
+        title: this.tr('settings.sourceList')
+      }) {
+        Column() {
+          ForEach(this.providers === null ? [] : this.providers.providers, (item: ModelProvider) => {
+            this.ProviderRow(item)
+          }, (item: ModelProvider) => `${item.id}-${item.model}-${item.has_key}-${this.pendingDelete === item.id}`)
+
+          Row({ space: 12 }) {
+            Text(this.tr('settings.newSource'))
+              .fontSize(13)
+              .fontColor(Color.White)
+              .backgroundColor(AppTheme.PRIMARY)
+              .borderRadius(AppTheme.RADIUS_SM)
+              .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+              .opacity(this.providerBusy ? 0.6 : 1)
+              .enabled(!this.providerBusy)
+              .onClick(() => {
+                this.openNew();
+              })
+          }
+          .width('100%')
+          .margin({ top: 16 })
+
+          this.MessageLine()
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+
+      if (this.providerEditId.length > 0) {
+        this.ProviderForm()
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
   }
 
-  /** Agent 权限与行为：四条约定 + 一句脚注说清它们现在作用在哪。 */
+  /** 云端由平台统一维护 DeepSeek 来源；用户只看服务状态，不接触服务器密钥。 */
   @Builder
-  PermissionsCard(weight: number) {
-    SectionCard({
-      title: this.tr('settings.card.permissions'),
-      subtitle: 'Agent Permissions',
-      weight: weight,
-      icon: IconPaths.SHIELD_CHECK,
-      iconTone: 'muted'
-    }) {
+  ManagedModelSection() {
+    CardPanel({ title: this.tr('settings.managedModel') }) {
       Column() {
-        ToggleRow({
-          icon: IconPaths.DOWNLOAD,
-          label: this.tr('settings.permDeps'),
-          note: this.tr('settings.permDepsNote'),
-          checked: this.permDeps,
-          busy: this.permBusy,
-          onToggle: (value: boolean) => {
-            this.permDeps = value;
-            this.savePermission(PREF_PERM_DEPS, value);
-          }
+        KeyValueRow({
+          label: this.tr('settings.currentName'),
+          value: this.tr('settings.deepseekManaged')
         })
-        ToggleRow({
-          icon: IconPaths.CODE,
-          label: this.tr('settings.permCode'),
-          note: this.tr('settings.permCodeNote'),
-          checked: this.permCode,
-          busy: this.permBusy,
-          onToggle: (value: boolean) => {
-            this.permCode = value;
-            this.savePermission(PREF_PERM_CODE, value);
-          }
+        KeyValueRow({
+          label: this.tr('settings.currentModel'),
+          value: this.providers === null ? '—' : this.providers.model
         })
-        ToggleRow({
-          icon: IconPaths.FLASK,
-          label: this.tr('settings.permExperiment'),
-          note: this.tr('settings.permExperimentNote'),
-          checked: this.permExperiment,
-          busy: this.permBusy,
-          onToggle: (value: boolean) => {
-            this.permExperiment = value;
-            this.savePermission(PREF_PERM_EXPERIMENT, value);
-          }
-        })
-        ToggleRow({
-          icon: IconPaths.USER_CHECK,
-          label: this.tr('settings.permConfirm'),
-          note: this.tr('settings.permConfirmNote'),
-          checked: this.permConfirm,
-          busy: this.permBusy,
-          onToggle: (value: boolean) => {
-            this.permConfirm = value;
-            this.savePermission(PREF_PERM_CONFIRM, value);
-          }
-        })
-
-        Text(this.tr('settings.permFootnote'))
-          .fontSize(11)
-          .fontColor(AppTheme.TEXT_TERTIARY)
+        Text(this.tr('settings.managedModelHint'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 10 })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
     }
   }
 
-  /** 高级信息：规则与账本，以及后端连接细节。 */
-  @Builder
-  AdvancedCard(weight: number) {
-    SectionCard({
-      title: this.tr('settings.card.advanced'),
-      subtitle: 'Advanced',
-      weight: weight,
-      icon: IconPaths.GEAR,
-      iconTone: 'muted'
-    }) {
-      Column() {
-        Text(this.tr('settings.card.advancedSub'))
-          .fontSize(11)
-          .fontColor(AppTheme.TEXT_TERTIARY)
-          .width('100%')
-          .margin({ bottom: 8 })
-
-        InfoRow({ label: this.tr('settings.ruleProfile'), value: this.localReport.profile, labelWidth: 108 })
-        InfoRow({
-          label: this.tr('settings.ruleFields'),
-          value: this.localReport.specExists ? `${this.localReport.fieldCount}` : '',
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.ruleGaps'),
-          value: this.localReport.specExists
-            ? this.trf('settings.ruleGapsValue', [
-              `${this.localReport.gapCount}`,
-              `${this.localReport.missingValue}`,
-              `${this.localReport.missingAnchor}`
-            ])
-            : '',
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.ruleStatus'),
-          value: this.localReport.specExists ? '' : this.tr('settings.missing'),
-          labelWidth: 108,
-          pill: this.localReport.specExists
-            ? (this.localReport.ruleApproved ? this.tr('localRule.approved') : this.tr('localRule.notApproved'))
-            : '',
-          tone: this.localReport.ruleApproved ? 'ok' : 'warn'
-        })
-        InfoRow({
-          label: this.tr('settings.specFingerprint'),
-          value: this.localReport.specHash,
-          mono: true,
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.ledgerEvents'),
-          value: `${this.localReport.ledgerCount}`,
-          labelWidth: 108
-        })
-
-        Divider()
-          .color(AppTheme.BORDER_SOFT)
-          .margin({ top: 6, bottom: 6 })
-
-        InfoRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true, labelWidth: 108 })
-        InfoRow({
-          label: this.health !== null && this.health.mode === 'cloud'
-            ? this.tr('settings.accountAuth')
-            : this.tr('settings.sharedToken'),
-          value: this.health !== null && this.health.mode === 'cloud'
-            ? this.tr('settings.accountAuthActive')
-            : (ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured')),
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.health'),
-          value: this.health === null ? '' : this.health.status,
-          labelWidth: 108
-        })
-        InfoRow({
-          label: this.tr('settings.backendWorkspace'),
-          value: this.health === null ? '' : this.health.workspace,
-          mono: true,
-          labelWidth: 108
-        })
-
-        // 探测到的每一张卡：显存与驱动只在这里给，磁贴上只留一张的名字。
-        if (this.gpuList().length > 0) {
-          Divider()
-            .color(AppTheme.BORDER_SOFT)
-            .margin({ top: 6, bottom: 6 })
-          ForEach(this.gpuList(), (item: GpuDevice) => {
-            this.GpuRow(item)
-          }, (item: GpuDevice) => item.name)
-        }
-
-        // 端侧自检失败时不能装作没有：这一页的规则与账本数字都来自那次自检。
-        if (this.localError.length > 0) {
-          Text(this.localError)
-            .fontSize(12)
-            .fontColor(AppTheme.DANGER)
-            .width('100%')
-            .margin({ top: 10 })
-        }
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-    }
-  }
-
-  /** 运行时细节：探测到的每一张卡。放在磁贴之后，只给需要的人看。 */
   @Builder
   GpuRow(item: GpuDevice) {
     Column() {
@@ -1280,65 +693,101 @@ export struct SettingsPage {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding({ top: 10, bottom: 10 })
+    .padding({ top: 12, bottom: 12 })
+    .border({ width: { bottom: 1 }, color: AppTheme.BORDER_SOFT })
   }
 
   build() {
-    Column({ space: 16 }) {
-      this.Head()
+    Column({ space: 20 }) {
+      PageHeader({
+        title: this.tr('nav.settings'),
+        status: this.statusText(),
+        onRefresh: () => {
+          this.load();
+        }
+      })
 
       if (this.errorText.length > 0) {
         this.ErrorBanner()
       }
 
-      this.ReadinessCard()
-      this.TileGrid()
-      this.LimitedStrip()
-
-      if (this.compact) {
-        this.WorkspaceSection(0)
-        this.ModelRuntimeCard(0)
-        this.ProviderCard(0)
-        if (this.providerEditId.length > 0) {
-          this.ProviderFormCard()
+      SectionRail({
+        items: this.railItems(),
+        active: this.section,
+        onSelect: (key: string) => {
+          this.section = key;
         }
-        this.PermissionsCard(0)
-        this.AdvancedCard(0)
+      })
+
+      if (this.section === 'backend') {
+        CardPanel({
+          title: this.tr('menu.backend')
+        }) {
+          Column() {
+            KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
+            KeyValueRow({
+              label: this.health !== null && this.health.mode === 'cloud'
+                ? this.tr('settings.accountAuth')
+                : this.tr('settings.sharedToken'),
+              value: this.health !== null && this.health.mode === 'cloud'
+                ? this.tr('settings.accountAuthActive')
+                : (ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured'))
+            })
+            KeyValueRow({
+              label: this.tr('settings.health'),
+              value: this.health === null ? '—' : this.health.status
+            })
+            KeyValueRow({
+              label: this.tr('settings.workspace'),
+              value: this.health === null ? '—' : (this.health.workspace || '—'),
+              mono: true
+            })
+          }
+          .width('100%')
+        }
+      } else if (this.section === 'model') {
+        if (this.providers !== null && this.providers.managed === true) {
+          this.ManagedModelSection()
+        } else {
+          ForEach(this.modelKeys(), (key: string) => {
+            this.ModelSection(key)
+          }, (key: string) => key)
+        }
+      } else if (this.section === 'runtime') {
+        CardPanel({
+          title: this.tr('settings.runtime')
+        }) {
+          Column() {
+            KeyValueRow({
+              label: this.tr('settings.platform'),
+              value: this.runtime === null ? '—' : this.runtime.platform
+            })
+            KeyValueRow({
+              label: 'Python',
+              value: this.runtime === null ? '—' : this.runtime.python
+            })
+            if (this.runtime === null || this.runtime.gpus.length === 0) {
+              EmptyHint({ text: this.tr('settings.noGpu') })
+            } else {
+              ForEach(this.runtime.gpus, (item: GpuDevice) => {
+                this.GpuRow(item)
+              }, (item: GpuDevice) => item.name)
+            }
+          }
+          .width('100%')
+        }
       } else {
-        Row({ space: 16 }) {
-          this.WorkspaceSection(1)
-          this.ModelRuntimeCard(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-
-        this.ProviderCard(0)
-        if (this.providerEditId.length > 0) {
-          this.ProviderFormCard()
-        }
-
-        Row({ space: 16 }) {
-          this.PermissionsCard(1)
-          this.AdvancedCard(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
+        LocalWorkspaceCard()
       }
 
       if (this.loading) {
         Text(this.tr('common.loading'))
           .fontSize(12)
           .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 4 })
+          .margin({ top: 12 })
       }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .onAreaChange((_oldArea: Area, newArea: Area) => {
-      const compact: boolean = Number(newArea.width) < WIDE_MIN_WIDTH;
-      if (this.compact !== compact) {
-        this.compact = compact;
-      }
-    })
   }
 }
