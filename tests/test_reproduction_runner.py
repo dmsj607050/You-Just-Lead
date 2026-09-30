@@ -514,6 +514,35 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(summaries["output/metrics.json"]["keys"], ["mAP50_95"])
             self.assertEqual(summaries["output/results.csv"]["columns"], ["epoch", "loss", "mAP"])
 
+    def test_terminal_run_state_is_not_visible_before_finish_event_is_recorded(self) -> None:
+        """Windows 清理临时目录前，终态读取必须意味着后台 SQLite 写入已结束。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            service, _ = self._service(Path(temporary), FakeRunner())
+            service.make_plan("arxiv:1")
+            event_started = threading.Event()
+            allow_event = threading.Event()
+            record_event = service.ledger.record_event
+
+            def pause_finish_event(event_type: str, payload: dict) -> None:
+                if event_type == "reproduction_run_finished":
+                    event_started.set()
+                    if not allow_event.wait(timeout=5):
+                        raise TimeoutError("test did not release the finish event")
+                record_event(event_type, payload)
+
+            service.ledger.record_event = pause_finish_event
+            submitted = service.submit("REPRO-baseline", "cmd-1", "note")
+            try:
+                self.assertTrue(event_started.wait(timeout=5), "finish event did not reach the ledger")
+                visible = service.run_detail(submitted["run_id"])
+                self.assertIsNotNone(visible)
+                self.assertEqual(visible["status"], "running")
+            finally:
+                allow_event.set()
+
+            run = self._wait(service, submitted["run_id"])
+            self.assertEqual(run["status"], "succeeded")
+
     def test_boilerplate_directories_do_not_crowd_out_the_real_outputs(self) -> None:
         """`.git` 与依赖缓存不是产物，却按字母序排在前面，会把 60 条的清单占满。
 

@@ -2,9 +2,10 @@
 
 | 文件 | 内容 | 什么时候看 |
 |---|---|---|
-| [architecture.md](architecture.md) | **架构决定记录**：D1–D11，每条都注明验收依据；第 7 节是一条**未生效的草案**（推广形态：云控制面 + 用户自己的执行器） | 想知道"为什么是这样设计的"、或准备改边界时 |
+| [architecture.md](architecture.md) | **架构决定记录**：D1–D13，每条都注明验收依据；D12/D13 记录托管服务、评委账号与积分计量 | 想知道"为什么是这样设计的"、或准备改边界时 |
 | [operation_guide.md](operation_guide.md) | 操作指南：跑实验、连接端侧、模拟器端口转发、局域网接入 | 要动手跑东西时 |
 | [versioning.md](versioning.md) | 版本流、发布清单字段、**什么算"可以发布"**、切一次发布要做什么 | 发版前 |
+| [cloud_deployment.md](cloud_deployment.md) | `nucrobot.online` 云账号服务拓扑、验收记录和回滚入口（不含凭据） | 查线上部署状态或维护云端时 |
 | [SUBMISSION.md](SUBMISSION.md) | 比赛提交材料 | 准备提交时 |
 | `RELEASE_<版本>.md` | 每次发布的说明：版本 + commit + 产物 **SHA-256** | 要核对"下载到的是不是发布的那一个文件"时 |
 | `assets/logo.png` | README 用的品牌图 | —— |

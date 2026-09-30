@@ -484,11 +484,18 @@ class ReproductionService:
             run["error"] = f"{type(exc).__name__}: {exc}"
         finally:
             run["finished_at"] = utc_now()
-            self._save_run(run)
-            self.ledger.record_event(
-                "reproduction_run_finished",
-                {"run_id": run_id, "plan_id": run.get("plan_id"), "status": run["status"], "exit_code": run.get("exit_code")},
-            )
+            try:
+                self.ledger.record_event(
+                    "reproduction_run_finished",
+                    {"run_id": run_id, "plan_id": run.get("plan_id"), "status": run["status"], "exit_code": run.get("exit_code")},
+                )
+            except Exception as exc:
+                # 终态不能先于账本对外可见。事件写入失败时，把不完整的验收结果标成失败。
+                run["status"] = "failed"
+                event_error = f"Could not record the completion event: {type(exc).__name__}: {exc}"
+                run["error"] = f"{run['error']} {event_error}".strip() if run.get("error") else event_error
+            finally:
+                self._save_run(run)
 
     # ---------------------------------------------------------------- 内部
 

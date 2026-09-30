@@ -1,5 +1,5 @@
-import { common } from '@kit.AbilityKit';
 import AppTheme from '../common/AppTheme';
+import { fetchAccount } from '../common/BackendClient';
 import IconPaths from '../common/IconPaths';
 import { LANG_EN, LANG_ZH, langName, setLang, tFor, tfFor } from '../common/I18n';
 import { AppIcon } from './AppIcon';
@@ -7,7 +7,7 @@ import { AppIcon } from './AppIcon';
 /**
  * 账户菜单：点击顶栏头像弹出。
  *
- * 只做展示与回传，不自己取数：阻塞项数量、后端状态都由页面传入，
+ * 阻塞项数量与后端状态由页面传入；账户名和余额在菜单展开时从服务端刷新。
  * 语言切换直接调 I18n 的 setLang，界面靠 AppStorage 广播整体重绘。
  */
 @Component
@@ -21,6 +21,8 @@ export struct UserMenu {
   @Prop blockerCount: number = 0;
   /** 后端是否连通，决定「后端连接」显示正常还是离线。 */
   @Prop backendOnline: boolean = true;
+  @State accountUsername: string = '';
+  @State accountCredits: number = 0;
   /** 关闭菜单。 */
   onClose: () => void = () => {
   };
@@ -33,8 +35,24 @@ export struct UserMenu {
   /** 回到项目选择页。 */
   onSwitchProject: () => void = () => {
   };
+  onLogout: () => void = () => {
+  };
   /** 语言选项是否展开。 */
   @State langExpanded: boolean = false;
+
+  aboutToAppear(): void {
+    this.refreshAccount();
+  }
+
+  private async refreshAccount(): Promise<void> {
+    try {
+      const account = await fetchAccount();
+      this.accountUsername = account.username;
+      this.accountCredits = account.credits;
+    } catch (error) {
+      // The menu remains usable if the account balance cannot be refreshed.
+    }
+  }
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
@@ -134,11 +152,11 @@ export struct UserMenu {
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(12)
         Column() {
-          Text(this.tr('menu.workspace'))
+          Text(this.accountUsername)
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppTheme.TEXT_PRIMARY)
-          Text('You Just Lead')
+          Text(`${this.tr('auth.balance')}：${this.accountCredits.toFixed(2)}`)
             .fontSize(12)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .margin({ top: 4 })
@@ -258,10 +276,8 @@ export struct UserMenu {
         .color(AppTheme.BORDER)
         .margin({ top: 8, bottom: 4 })
 
-      this.EntryRow(IconPaths.LOGOUT, 'menu.quit', '', AppTheme.TEXT_SECONDARY, () => {
-        // getContext 已废弃，用 UIContext 取宿主 Ability 的上下文。
-        const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-        context.terminateSelf();
+      this.EntryRow(IconPaths.LOGOUT, 'auth.signOut', '', AppTheme.TEXT_SECONDARY, () => {
+        this.onLogout();
       })
     }
     .alignItems(HorizontalAlign.Start)

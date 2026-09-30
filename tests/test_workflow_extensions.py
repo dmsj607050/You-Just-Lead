@@ -199,6 +199,26 @@ class WorkflowExtensionTests(unittest.TestCase):
             self.assertEqual(draft["status"], "awaiting_human_approval")
             self.assertTrue((workspace / "experiments" / "drafts" / "DRAFT-0001.json").exists())
 
+    def test_data_audit_endpoint_reads_only_the_saved_report(self) -> None:
+        """GET /api/data-audit 不应为了一个文件去构建整张仪表盘快照。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace" / "current"
+            server, base = _serve_workspace(root, workspace)
+            try:
+                with patch("app.api_server.dashboard_snapshot", side_effect=AssertionError("unexpected dashboard build")):
+                    self.assertEqual(_get_json(base + "/api/data-audit"), {})
+
+                    report = {
+                        "audit_schema_version": 1,
+                        "generated_at": "2026-09-30T00:00:00Z",
+                        "inventory_sha256": "a" * 64,
+                    }
+                    write_json_atomic(workspace / "reports" / "data_statistics.json", report)
+                    self.assertEqual(_get_json(base + "/api/data-audit"), report)
+            finally:
+                _stop_server(server)
+
     def test_paper_endpoint_reports_existing_package_without_writing(self) -> None:
         """GET /api/paper 只读报告已有证据包；包还没生成时也不能落任何文件。"""
         with tempfile.TemporaryDirectory() as temporary:

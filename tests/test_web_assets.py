@@ -62,6 +62,78 @@ class AssetTests(unittest.TestCase):
             with self.subTest(asset=name):
                 self.assertTrue((WEB_ROOT / name).is_file(), f"index.html 引用了不存在的 {name}")
 
+    def test_page_content_is_wrapped_by_the_layout_container(self) -> None:
+        """页面渲染目标必须带上样式表定义的内边距与最大宽度容器。"""
+        app = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('<div class="content"><div class="content-inner" id="content"></div></div>', app)
+
+    def test_very_narrow_header_keeps_brand_on_one_line(self) -> None:
+        """极窄屏下隐藏主题说明文字，仍保留可访问的主题按钮与服务状态。"""
+        styles = (WEB_ROOT / "styles.css").read_text(encoding="utf-8")
+
+        self.assertRegex(
+            styles,
+            r"@media \(max-width: 360px\) \{[\s\S]*?\.brand \{[^}]*white-space: nowrap;[^}]*\}"
+            r"[\s\S]*?\.theme-toggle #theme-label \{[^}]*display: none;",
+        )
+
+    def test_sidebar_has_grouped_navigation_and_readable_icon_buttons(self) -> None:
+        """分组帮助新用户找模块；窄屏隐藏文字后，按钮仍有读屏名与悬停提示。"""
+        app = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+        ui = (WEB_ROOT / "ui.js").read_text(encoding="utf-8")
+        styles = (WEB_ROOT / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("{ key: 'overview', group: 'workspace'", app)
+        self.assertIn("{ key: 'data', group: 'research'", app)
+        self.assertIn("{ key: 'writing', group: 'outputs'", app)
+        self.assertIn('role="group" aria-label="${group.label}"', app)
+        self.assertIn('aria-label="${UI.esc(item.label)}" title="${UI.esc(item.label)}"', app)
+        self.assertIn('aria-current="page"', app)
+        self.assertIn('aria-hidden="true"', ui)
+        self.assertIn(".sidebar-section-label", styles)
+        self.assertIn(".sidebar-section {\n    display: contents;", styles)
+        self.assertIn("data-key=\"settings\"", app)
+        self.assertNotIn("sidebar-quote", app)
+        self.assertNotIn("sidebar-quote", styles)
+
+    def test_data_page_explains_an_empty_audit_result(self) -> None:
+        """空项目的审计结果应说明报告尚未生成，不能把缺数据伪装成审计结果。"""
+        views = (WEB_ROOT / "views.js").read_text(encoding="utf-8")
+
+        self.assertRegex(views, r"Views\.data = function \(data\) \{[\s\S]*?Object\.keys\(data\)\.length === 0")
+        self.assertIn("当前项目尚未生成数据审计报告。完成数据审计后，结果会显示在这里。", views)
+        self.assertIn('data-action="workflow-actions">查看下一步建议</button>', views)
+        self.assertIn('当前页面不提供数据导入或启动审计的入口。', views)
+
+        app = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertRegex(
+            app,
+            r"action === 'workflow-actions'[\s\S]*?State\.sections\.workflow = 'actions'",
+        )
+
+    def test_known_workflow_action_evidence_is_localized(self) -> None:
+        views = (WEB_ROOT / "views.js").read_text(encoding="utf-8")
+
+        self.assertIn("function workflowActionEvidenceLabel(value)", views)
+        self.assertIn("workflowActionEvidenceLabel(item.reason || item.detail || item.evidence)", views)
+        self.assertIn('当前页面没有原始数据导入或数据审计启动入口。', views)
+        self.assertIn("No data_statistics.json exists.", views)
+        self.assertIn("尚未生成 data_statistics.json。", views)
+
+    def test_empty_experiment_ledger_links_to_workflow_actions(self) -> None:
+        views = (WEB_ROOT / "views.js").read_text(encoding="utf-8")
+
+        self.assertRegex(
+            views,
+            r"ledger: \(\) =>[\s\S]*?UI\.EmptyHint\('实验台账为空。[\s\S]*?data-action=\"workflow-actions\"",
+        )
+
+    def test_empty_paper_package_states_generation_limit_and_workflow_route(self) -> None:
+        views = (WEB_ROOT / "views.js").read_text(encoding="utf-8")
+
+        self.assertRegex(views, r"Views\.writing = function \(data\) \{[\s\S]*?data\.available[\s\S]*?不能在页面中触发生成[\s\S]*?data-action=\"workflow-actions\"")
+
     @unittest.skipIf(shutil.which("node") is None, "本机没有 node，跳过语法检查")
     def test_the_scripts_parse(self) -> None:
         """一个笔误就能让整页空白，而浏览器只在控制台里说一声。"""

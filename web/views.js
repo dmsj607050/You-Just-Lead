@@ -92,6 +92,17 @@ function workflowActionLabel(value) {
   return labels[String(value)] || String(value ?? '');
 }
 
+/** 翻译已知的阻塞原因；未知原因保留后端原文，便于追溯。 */
+function workflowActionEvidenceLabel(value) {
+  const labels = {
+    'Specification is not approved.': '规则尚未经过确认。',
+    'No data_statistics.json exists.': '尚未生成 data_statistics.json。',
+    'No persisted research radar exists.': '尚未保存研究检索结果。',
+    'No completed experiments recorded.': '尚无已完成的实验记录。',
+  };
+  return labels[String(value)] || String(value ?? '');
+}
+
 function ruleGapReasonLabel(value) {
   const reason = String(value ?? '');
   if (reason.startsWith('The confirmed value is missing')) return '请对照官方原文填写此规则值。';
@@ -516,19 +527,20 @@ Views.workflow = function (data) {
   } else {
     body = UI.Card(
       '建议动作',
-      actions.length
+      '<p class="meta-line">以下建议只说明处理顺序，不会自动执行；当前页面没有原始数据导入或数据审计启动入口。</p>' +
+      (actions.length
         ? actions
             .map(
               (item) =>
                 '<div class="list-row"><div class="list-main">' +
                 `<div class="list-title">${UI.esc(workflowActionLabel(item.action || item.title || item))}</div>` +
-                `<div class="list-sub">${UI.esc(text(item.reason || item.detail || item.evidence))}</div>` +
+                `<div class="list-sub">${UI.esc(workflowActionEvidenceLabel(item.reason || item.detail || item.evidence))}</div>` +
                 '</div>' +
                 (item.priority ? `<div class="list-side">${UI.Badge(item.priority, badgeToneForState(item.priority))}</div>` : '') +
                 '</div>'
             )
             .join('')
-        : UI.EmptyHint('暂无建议动作')
+        : UI.EmptyHint('暂无建议动作'))
     );
     body += kvCard('规则报告', data.rules, ['markdown']);
   }
@@ -735,7 +747,8 @@ Views.experiment = function (data) {
                 );
               })
               .join('')
-          : UI.EmptyHint('还没有实验记录')
+          : UI.EmptyHint('实验台账为空。先在工作流确认规则，再查看可执行的基线步骤。') +
+            '<button class="btn" data-action="workflow-actions">查看下一步建议</button>'
       ),
     jobs: () =>
       UI.Card(
@@ -828,6 +841,14 @@ Views.literature = function (data) {
 
 Views.data = function (data) {
   if (!data) return '';
+  if (Object.keys(data).length === 0) {
+    return UI.PageHeader('数据', '') + UI.Card(
+      '审计结果',
+      UI.EmptyHint('当前项目尚未生成数据审计报告。完成数据审计后，结果会显示在这里。') +
+        '<p class="meta-line">当前页面不提供数据导入或启动审计的入口。</p>' +
+        '<button class="btn" data-action="workflow-actions">查看下一步建议</button>'
+    );
+  }
   const sections = [
     { key: 'source', label: '数据源', tone: data.data_dir ? 'ok' : 'muted' },
     { key: 'images', label: '图像', tone: (data.images && data.images.count) ? 'ok' : 'muted' },
@@ -878,10 +899,16 @@ Views.data = function (data) {
 
 Views.writing = function (data) {
   if (!data) return '';
-  const status = `生成于 ${text(data.generated_at)} · 包目录 ${text(data.package_dir)}`;
+  const status = data.available ? `生成于 ${text(data.generated_at)} · 包目录 ${text(data.package_dir)}` : '尚未生成论文包';
   return (
     UI.PageHeader('写作', status) +
-    kvCard('论文包', data, ['submission']) +
+    (data.available
+      ? kvCard('论文包', data, ['submission'])
+      : UI.Card(
+          '论文包',
+          UI.EmptyHint('当前客户端只能展示后端已生成的证据包，尚不能在页面中触发生成。请先完成规则、数据审计和实验。') +
+            '<button class="btn" data-action="workflow-actions">查看下一步建议</button>'
+        )) +
     kvCard('提交合约', data.submission)
   );
 };

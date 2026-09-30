@@ -4,7 +4,7 @@ import { tFor } from '../common/I18n';
 import { NavItem, NAV_ITEMS } from '../common/ViewTypes';
 import { AppIcon } from './AppIcon';
 
-/** 侧栏：主导航 + 设置 + 底部格言。 */
+/** 侧栏：可滚动的分组导航 + 固定设置入口。 */
 @Component
 export struct SideNav {
   /**
@@ -18,6 +18,15 @@ export struct SideNav {
     return tFor(this.lang, key);
   }
 
+  /** 导航分组固定，模块顺序由共享导航表决定。 */
+  private navGroupKeys(): string[] {
+    return ['workspace', 'research', 'outputs'];
+  }
+
+  private itemsForGroup(groupKey: string): NavItem[] {
+    return NAV_ITEMS.filter((item: NavItem) => item.group === groupKey);
+  }
+
   /** 当前选中的导航 key。 */
   @Prop activeKey: string = 'project';
   /** 阻塞项数量，大于 0 时在工作流项上显示角标。 */
@@ -28,42 +37,58 @@ export struct SideNav {
 
   build() {
     Column() {
-      Column() {
-        ForEach(NAV_ITEMS, (item: NavItem) => {
-          Row() {
-            AppIcon({
-              commands: item.icon,
-              color: this.activeKey === item.key ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
-              filled: false,
-              iconSize: 24
-            })
-            Text(this.tr(`nav.${item.key}`))
-              .fontSize(15)
-              .fontWeight(this.activeKey === item.key ? FontWeight.Medium : FontWeight.Normal)
-              .fontColor(this.activeKey === item.key ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
-              .margin({ left: 12 })
-              .layoutWeight(1)
-            if (item.key === 'workflow' && this.blockerCount > 0) {
-              Text(`${this.blockerCount}`)
+      Scroll() {
+        Column() {
+          ForEach(this.navGroupKeys(), (groupKey: string) => {
+            Column() {
+              Text(this.tr(`nav.group.${groupKey}`))
                 .fontSize(11)
-                .fontColor(Color.White)
-                .backgroundColor(AppTheme.DANGER)
-                .borderRadius(9)
-                .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+                .fontWeight(FontWeight.Medium)
+                .fontColor(AppTheme.TEXT_TERTIARY)
+                .margin({ left: 12, bottom: 6 })
+
+              ForEach(this.itemsForGroup(groupKey), (item: NavItem) => {
+                Row() {
+                  AppIcon({
+                    commands: item.icon,
+                    color: this.activeKey === item.key ? AppTheme.PRIMARY : AppTheme.TEXT_TERTIARY,
+                    filled: false,
+                    iconSize: 24
+                  })
+                  Text(this.tr(`nav.${item.key}`))
+                    .fontSize(15)
+                    .fontWeight(this.activeKey === item.key ? FontWeight.Medium : FontWeight.Normal)
+                    .fontColor(this.activeKey === item.key ? AppTheme.PRIMARY_DARK : AppTheme.TEXT_SECONDARY)
+                    .margin({ left: 12 })
+                    .layoutWeight(1)
+                  if (item.key === 'workflow' && this.blockerCount > 0) {
+                    Text(`${this.blockerCount}`)
+                      .fontSize(11)
+                      .fontColor(Color.White)
+                      .backgroundColor(AppTheme.DANGER)
+                      .borderRadius(9)
+                      .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+                  }
+                }
+                .width('100%')
+                .height(44)
+                .padding({ left: 12, right: 12 })
+                .backgroundColor(this.activeKey === item.key ? AppTheme.PRIMARY_SOFT : Color.Transparent)
+                .borderRadius(AppTheme.RADIUS_SM)
+                .margin({ bottom: 4 })
+                .onClick(() => {
+                  this.onSelect(item.key);
+                })
+              }, (item: NavItem) => item.key)
             }
-          }
-          .width('100%')
-          .height(44)
-          .padding({ left: 12, right: 12 })
-          .backgroundColor(this.activeKey === item.key ? AppTheme.PRIMARY_SOFT : Color.Transparent)
-          .borderRadius(AppTheme.RADIUS_SM)
-          .margin({ bottom: 4 })
-          .onClick(() => {
-            this.onSelect(item.key);
-          })
-        }, (item: NavItem) => item.key)
+            .width('100%')
+            .margin({ bottom: 10 })
+          }, (groupKey: string) => groupKey)
+        }
+        .width('100%')
       }
-      .width('100%')
+      .layoutWeight(1)
+      .scrollBar(BarState.Auto)
 
       Divider()
         .color(AppTheme.BORDER)
@@ -90,24 +115,6 @@ export struct SideNav {
         this.onSelect('settings');
       })
 
-      Blank()
-
-      Column() {
-        Text(this.tr('nav.quote1'))
-          .fontSize(12)
-          .fontColor(AppTheme.TEXT_TERTIARY)
-        Text(this.tr('nav.quote2'))
-          .fontSize(12)
-          .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 2 })
-        Text('— You Just Lead')
-          .fontSize(12)
-          .fontColor(AppTheme.TEXT_TERTIARY)
-          .margin({ top: 6 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .width('100%')
-      .padding({ left: 4, bottom: 4 })
     }
     .width('100%')
     .height('100%')

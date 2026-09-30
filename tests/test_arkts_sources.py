@@ -46,7 +46,10 @@ def _device_root() -> Path:
 #: 要检查的文件（相对端侧工程根）。
 CHECKED_FILES = (
     "entry/src/main/ets/view/ResearchLoopPage.ets",
+    "entry/src/main/ets/view/DataPage.ets",
     "entry/src/main/ets/view/SettingsPage.ets",
+    "entry/src/main/ets/view/ProjectGate.ets",
+    "entry/src/main/ets/view/TopBar.ets",
     "entry/src/main/ets/common/BackendClient.ets",
     "entry/src/main/ets/common/I18n.ets",
     "entry/src/main/ets/common/ViewTypes.ets",
@@ -226,6 +229,200 @@ class MemberTests(unittest.TestCase):
 
         self.assertIn("real", declared)
         self.assertEqual(sorted(set(_MEMBER_CALL.findall(code)) - declared), ["reel"])
+
+
+class EmptyProjectOnboardingTests(unittest.TestCase):
+    """零规则项目必须有下一步入口，并在状态切换时强制重建 ArkUI 子树。"""
+
+    def test_empty_project_action_opens_rule_evidence_section(self) -> None:
+        root = _device_root()
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+        workflow = (root / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertRegex(index, r"projectSectionKeys\(\): string\[\][\s\S]*?this\.ruleTotal === 0")
+        self.assertIn("ForEach(this.projectSectionKeys()", index)
+        self.assertIn("ForEach(this.activePageKeys()", index)
+        self.assertIn("this.tr('overview.configureRules')", index)
+        self.assertIn("this.openRuleSetup();", index)
+        self.assertRegex(index, r"openRuleSetup\(\): void[\s\S]*?workflowInitialSection = 'rules'[\s\S]*?activeNav = 'workflow'")
+        self.assertIn("initialSection: this.workflowInitialSection,", index)
+        self.assertIn("@Prop initialSection: string = 'status';", workflow)
+        self.assertIn("this.section = this.initialSection;", workflow)
+        self.assertIn("overview.emptyProjectTitle", i18n)
+        self.assertIn("overview.emptyProjectBody", i18n)
+        self.assertIn("overview.configureRules", i18n)
+
+    def test_cloud_project_gate_keeps_local_tools_secondary_and_available(self) -> None:
+        root = _device_root()
+        gate = (root / "entry/src/main/ets/view/ProjectGate.ets").read_text(encoding="utf-8")
+        settings = (root / "entry/src/main/ets/view/SettingsPage.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertIn("@State localToolsExpanded: boolean = false;", gate)
+        self.assertIn("ForEach(this.localToolsKeys()", gate)
+        self.assertIn("LocalWorkspaceCard()", gate)
+        self.assertIn("LocalWorkspaceCard()", settings)
+        self.assertIn("gate.localToolsTitle", i18n)
+        self.assertIn("gate.localToolsExpand", i18n)
+        self.assertIn("gate.localToolsCollapse", i18n)
+        self.assertIn("项目数据保存在本账号的云端工作区", i18n)
+        self.assertIn("原始数据只读，规则与结论由你核对", i18n)
+        self.assertIn("Project data stays in this account’s cloud workspace", i18n)
+        self.assertNotIn("the app only reads and records", i18n)
+
+
+class ResponsiveHeaderTests(unittest.TestCase):
+    """窄宽度时保住项目切换、账户和语言入口，通知也必须真正可用。"""
+
+    def test_project_gate_hides_the_long_tagline_before_language_control_is_clipped(self) -> None:
+        root = _device_root()
+        gate = (root / "entry/src/main/ets/view/ProjectGate.ets").read_text(encoding="utf-8")
+
+        self.assertIn("@State compactHeader: boolean = false;", gate)
+        self.assertIn("const compact = width < 640;", gate)
+        self.assertIn("if (!this.compactHeader)", gate)
+        self.assertIn("const tight = width < 400;", gate)
+        self.assertIn("Number(newArea.width)", gate)
+
+    def test_workspace_header_adapts_and_notification_opens_workflow(self) -> None:
+        root = _device_root()
+        top_bar = (root / "entry/src/main/ets/view/TopBar.ets").read_text(encoding="utf-8")
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+
+        self.assertIn("const compact = width < 680;", top_bar)
+        self.assertIn("const tight = width < 440;", top_bar)
+        self.assertIn("this.blockerCount > 0", top_bar)
+        self.assertIn("this.onNotificationsClick();", top_bar)
+        self.assertRegex(index, r"TopBar\(\{[\s\S]*?onNotificationsClick: \(\) => \{[\s\S]*?activeNav = 'workflow';")
+        self.assertIn("@State compactWorkspace: boolean = true;", index)
+        self.assertIn(".minContentWidth(this.compactWorkspace ? 260 : 420)", index)
+        self.assertIn("const compact = Number(newArea.width) < 680;", index)
+
+
+class GroupedNavigationTests(unittest.TestCase):
+    """端侧侧栏按科研流程分组，并保证中英文都有分组标题。"""
+
+    def test_side_navigation_renders_all_shared_groups_and_items(self) -> None:
+        root = _device_root()
+        types = (root / "entry/src/main/ets/common/ViewTypes.ets").read_text(encoding="utf-8")
+        side_nav = (root / "entry/src/main/ets/view/SideNav.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        for group in ("workspace", "research", "outputs"):
+            with self.subTest(group=group):
+                self.assertIn(f"group: '{group}'", types)
+                self.assertIn(f"key: 'nav.group.{group}'", i18n)
+                self.assertRegex(i18n, rf"key: 'nav\.group\.{group}'.*zh: '.+'.*en: '.+'")
+
+        self.assertIn("return ['workspace', 'research', 'outputs'];", side_nav)
+        self.assertIn("this.tr(`nav.group.${groupKey}`)", side_nav)
+        self.assertIn("ForEach(this.itemsForGroup(groupKey)", side_nav)
+        self.assertIn("this.onSelect(item.key);", side_nav)
+        self.assertIn("item.key === 'workflow' && this.blockerCount > 0", side_nav)
+        self.assertIn(".scrollBar(BarState.Auto)", side_nav)
+        self.assertIn("this.onSelect('settings');", side_nav)
+        self.assertNotIn("nav.quote", side_nav)
+        self.assertNotIn("Blank()", side_nav)
+
+
+class ReproductionRuntimeCopyTests(unittest.TestCase):
+    """云端 HAP 的容器故障提示不能要求评委安装 Windows 本地工具。"""
+
+    def test_missing_runtime_copy_points_to_the_server_administrator(self) -> None:
+        i18n = (_device_root() / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+        record = next(line for line in i18n.splitlines() if "key: 'repro.engineMissingDetail'" in line)
+
+        self.assertIn("联系平台管理员", record)
+        self.assertIn("服务端容器配置", record)
+        self.assertIn("诊断信息：{0}", record)
+        self.assertNotIn("Docker Desktop", record)
+        self.assertNotIn("WSL2", record)
+
+
+class CreditBalanceRefreshTests(unittest.TestCase):
+    """模型问答结束后，项目页余额应从账户接口更新。"""
+
+    def test_workflow_notifies_parent_and_parent_refreshes_account(self) -> None:
+        root = _device_root()
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+        workflow = (root / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+
+        self.assertIn("onCreditsChanged: () => void", workflow)
+        self.assertIn("@Prop creditBalance: number = 0;", workflow)
+        self.assertIn("Text(this.creditBalance.toFixed(2))", workflow)
+        self.assertRegex(workflow, r"async ask\(\): Promise<void>[\s\S]*?finally \{[\s\S]*?this\.onCreditsChanged\(\);")
+        self.assertRegex(index, r"WorkflowPage\(\{[\s\S]*?creditBalance: this\.creditBalance,[\s\S]*?onCreditsChanged: \(\) => \{[\s\S]*?this\.refreshAccount\(\);")
+        self.assertRegex(index, r"refreshAccount\(\): Promise<void>[\s\S]*?this\.applyAccount\(await fetchAccount\(\)\)")
+
+
+class EmptyDataAuditPageTests(unittest.TestCase):
+    def test_data_page_handles_a_project_without_an_audit_report(self) -> None:
+        root = _device_root()
+        page = (root / "entry/src/main/ets/view/DataPage.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertIn("Object.keys(report).length === 0", page)
+        self.assertIn("this.audit = null;", page)
+        self.assertIn("data.noAuditReport", page)
+        self.assertIn("this.tr('data.cloudAuditUnavailable')", page)
+        self.assertIn("this.tr('data.noAuditReport')", page)
+        self.assertIn("尚未生成数据审计报告", i18n)
+        self.assertIn("this.tr('data.viewNextSteps')", page)
+        self.assertIn("this.onOpenNextSteps()", page)
+
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+        self.assertIn("this.workflowInitialSection = 'actions';", index)
+        self.assertIn("this.openWorkflowNextSteps();", index)
+
+    def test_empty_paper_package_explains_generation_boundary_and_links_to_workflow(self) -> None:
+        root = _device_root()
+        page = (root / "entry/src/main/ets/view/WritingPage.ets").read_text(encoding="utf-8")
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertIn("this.tr('writing.viewNextSteps')", page)
+        self.assertIn("this.onOpenNextSteps();", page)
+        self.assertIn("onOpenNextSteps: () => {", index)
+        self.assertIn("尚不能在页面中触发生成", i18n)
+
+    def test_empty_experiment_ledger_links_to_workflow_without_running_training(self) -> None:
+        root = _device_root()
+        page = (root / "entry/src/main/ets/view/ExperimentPage.ets").read_text(encoding="utf-8")
+        index = (root / "entry/src/main/ets/pages/Index.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertIn("this.tr('exp.viewNextSteps')", page)
+        self.assertIn("this.onOpenNextSteps();", page)
+        self.assertIn("onOpenNextSteps: () => {", index)
+        self.assertIn("this.openWorkflowNextSteps();", index)
+        self.assertIn("查看下一步建议", i18n)
+        self.assertIn("@Prop cloudAccount: boolean = false;", page)
+        self.assertIn("cloudAccount: this.authenticated", index)
+        self.assertIn("this.CloudExecutionNote()", page)
+        self.assertIn("当前云端 HAP 没有数据上传入口和训练执行器", i18n)
+
+    def test_known_workflow_actions_and_evidence_have_translations(self) -> None:
+        root = _device_root()
+        workflow = (root / "entry/src/main/ets/view/WorkflowPage.ets").read_text(encoding="utf-8")
+        i18n = (root / "entry/src/main/ets/common/I18n.ets").read_text(encoding="utf-8")
+
+        self.assertIn("Text(this.actionText(item.action))", workflow)
+        self.assertIn("Text(this.actionText(item.evidence, true))", workflow)
+        self.assertIn("this.tr('workflow.actionHint')", workflow)
+        self.assertIn("No data_statistics.json exists.", workflow)
+        self.assertIn("尚未生成 data_statistics.json。", i18n)
+
+    def test_harmony_hides_cloud_filesystem_roots_in_path_labels(self) -> None:
+        root = _device_root()
+        formatter = (root / "entry/src/main/ets/common/Format.ets").read_text(encoding="utf-8")
+
+        self.assertIn("export function workspacePathLabel", formatter)
+        self.assertIn("normalizedValue.startsWith('/') || hasDrivePrefix", formatter)
+        for name in ("DataPage.ets", "ExperimentPage.ets", "WritingPage.ets", "TracePage.ets"):
+            with self.subTest(page=name):
+                page = (root / f"entry/src/main/ets/view/{name}").read_text(encoding="utf-8")
+                self.assertIn("workspacePathLabel", page)
 
 
 class ContractShapeTests(unittest.TestCase):

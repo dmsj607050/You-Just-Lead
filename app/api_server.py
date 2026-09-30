@@ -39,6 +39,14 @@ from agents.candidate_agent import (
     record_decision,
 )
 from agents.materials_agent import MaterialIntakeError
+from app.account_service import (
+    AccountError,
+    AccountService,
+    AuthenticationError,
+    InsufficientCredits,
+    RateLimitError,
+    UsageMeter,
+)
 from app.approval_service import approve_training_config
 from app.data_audit_scheduler import DataAuditScheduler, DataAuditSchedulerError
 from app.dashboard_service import dashboard_snapshot
@@ -276,7 +284,9 @@ _REPRODUCTION_CACHE: dict[str, ReproductionService] = {}
 _RESEARCH_LOOP_CACHE: dict[str, ResearchLoopService] = {}
 
 
-def research_loop_for(project_root: Path, workspace: Path) -> ResearchLoopService:
+def research_loop_for(
+    project_root: Path, workspace: Path, *, usage_meter: UsageMeter | None = None
+) -> ResearchLoopService:
     """按工作区取一份研究循环服务。
 
     它持有内存里的研究状态，重建就等于把模型刚推出来的假设与证据丢掉，所以必须缓存。
@@ -286,8 +296,10 @@ def research_loop_for(project_root: Path, workspace: Path) -> ResearchLoopServic
     with _SCHEDULER_LOCK:
         cached = _RESEARCH_LOOP_CACHE.get(key)
         if cached is None:
-            cached = ResearchLoopService(project_root.resolve(), workspace.resolve())
+            cached = ResearchLoopService(project_root.resolve(), workspace.resolve(), usage_meter=usage_meter)
             _RESEARCH_LOOP_CACHE[key] = cached
+        elif usage_meter is not None:
+            cached.bind_usage_meter(usage_meter)
         return cached
 
 
@@ -348,6 +360,73 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     project_root: Path
     access_token: str = ""
     require_token: bool = False
+    cloud_mode: bool = False
+    account_service: AccountService | None = None
+    cloud_users_root: Path | None = None
+    cloud_allowed_origins: set[str] = set()
+    authenticated_account: Any = None
+    auth_token: str = ""
+    usage_meter: UsageMeter | None = None
+
+    def _cloud_client_key(self) -> str:
+        """获取注册限流键；云端只信任回环反向代理转发的末尾客户端地址。"""
+        peer = str(self.client_address[0]) if self.client_address else "unknown"
+        if peer in LOOPBACK_HOSTS:
+            forwarded = self.headers.get("X-Forwarded-For", "")
+            real_ip = self.headers.get("X-Real-IP", "")
+            candidate = forwarded.split(",")[-1].strip() if forwarded.strip() else real_ip.strip()
+            if candidate:
+                try:
+                    import ipaddress
+
+                    return str(ipaddress.ip_address(candidate))
+                except ValueError:
+                    pass
+        return peer
+
+    def _prepare_cloud_request(self, path: str) -> bool:
+        """云模式下强制 HTTPS 与用户会话，并把本次请求切到独立用户数据根。"""
+        if not self.cloud_mode or not path.startswith("/api/") or path == "/api/health":
+            return True
+        forwarded_proto = self.headers.get("X-Forwarded-Proto", "").strip().lower()
+        if forwarded_proto != "https":
+            self._error(HTTPStatus.UPGRADE_REQUIRED, "云端 API 只接受 HTTPS 反向代理请求。")
+            return False
+        if path in {"/api/auth/register", "/api/auth/login"}:
+            return True
+        if self.account_service is None or self.cloud_users_root is None:
+            self._error(HTTPStatus.SERVICE_UNAVAILABLE, "账号服务尚未配置。")
+            return False
+        authorization = self.headers.get("Authorization", "")
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            self._error(HTTPStatus.UNAUTHORIZED, "请先登录。")
+            return False
+        try:
+            account = self.account_service.authenticate(token.strip())
+        except AuthenticationError as exc:
+            self._error(HTTPStatus.UNAUTHORIZED, str(exc))
+            return False
+        # ID 是数据库生成的十六进制 UUID，不从请求参数拼路径。
+        user_root = (self.cloud_users_root / account.user_id).resolve()
+        if user_root.parent != self.cloud_users_root.resolve():
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "账号数据路径无效。")
+            return False
+        user_root.mkdir(parents=True, exist_ok=True)
+        self.project_root = user_root
+        self.authenticated_account = account
+        self.auth_token = token.strip()
+        self.usage_meter = UsageMeter(self.account_service, account.user_id)
+        return True
+
+    def _send_cors(self) -> None:
+        origin = self.headers.get("Origin")
+        if not self.cloud_mode:
+            self.send_header("Access-Control-Allow-Origin", "*")
+        elif origin and origin in self.cloud_allowed_origins:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Headers", f"Content-Type, {ACCESS_TOKEN_HEADER}, Authorization")
 
     @property
     def workspace(self) -> Path:
@@ -374,8 +453,7 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", f"Content-Type, {ACCESS_TOKEN_HEADER}")
+        self._send_cors()
         self.end_headers()
         self.wfile.write(body)
 
@@ -405,6 +483,8 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
         instead, because native mobile HTTP clients send no ``Origin`` header
         and would otherwise pass the allowlist check.
         """
+        if self.cloud_mode:
+            return bool(getattr(self, "authenticated_account", None))
         if self.require_token:
             supplied = self.headers.get(ACCESS_TOKEN_HEADER, "")
             return bool(self.access_token) and secrets.compare_digest(supplied, self.access_token)
@@ -433,6 +513,17 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
+        if self.cloud_mode:
+            origin = self.headers.get("Origin")
+            if origin and origin not in self.cloud_allowed_origins:
+                self._error(HTTPStatus.FORBIDDEN, "该网页来源未获允许。")
+                return
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self._send_cors()
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Max-Age", "600")
+            self.end_headers()
+            return
         if path in SENSITIVE_LOCAL_ENDPOINTS and not self._authorised_local_client():
             self._error(HTTPStatus.FORBIDDEN, "This endpoint requires a trusted local client")
             return
@@ -445,18 +536,28 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
         try:
+            if not self._prepare_cloud_request(path):
+                return
             if path in STATIC_ASSETS:
                 # 内置界面：同源的静态文件，不经 API 校验，也不做任何目录解析。
                 name, content_type = STATIC_ASSETS[path]
                 self._send_static(name, content_type)
                 return
-            if path == "/health":
+            if path in {"/health", "/api/health"}:
                 # 固定工作区模式也要报告真正服务的路径，避免健康探针把请求导向错误项目。
+                if self.cloud_mode:
+                    self._send(HTTPStatus.OK, {"status": "ok", "mode": "cloud"})
+                    return
                 try:
                     workspace = str(self.workspace)
                 except ProjectNotSelected:
                     workspace = ""
                 self._send(HTTPStatus.OK, {"status": "ok", "workspace": workspace})
+            elif path == "/api/account" and self.cloud_mode:
+                assert self.account_service is not None
+                account = self.account_service.account(self.authenticated_account.user_id)
+                account["credit_ledger"] = self.account_service.ledger(self.authenticated_account.user_id)
+                self._send(HTTPStatus.OK, account)
             elif path == "/api/projects":
                 self._send(HTTPStatus.OK, self._project_state())
             elif path == "/api/experiments/jobs":
@@ -484,7 +585,47 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             elif path == "/api/build/scaffold":
                 self._send(HTTPStatus.OK, latest_training_scaffold(self.workspace) or {"status": "not_built"})
             elif path == "/api/settings/providers":
-                self._send(HTTPStatus.OK, providers_status())
+                if self.cloud_mode:
+                    from app.settings_service import DEFAULT_DEEPSEEK_MODEL, PROVIDER_PRESETS
+
+                    preset = next(item for item in PROVIDER_PRESETS if item.id == "deepseek")
+                    model = os.environ.get("YJL_LLM_MODEL", DEFAULT_DEEPSEEK_MODEL).strip() or DEFAULT_DEEPSEEK_MODEL
+                    self._send(
+                        HTTPStatus.OK,
+                        {
+                            "managed": True,
+                            "presets": [
+                                {
+                                    "id": preset.id,
+                                    "name": preset.name,
+                                    "base_url": preset.base_url,
+                                    "key_required": False,
+                                    "docs_url": "",
+                                }
+                            ],
+                            "providers": [
+                                {
+                                    "id": "platform-deepseek",
+                                    "name": "DeepSeek（平台托管）",
+                                    "preset": preset.id,
+                                    "base_url": preset.base_url,
+                                    "model": model,
+                                    "models": [model],
+                                    "key_required": False,
+                                    "has_key": True,
+                                    "docs_url": "",
+                                }
+                            ],
+                            "active": "platform-deepseek",
+                            "key_source": "platform",
+                            "secure_storage_available": False,
+                            "api_key_env": "",
+                            "model": model,
+                            "configured": True,
+                        },
+                    )
+                else:
+                    self._send(HTTPStatus.OK, providers_status())
             elif path == "/api/rules/report":
                 self._send(HTTPStatus.OK, _rule_report(self.workspace))
             elif path == "/api/rules/evidence":
@@ -522,6 +663,12 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 job_id = path.rsplit("/", 1)[-1]
                 job = self.material_scheduler.job_status(job_id)
                 self._send(HTTPStatus.OK, job) if job else self._error(HTTPStatus.NOT_FOUND, "Material job not found")
+            elif path == "/api/data-audit":
+                # 这个页面只需要一份审计文件。不要为了一个小响应构建整张仪表盘快照：
+                # 快照还会读取实验、规则、运行器与账本，在云端新工作区首次打开时可能超过端侧超时。
+                audit_path = self.workspace / "reports" / "data_statistics.json"
+                report = read_json(audit_path) if audit_path.is_file() else {}
+                self._send(HTTPStatus.OK, report)
             else:
                 snapshot = dashboard_snapshot(self.project_root, self.workspace)
                 if path == "/api/dashboard":
@@ -536,8 +683,6 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     self._send(HTTPStatus.OK, snapshot["competition"])
                 elif path == "/api/rule-readiness":
                     self._send(HTTPStatus.OK, snapshot["competition"]["rule_readiness"])
-                elif path == "/api/data-audit":
-                    self._send(HTTPStatus.OK, snapshot["data_audit"])
                 elif path == "/api/next-actions":
                     self._send(HTTPStatus.OK, {"actions": snapshot["next_actions"]})
                 elif path == "/api/workflow":
@@ -560,12 +705,50 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.CONFLICT, str(exc))
         except ProjectError as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
+        except AuthenticationError as exc:
+            self._error(HTTPStatus.UNAUTHORIZED, str(exc))
+        except AccountError as exc:
+            self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except Exception as exc:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(exc).__name__}: {exc}")
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/")
         try:
+            if not self._prepare_cloud_request(path):
+                return
+            if self.cloud_mode and path in {"/api/auth/register", "/api/auth/login"}:
+                if self.account_service is None:
+                    self._error(HTTPStatus.SERVICE_UNAVAILABLE, "账号服务尚未配置。")
+                    return
+                body = self._body()
+                username = str(body.get("username", ""))
+                password = str(body.get("password", ""))
+                client_key = self._cloud_client_key()
+                if path.endswith("/register"):
+                    result = self.account_service.register(username, password, client_key=client_key)
+                    self._send(HTTPStatus.CREATED, result)
+                else:
+                    result = self.account_service.login(username, password, client_key=client_key)
+                    self._send(HTTPStatus.OK, result)
+                return
+            if self.cloud_mode and path == "/api/auth/logout":
+                assert self.account_service is not None
+                self.account_service.logout(self.auth_token)
+                self._send(HTTPStatus.OK, {"logged_out": True})
+                return
+            if self.cloud_mode and path == "/api/auth/refresh":
+                assert self.account_service is not None
+                self._send(HTTPStatus.OK, self.account_service.refresh(self.auth_token))
+                return
+            if self.cloud_mode and path in {
+                "/api/settings/providers",
+                "/api/settings/providers/active",
+                "/api/settings/providers/delete",
+                "/api/settings/providers/test",
+            }:
+                self._error(HTTPStatus.FORBIDDEN, "模型来源由平台管理，客户端不能修改服务器密钥。")
+                return
             if path in SENSITIVE_LOCAL_ENDPOINTS and not self._authorised_local_client():
                 self._error(HTTPStatus.FORBIDDEN, "This endpoint requires a trusted local client")
                 return
@@ -774,6 +957,9 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 ledger.record_event("experiment_approval_recorded", approval)
                 self._send(HTTPStatus.CREATED, approval)
             elif path == "/api/settings/providers":
+                if self.cloud_mode:
+                    self._error(HTTPStatus.FORBIDDEN, "模型来源由平台管理，客户端不能修改服务器密钥。")
+                    return
                 # 新增或更新一套来源。`api_key` 留空＝不改已存的密钥（改地址/模型不用重填密钥）。
                 status = upsert_provider(
                     provider_id=(str(body.get("id")) if body.get("id") else None),
@@ -790,15 +976,24 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 )
                 self._send(HTTPStatus.OK, status)
             elif path == "/api/settings/providers/active":
+                if self.cloud_mode:
+                    self._error(HTTPStatus.FORBIDDEN, "模型来源由平台管理。")
+                    return
                 status = set_active_provider(str(body.get("id", "")))
                 ledger.record_event("model_provider_activated", {"id": status["active"], "model": status["model"]})
                 self._send(HTTPStatus.OK, status)
             elif path == "/api/settings/providers/delete":
+                if self.cloud_mode:
+                    self._error(HTTPStatus.FORBIDDEN, "模型来源由平台管理。")
+                    return
                 removed = str(body.get("id", ""))
                 status = delete_provider(removed)
                 ledger.record_event("model_provider_removed", {"id": removed, "active": status["active"]})
                 self._send(HTTPStatus.OK, status)
             elif path == "/api/settings/providers/test":
+                if self.cloud_mode:
+                    self._error(HTTPStatus.FORBIDDEN, "请通过带积分计量的问答功能验证模型服务。")
+                    return
                 # 可以指定某一套来试（还没切过去也能先验证）。
                 outcome = verify_connection(str(body.get("id")) if body.get("id") else None)
                 self._send(HTTPStatus.OK if outcome["ok"] else HTTPStatus.BAD_GATEWAY, outcome)
@@ -814,6 +1009,7 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                     self.project_root,
                     self.workspace,
                     max_turns=max_turns,
+                    usage_meter=getattr(self, "usage_meter", None),
                 )
                 ledger.record_event("deepseek_agent_response", {
                     "stage": stage,
@@ -845,7 +1041,9 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.ACCEPTED, job)
             elif path == "/api/research/loop/step":
                 # 走作业模式：一步可能跑满多轮模型调用，同步返回必然读超时。
-                loop_job = research_loop_for(self.project_root, self.workspace).submit_step(
+                loop_job = research_loop_for(
+                    self.project_root, self.workspace, usage_meter=getattr(self, "usage_meter", None)
+                ).submit_step(
                     max_steps=body.get("max_steps", 1)
                 )
                 ledger.record_event(
@@ -932,6 +1130,14 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.CONFLICT, str(exc))
         except ProjectError as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
+        except AuthenticationError as exc:
+            self._error(HTTPStatus.UNAUTHORIZED, str(exc))
+        except InsufficientCredits as exc:
+            self._error(HTTPStatus.PAYMENT_REQUIRED, str(exc))
+        except RateLimitError as exc:
+            self._error(HTTPStatus.TOO_MANY_REQUESTS, str(exc))
+        except AccountError as exc:
+            self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except (ValueError, RuleImportError, MaterialIntakeError, RuntimeProbeError, TrainingScaffoldError, SettingsError, ReproductionError, json.JSONDecodeError) as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
         except (SchedulerError, MaterialSchedulerError, DataAuditSchedulerError, ResearchLoopError) as exc:
@@ -945,6 +1151,8 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
         """删除项目：`DELETE /api/projects/<id>`。"""
         path = urlparse(self.path).path.rstrip("/")
         try:
+            if not self._prepare_cloud_request(path):
+                return
             if not self._authorised_local_client():
                 self._error(HTTPStatus.FORBIDDEN, "This endpoint requires a trusted local client")
                 return
@@ -969,6 +1177,8 @@ class CompetitionApiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.CONFLICT, str(exc))
         except ProjectError as exc:
             self._error(HTTPStatus.BAD_REQUEST, str(exc))
+        except AuthenticationError as exc:
+            self._error(HTTPStatus.UNAUTHORIZED, str(exc))
         except Exception as exc:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(exc).__name__}: {exc}")
 
@@ -988,11 +1198,45 @@ def serve(
     此时工作区跟着注册表里的当前项目走，App 切换项目后无需重启后端。
     """
     loopback_only = host in LOOPBACK_HOSTS
+    cloud_mode = os.environ.get("YJL_CLOUD_MODE", "").strip() == "1"
+    account_service = None
+    cloud_users_root = None
+    cloud_origins: set[str] = set()
+    if cloud_mode:
+        if not loopback_only:
+            raise RuntimeError("云模式必须只绑定回环地址，并通过 HTTPS 反向代理对外服务。")
+        if not os.environ.get("YJL_LLM_API_KEY", "").strip():
+            raise RuntimeError("云模式需要在秘密环境中配置 YJL_LLM_API_KEY。")
+        data_root_value = os.environ.get("YJL_CLOUD_DATA_ROOT", "").strip()
+        if not data_root_value:
+            raise RuntimeError("云模式需要配置独立持久目录 YJL_CLOUD_DATA_ROOT。")
+        data_root = Path(data_root_value).expanduser()
+        if not data_root.is_absolute():
+            raise RuntimeError("YJL_CLOUD_DATA_ROOT 必须是绝对路径。")
+        data_root = data_root.resolve()
+        data_root.mkdir(parents=True, exist_ok=True)
+        cloud_users_root = data_root / "users"
+        cloud_users_root.mkdir(parents=True, exist_ok=True)
+        account_service = AccountService(data_root / "accounts.sqlite3")
+        cloud_origins = {
+            "https://nucrobot.online",
+            "tauri://localhost",
+            "http://tauri.localhost",
+            *(
+                item.strip()
+                for item in os.environ.get("YJL_CLOUD_ALLOWED_ORIGINS", "").split(",")
+                if item.strip()
+            ),
+        }
     access_token = "" if loopback_only else (os.environ.get("YJL_API_TOKEN") or secrets.token_urlsafe(24))
     overrides: dict[str, Any] = {
         "project_root": project_root.resolve(),
         "access_token": access_token,
         "require_token": not loopback_only,
+        "cloud_mode": cloud_mode,
+        "account_service": account_service,
+        "cloud_users_root": cloud_users_root,
+        "cloud_allowed_origins": cloud_origins,
     }
     if workspace is not None:
         pinned = workspace.resolve()
@@ -1006,7 +1250,10 @@ def serve(
     handler = type("WorkspaceApiHandler", (CompetitionApiHandler,), overrides)
     with ThreadingHTTPServer((host, port), handler) as server:
         print(f"Competition Agent API listening on http://{host}:{port}")
-        if loopback_only:
+        if cloud_mode:
+            print("Cloud account mode enabled; API is loopback-only behind an HTTPS reverse proxy.")
+            print("Per-user workspaces and token-credit ledger use YJL_CLOUD_DATA_ROOT.")
+        elif loopback_only:
             print("Loopback only; requests are checked against the desktop Origin allowlist.")
         else:
             for address in reachable_addresses(port):

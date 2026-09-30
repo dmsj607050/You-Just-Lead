@@ -11,7 +11,7 @@
 
 ## Windows 当前本地版
 
-本轮构建的 `dist/YouJustLead.exe` 是单文件程序，不需要先装 Python。它会：
+`1.0.0-rc.6` 候选中的 `dist/YouJustLead.exe` 是单文件程序，不需要先装 Python。它会：
 
 1. 在「文档/YouJustLead」建好本机工作区；
 2. 在本机回环地址启动后端，并打开一个无地址栏的应用窗口；
@@ -21,9 +21,9 @@
 
 ### 与托管后端的关系
 
-当前 EXE 启动的是**本机后端**，尚未连接用户提到的已部署服务器；这里配置的模型来源也由本机后端读取。当前 RC.3 尚未发布为新的 GitHub Release。
+Windows EXE 当前启动的是**本机后端**，模型来源与 API Key 由本机配置。评委使用的鸿蒙 HAP 已加入用户名/密码注册登录，首次注册赠送 100 积分；每 1,000 个输入加输出 token 扣 1 积分，DeepSeek 由平台服务器托管，评委不需要填写 API Key。
 
-目标产品是 Windows 与鸿蒙可下载客户端连接托管服务，用户自带模型密钥（BYOK）。远程服务器地址、用户认证、多用户数据隔离和密钥调用路径尚未接通或完成真实服务器验收，详见 [架构决定 D12](docs/architecture.md)。
+RC6 HAP 已配置连接 `https://nucrobot.online/yjl-cloud`。公网 HTTPS 注册、登录、登出与 DeepSeek API 计费已实测，模型 usage 与积分账本相符。最新 HAP 已在模拟器经公网完成自助注册、领取 100 积分、创建云端项目、进入工作流并发起一条短问答；重启应用后从服务端读到余额由 100.00 变为 97.95，确认扣账落库。该问答路径目前只做过这次模拟器验收；真机与正式 AGC 发布包仍未验。Windows 云客户端尚未实现，费用告警、全局限流和训练执行器仍缺，因此当前 HAP 是可在模拟器运行的 RC 候选，不是已完成正式分发验收的评委 Release。实现与验收状态见 [架构决定 D12/D13](docs/architecture.md) 和 [云端部署记录](docs/cloud_deployment.md)。
 
 想离线看上一次的状态：`YouJustLead.exe --offline`。它不启动后端，直接打开上一次成功同步的静态快照
 （页面与数据都打包在本机，一个网络请求都不发）。
@@ -76,9 +76,9 @@ ResearchState = 假设 / 实验 / 证据 / 分支 / 决策 / 图边
 
 | 你的系统 | 产物 | 用途 |
 |---|---|---|
-| Windows | `dist/YouJustLead.exe` | 当前为本地模式：自带界面、本机后端、离线可读；云端客户端仍待实现 |
+| Windows | `dist/YouJustLead.exe` | 当前为本地模式：自带界面、本机后端、离线可读；本机可配置模型来源与 API Key |
 | Windows | `dist/competition-agent-api.exe` | 无界面的本地服务，给没有 Python 环境的机器用；当前鸿蒙端本机调试时连接它 |
-| 鸿蒙 | `device/` 编出来的 HAP | 比赛交付用的端侧应用 |
+| 鸿蒙 | `device/` 编出来的 HAP | 评委客户端候选：账号登录、平台托管 DeepSeek 与积分计量；公网注册、问答计费和扣账已实测，仍不是 AGC 正式发布包 |
 | Linux | —— | **还没有**。后端本身跨平台，但桌面壳是 Windows 专用的（找 Edge 与 `%LOCALAPPDATA%`），要出 Linux 版得先改 `app/desktop_entry.py` |
 
 前两个由 `tools/build_desktop_app.ps1` 与 `tools/build_local_agent.ps1` 构建，
@@ -103,7 +103,7 @@ python -m unittest discover -s tests       # 全量测试
 python main.py release-manifest            # 发布清单；退出码即「能不能发布」
 ```
 
-只想用不想配环境的话，别走这条路：到 Releases 下载 `YouJustLead.exe` 即可（见上面）。
+只想用不想配环境的话，等 RC.6 的 Windows Release 发布后再下载 `YouJustLead.exe`；在此之前，GitHub 上的旧版不代表本候选。
 
 工作区在 `workspace/<项目 id>/`，每个子目录是一个项目；有哪些项目、当前是哪一个记在 `workspace/projects.json`。
 
@@ -121,7 +121,7 @@ python main.py release-manifest            # 发布清单；退出码即「能�
 | 文档 | 内容 |
 |---|---|
 | [AGENT.md](AGENT.md) | 行为约束与安全边界 |
-| [docs/architecture.md](docs/architecture.md) | 架构决定记录（D1–D12：边界、契约、发布门禁、端侧并入、模型密钥与托管服务目标） |
+| [docs/architecture.md](docs/architecture.md) | 架构决定记录（D1–D13：边界、契约、发布门禁、托管服务、评委账号与积分计量） |
 | [docs/operation_guide.md](docs/operation_guide.md) | 操作指南（含内置 Windows 端与鸿蒙端） |
 | [docs/versioning.md](docs/versioning.md) | 版本流与发布清单；什么算「可以发布」 |
 | [docs/SUBMISSION.md](docs/SUBMISSION.md) | 比赛提交材料 |

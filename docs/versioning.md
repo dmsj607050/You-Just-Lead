@@ -20,9 +20,13 @@ MAJOR.MINOR.PATCH-<stage>.<序号>   预发布
 `MAJOR.MINOR.PATCH` 部分（`1.0.0-rc.1` ↔ `versionName: "1.0.0"`）。
 对不上就是「文档里的版本 ≠ 实际构建的版本」，工具会把它记成阻塞项。
 
-当前：`1.0.0-rc.5` —— Python 全量回归 437 项通过（0 failures、0 errors、0 skipped）；两个 Windows EXE 已重建，`--help` 实跑退出码均为 0。API EXE 在隔离的 B 盘数据根启动，`/health` 实返 `status: ok` 和隔离工作区路径；测试服务已停止。该候选没有端侧源代码变更，复用 rc.4 的 HAP 与模拟器浅色/深色验收；真机、窄屏和字体放大尚未验。候选目录与 `release-manifest --print` 的最终干净提交记录见 `docs/RELEASE_1.0.0-rc.5.md`。这项清单门槛不代表六个 Gate 均通过，GitHub Release 尚未发布。G4/G5/G6 仍不能标记通过：真实训练记录已存在，但 manifest/result 状态不一致，且数据泄漏、跨种子复现等核查仍未闭合。
+当前：`1.0.0-rc.6`。Python 全量测试最近一次实跑 `473` 项，0 failures、0 errors、0 skipped。HAP 在 DevEco Hvigor 下清理重编并安装至 `127.0.0.1:5555`；模拟器实点核对项目选择、空审计状态、工作流余额、窄窗口布局，以及数据、实验台账、写作空态到工作流动作区的首用路径和中文文案。最新 HAP 还在工作流建议与数据空态中明确了“云端暂无数据上传或页面内审计入口”；该说明已在模拟器实看。溯源页布局树确认不再暴露云主机绝对目录；非最大化窗口中“复现”入口完整可见并已点通。复现页当前从服务端收到 `docker executable not found (docker)`，验收项目没有计划或运行记录；HAP 已改为提示联系平台管理员检查容器环境，保留诊断文本。当前 HAP 为 3,325,370 字节，SHA-256：`710A9BDF78A3FB85DE1571D8A5ADB682E677DC10C6D6DD93B29C14FBF30B211E`。鸿蒙真机、系统深色模式、字体放大仍未验。
 
-部署形态仍是本地模式：Windows EXE 在用户电脑启动后端，鸿蒙端默认连接本机 API。用户可以配置自己的兼容模型来源，密钥存本机系统凭据库；这不是云平台账号，也没有让客户端连接已部署服务器。D12 的远程 API 合约、认证和多用户数据隔离仍未验收。
+Windows Web 已在 1280×720、390×844 与 320×568 浏览器视口实测；正文间距、窄屏顶栏和无横向溢出已核对，空审计显示明确空态。当前源码重建的 API EXE 和桌面 EXE 放在 `build/` 隔离目录，没有覆盖 `dist/`。API EXE 与桌面 EXE 的 `--help` 均退出码 0；API EXE 实启后 `/health` 返回 `status: ok` 并报告隔离工作区；桌面 EXE 实际提供首页、CSS、JS，均返回 HTTP 200。桌面 EXE 首启时使用 Edge 应用窗口；修正兼容层进程交接后，桌面 EXE 会在 Edge 窗口存活期间保持 API 服务。向专用 Edge profile 的 `You Just Lead` 窗口发送 `WM_CLOSE` 后，Edge 进程组退出，桌面 EXE 退出码 0，端口释放。
+
+API EXE：10,220,048 字节，SHA-256：`954435B42FE0FA3C168C254DC4EC5305FAED9FBEDB6A3672070498E5BA421F80`。桌面 EXE：10,276,832 字节，SHA-256：`AD930310305E92D2B0EF6390C874B6E407362D463B865CF447113FD938D78F18`。2026-09-30 绕过本机失效代理只读检查 `https://nucrobot.online/yjl-cloud/api/health`，返回 `status: ok, mode: cloud`；公网云服务的账号、问答计量与扣账此前已有实测记录，本次没有再次发送会扣积分的模型请求。当前工作区有未提交改动，发布清单仍为 `release_ready: false`，没有创建正式 Release。
+
+产品交付边界：Windows EXE 仍启动本机后端，不能直接使用云账号；RC6 鸿蒙 HAP 使用云账号和服务器托管 DeepSeek，评委无需填写 API Key。HAP 内注册、登录、领取积分、建项目、进入工作流与直接问答均已在模拟器实测；一次短问答扣除 2.05 积分并在重启后从服务器余额确认。云端交叉账号隔离仅有自动化测试，存储配额、费用告警、全局并发限制、管理员停用开关、密码恢复和账号删除尚缺。真实实验 EXP-0008 已产生负结果和 `hypothesis_falsified` 记录，但 manifest/result 状态与决策文字仍冲突，泄漏核查与跨种子复现也未完成；训练、重型审计和复现仍无配对执行器。G4/G5/G6 仍不能标记通过；HAP 真机/正式分发条件与 Release 门禁也未满足。
 
 ---
 

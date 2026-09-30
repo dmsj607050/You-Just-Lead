@@ -2,7 +2,7 @@
   "app": {
     "bundleName": "com.youjustlead.agent",
     "vendor": "You Just Lead",
-    "versionCode": 1000000,
+    "versionCode": 1000001,
     "versionName": "1.0.0",
     "buildVersion": "1",
     "icon": "$media:layered_image",

@@ -99,6 +99,13 @@ function groupRuleGaps(gaps: RuleGap[]): RuleGapGroup[] {
  */
 @Component
 export struct WorkflowPage {
+  /** 父页面可指定首次进入的分段，例如空项目从规则证据开始。 */
+  @Prop initialSection: string = 'status';
+  /** 当前账户余额；模型调用后由父页面刷新。 */
+  @Prop creditBalance: number = 0;
+  /** 一次模型请求完成后通知父页面刷新账户余额。 */
+  onCreditsChanged: () => void = () => {
+  };
   @State loading: boolean = false;
   @State errorText: string = '';
   /**
@@ -154,6 +161,7 @@ export struct WorkflowPage {
   @StorageLink('pendingQuestion') pendingQuestion: string = '';
 
   aboutToAppear(): void {
+    this.section = this.initialSection;
     if (this.pendingQuestion.length > 0) {
       this.question = this.pendingQuestion;
     }
@@ -163,6 +171,23 @@ export struct WorkflowPage {
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
     return tFor(this.lang, key);
+  }
+
+  /** 已知的后端建议提供中文呈现；未知文案保留原文，避免误译来源信息。 */
+  private actionText(value: string, evidence: boolean = false): string {
+    const keys: Record<string, string> = evidence ? {
+      'Specification is not approved.': 'workflow.actionEvidence.rules',
+      'No data_statistics.json exists.': 'workflow.actionEvidence.audit',
+      'No persisted research radar exists.': 'workflow.actionEvidence.research',
+      'No completed experiments recorded.': 'workflow.actionEvidence.baseline'
+    } : {
+      'Resolve official-rule questions and explicitly approve the specification.': 'workflow.action.rules',
+      'Run the deterministic data audit before creating a real baseline.': 'workflow.action.audit',
+      'Search research sources using the task and metric from the approved specification.': 'workflow.action.research',
+      'After rules and audit are approved, run one reproducible baseline with a frozen configuration.': 'workflow.action.baseline'
+    };
+    const key = keys[value];
+    return key ? this.tr(key) : value;
   }
 
   /** 带占位符取文案。 */
@@ -376,6 +401,8 @@ export struct WorkflowPage {
       this.askError = error.message;
     } finally {
       this.asking = false;
+      // 失败响应也可能已经产生服务端用量；让父页从账本账户接口读回实际余额。
+      this.onCreditsChanged();
     }
   }
 
@@ -994,10 +1021,10 @@ export struct WorkflowPage {
         Row() {
           StatusBadge({ text: priorityLabel(this.lang, item.priority), tone: priorityTone(item.priority) })
           Column() {
-            Text(item.action)
+            Text(this.actionText(item.action))
               .fontSize(14)
               .fontColor(AppTheme.TEXT_PRIMARY)
-            Text(item.evidence)
+            Text(this.actionText(item.evidence, true))
               .fontSize(12)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .margin({ top: 6 })
@@ -1018,6 +1045,20 @@ export struct WorkflowPage {
   @Builder
   AskPanel() {
     Column() {
+      Row() {
+        Text(this.tr('auth.balance'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_TERTIARY)
+          .layoutWeight(1)
+        Text(this.creditBalance.toFixed(2))
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.PRIMARY_DARK)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 10 })
+
       Row() {
         TextInput({ text: this.question, placeholder: this.tr('workflow.askPlaceholder') })
           .layoutWeight(1)
@@ -1144,6 +1185,11 @@ export struct WorkflowPage {
         CardPanel({
           title: this.tr('workflow.actions')
         }) {
+          Text(this.tr('workflow.actionHint'))
+            .fontSize(12)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .width('100%')
+            .margin({ bottom: 8 })
           if (this.actions.length === 0) {
             EmptyHint({ text: this.tr('workflow.noActions') })
           } else {

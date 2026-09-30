@@ -16,7 +16,8 @@ import {
   formatBytes,
   formatDuration,
   formatNumber,
-  formatTimestamp
+  formatTimestamp,
+  workspacePathLabel
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { CardPanel, EmptyHint, KeyValueRow, PageHeader, ProgressBar, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
@@ -256,7 +257,7 @@ export struct TracePage {
   }
 
   private paperPackageDir(): string {
-    return this.snapshot === null ? '' : this.snapshot.paper.package_dir;
+    return this.snapshot === null ? '' : workspacePathLabel(this.snapshot.paper.package_dir, this.snapshot.workspace);
   }
 
   private paperGeneratedAt(): string | null {
@@ -394,7 +395,7 @@ export struct TracePage {
   DocumentChips(documents: TraceDocument[]) {
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(documents, (item: TraceDocument) => {
-        Text(`${item.path}（${formatBytes(item.size_bytes)}）`)
+        Text(`${workspacePathLabel(item.path, this.snapshot === null ? null : this.snapshot.workspace)}（${formatBytes(item.size_bytes)}）`)
           .fontSize(12)
           .fontColor(AppTheme.TEXT_SECONDARY)
           .backgroundColor(AppTheme.PAGE_BG)
@@ -493,7 +494,7 @@ export struct TracePage {
 
         KeyValueRow({
           label: this.tr('trace.specFile'),
-          value: this.snapshot === null ? '—' : this.textOrDash(this.snapshot.rule.spec_path),
+          value: this.snapshot === null ? '—' : this.textOrDash(workspacePathLabel(this.snapshot.rule.spec_path, this.snapshot.workspace)),
           mono: true
         })
         KeyValueRow({
@@ -609,7 +610,7 @@ export struct TracePage {
       Column({ space: 6 }) {
         KeyValueRow({
           label: this.tr('trace.auditDir'),
-          value: this.snapshot === null ? '—' : this.textOrDash(this.snapshot.data.audit.data_dir),
+          value: this.snapshot === null ? '—' : this.textOrDash(workspacePathLabel(this.snapshot.data.audit.data_dir, this.snapshot.workspace)),
           mono: true
         })
         KeyValueRow({
@@ -665,7 +666,11 @@ export struct TracePage {
     Column({ space: 4 }) {
       KeyValueRow({ label: this.tr('trace.hypothesis'), value: this.textOrDash(item.hypothesis) })
       KeyValueRow({ label: this.tr('trace.changeTypeRow'), value: this.textOrDash(item.change_type) })
-      KeyValueRow({ label: this.tr('trace.configPath'), value: this.textOrDash(item.config_path), mono: true })
+      KeyValueRow({
+        label: this.tr('trace.configPath'),
+        value: this.textOrDash(workspacePathLabel(item.config_path, this.snapshot === null ? null : this.snapshot.workspace)),
+        mono: true
+      })
       KeyValueRow({
         label: this.tr('trace.configHash'),
         value: this.textOrDash(this.shortHash(item.config_sha256)),
@@ -696,7 +701,11 @@ export struct TracePage {
         value: item.runtime_seconds === null ? '—' : formatDuration(this.lang, item.runtime_seconds)
       })
       KeyValueRow({ label: this.tr('trace.trackerRow'), value: this.textOrDash(item.tracker_backend) })
-      KeyValueRow({ label: this.tr('trace.resultFile'), value: this.textOrDash(item.result_path), mono: true })
+      KeyValueRow({
+        label: this.tr('trace.resultFile'),
+        value: this.textOrDash(workspacePathLabel(item.result_path, this.snapshot === null ? null : this.snapshot.workspace)),
+        mono: true
+      })
       KeyValueRow({
         label: this.tr('trace.approvalRow'),
         value: item.approval.recorded
@@ -724,7 +733,7 @@ export struct TracePage {
               .fontSize(12)
               .fontColor(AppTheme.TEXT_SECONDARY)
               .width(150)
-            Text(artifact.path)
+            Text(workspacePathLabel(artifact.path, this.snapshot === null ? null : this.snapshot.workspace))
               .fontSize(11)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .layoutWeight(1)

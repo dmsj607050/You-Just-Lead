@@ -1,11 +1,20 @@
+import { common } from '@kit.AbilityKit';
 import {
+  AccountInfo,
+  clearSessionToken,
   DashboardSnapshot,
+  currentSessionToken,
+  fetchAccount,
   fetchDashboard,
   NextAction,
+  loginAccount,
+  logoutAccount,
   ProjectSummary,
   RecentEvent,
+  registerAccount,
   RunnerCapability
 } from '../common/BackendClient';
+import { forgetSession, persistSession, restoreSession } from '../common/AuthSession';
 import AppTheme from '../common/AppTheme';
 import { priorityLabel, relativeTime, stageLabel } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
@@ -29,6 +38,7 @@ import { ResearchLoopPage } from '../view/ResearchLoopPage';
 import { SettingsPage } from '../view/SettingsPage';
 import { LocalRulePage } from '../view/LocalRulePage';
 import { LocalStatusPage } from '../view/LocalStatusPage';
+import { AccountGate } from '../view/AccountGate';
 
 /**
  * 主页面。
@@ -45,9 +55,19 @@ struct Index {
    */
   @StorageLink('lang') lang: string = 'zh';
   @State loading: boolean = false;
+  @State authReady: boolean = false;
+  @State authenticated: boolean = false;
+  @State authBusy: boolean = false;
+  @State authError: string = '';
+  @State accountUsername: string = '';
+  @State creditBalance: number = 0;
   @State errorText: string = '';
   /** 侧栏当前页。项目不是侧栏项，所以默认落在概览。 */
   @State activeNav: string = 'overview';
+  /** 窄窗口收缩工作区内容最小宽度，避免侧栏和内容区挤出屏幕。 */
+  @State compactWorkspace: boolean = true;
+  /** 从空项目概览进入工作流时，直接落到规则证据页。 */
+  @State workflowInitialSection: string = 'status';
   /**
    * 概览页当前展开的一段。
    *
@@ -93,7 +113,89 @@ struct Index {
   aboutToAppear(): void {
     // 冷启动时 @StorageLink 一上来就带着值，@Watch 不会触发，这里补一次。
     this.onPendingQuestion();
-    this.load();
+    this.restoreAuthentication();
+  }
+
+  /** 恢复本机短期会话，并由云端确认它是否仍有效。 */
+  private async restoreAuthentication(): Promise<void> {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const token: string = await restoreSession(context);
+    if (token.length === 0) {
+      this.authReady = true;
+      return;
+    }
+    try {
+      this.applyAccount(await fetchAccount());
+      this.authenticated = true;
+    } catch (err) {
+      const error = err as Error;
+      this.authError = error.message;
+      if (error.message.includes('HTTP 401')) {
+        await forgetSession(context);
+        this.authError = this.tr('auth.sessionExpired');
+      }
+    } finally {
+      this.authReady = true;
+    }
+  }
+
+  /** 提交登录或注册；客户端不收集模型服务密钥。 */
+  private async authenticate(username: string, password: string, register: boolean): Promise<void> {
+    this.authBusy = true;
+    this.authError = '';
+    try {
+      const account: AccountInfo = register
+        ? await registerAccount(username, password)
+        : await loginAccount(username, password);
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      await persistSession(context, currentSessionToken());
+      this.applyAccount(account);
+      this.authenticated = true;
+      this.entered = false;
+      this.errorText = '';
+    } catch (err) {
+      clearSessionToken();
+      const error = err as Error;
+      this.authError = error.message;
+    } finally {
+      this.authBusy = false;
+    }
+  }
+
+  private applyAccount(account: AccountInfo): void {
+    this.accountUsername = account.username;
+    this.creditBalance = account.credits;
+  }
+
+  /** 只刷新账户余额；不为一次计费刷新重读整个项目仪表盘。 */
+  private async refreshAccount(): Promise<void> {
+    try {
+      this.applyAccount(await fetchAccount());
+    } catch (err) {
+      const error = err as Error;
+      if (error.message.includes('HTTP 401')) {
+        this.authenticated = false;
+        this.authError = this.tr('auth.sessionExpired');
+      }
+      // 临时网络错误时保留最近一次已知余额，避免显示成 0。
+    }
+  }
+
+  /** 退出时撤销服务器会话并删除本机缓存；断网时仍清空客户端会话。 */
+  private async signOut(): Promise<void> {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    try {
+      await logoutAccount();
+    } catch (err) {
+      // 断网时服务器端令牌会在到期前仍有效，本机仍按用户要求退出并删除缓存。
+    }
+    await forgetSession(context);
+    this.authenticated = false;
+    this.entered = false;
+    this.menuOpen = false;
+    this.accountUsername = '';
+    this.creditBalance = 0;
+    this.authError = '';
   }
 
   /** 有外部问题进来时直接落到工作流页，那里负责预填与提交。 */
@@ -135,8 +237,33 @@ struct Index {
 
   /** 概览的一行现状：阶段 + 四个数字，压在标题下面。 */
   private overviewStatus(): string {
+    if (this.ruleTotal === 0) {
+      return this.tr('overview.emptyStatus');
+    }
     return this.trf('overview.status', [stageLabel(this.lang, this.stage), `${this.dataFiles}`,
       `${this.dataIssues}`, `${this.researchRecords}`, `${this.completedExperiments}`]);
+  }
+
+  /** 用 ForEach key 在规则字段加载完成时重建空态/摘要卡，避免 Builder 留下旧节点。 */
+  private projectSectionKeys(): string[] {
+    return [`${this.lang}-${this.ruleTotal === 0 ? 'empty' : 'configured'}`];
+  }
+
+  /** 切页或切换首次落点时强制重建对应页面子树。 */
+  private activePageKeys(): string[] {
+    return [`${this.activeNav}-${this.workflowInitialSection}`];
+  }
+
+  /** 空项目首要任务是核对规则，点击后直达证据录入页。 */
+  private openRuleSetup(): void {
+    this.workflowInitialSection = 'rules';
+    this.activeNav = 'workflow';
+  }
+
+  /** 从数据空态进入工作流建议；只导航，不触发审计或训练。 */
+  private openWorkflowNextSteps(): void {
+    this.workflowInitialSection = 'actions';
+    this.activeNav = 'workflow';
   }
 
   /** 后端给出的最高优先级动作；没有待办时返回空串。 */
@@ -180,6 +307,7 @@ struct Index {
     this.loading = true;
     this.errorText = '';
     try {
+      this.applyAccount(await fetchAccount());
       const snapshot: DashboardSnapshot = await fetchDashboard();
       // 新建项目还没填规则时这几个字段是 null，统一折成空串，界面按「未配置」显示。
       this.competitionName = snapshot.competition.name !== null ? snapshot.competition.name : '';
@@ -209,6 +337,10 @@ struct Index {
       const error = err as Error;
       this.errorText = error.message;
       this.backendOnline = false;
+      if (error.message.includes('HTTP 401')) {
+        this.authenticated = false;
+        this.authError = this.tr('auth.sessionExpired');
+      }
     } finally {
       this.loading = false;
     }
@@ -259,9 +391,20 @@ struct Index {
   @Builder
   ActivePage() {
     if (this.activeNav === 'workflow') {
-      WorkflowPage()
+      WorkflowPage({
+        initialSection: this.workflowInitialSection,
+        creditBalance: this.creditBalance,
+        onCreditsChanged: () => {
+          this.refreshAccount();
+        }
+      })
     } else if (this.activeNav === 'experiment') {
-      ExperimentPage()
+      ExperimentPage({
+        cloudAccount: this.authenticated,
+        onOpenNextSteps: () => {
+          this.openWorkflowNextSteps();
+        }
+      })
     } else if (this.activeNav === 'literature') {
       LiteraturePage({
         onOpenReproduction: () => {
@@ -269,9 +412,17 @@ struct Index {
         }
       })
     } else if (this.activeNav === 'data') {
-      DataPage()
+      DataPage({
+        onOpenNextSteps: () => {
+          this.openWorkflowNextSteps();
+        }
+      })
     } else if (this.activeNav === 'writing') {
-      WritingPage()
+      WritingPage({
+        onOpenNextSteps: () => {
+          this.openWorkflowNextSteps();
+        }
+      })
     } else if (this.activeNav === 'trace') {
       TracePage()
     } else if (this.activeNav === 'reproduction') {
@@ -329,50 +480,72 @@ struct Index {
   /** 项目段：竞赛配置 + 规则字段进度 + 阻塞项。 */
   @Builder
   ProjectSection() {
-    CardPanel({ title: this.tr('overview.section.project') }) {
-      KeyValueRow({
-        label: this.tr('overview.field.competition'),
-        value: this.competitionName
-      })
-      KeyValueRow({
-        label: this.tr('overview.field.taskType'),
-        value: this.taskType
-      })
-      KeyValueRow({
-        label: this.tr('overview.field.metric'),
-        value: this.metric
-      })
-      KeyValueRow({
-        label: this.tr('overview.field.adapter'),
-        value: this.runner
-      })
-      KeyValueRow({
-        label: this.tr('overview.field.lastUpdated'),
-        value: this.lastUpdatedText()
-      })
+    ForEach(this.projectSectionKeys(), (key: string) => {
+      CardPanel({ title: this.tr('overview.section.project') }) {
+        if (key.endsWith('-empty')) {
+          Text(this.tr('overview.emptyProjectTitle'))
+            .fontSize(17)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.TEXT_PRIMARY)
+            .width('100%')
+          Text(this.tr('overview.emptyProjectBody'))
+            .fontSize(13)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+            .margin({ top: 8, bottom: 16 })
+          Button(this.tr('overview.configureRules'))
+            .fontSize(14)
+            .fontColor(Color.White)
+            .backgroundColor(AppTheme.PRIMARY)
+            .onClick(() => {
+              this.openRuleSetup();
+            })
+        } else {
+          KeyValueRow({
+            label: this.tr('overview.field.competition'),
+            value: this.competitionName
+          })
+          KeyValueRow({
+            label: this.tr('overview.field.taskType'),
+            value: this.taskType
+          })
+          KeyValueRow({
+            label: this.tr('overview.field.metric'),
+            value: this.metric
+          })
+          KeyValueRow({
+            label: this.tr('overview.field.adapter'),
+            value: this.runner
+          })
+          KeyValueRow({
+            label: this.tr('overview.field.lastUpdated'),
+            value: this.lastUpdatedText()
+          })
 
-      // 规则字段本来就是「几分之几」，画成条比写成「规则字段 24/24」快。
-      ProgressBar({
-        label: this.tr('overview.field.ruleFields'),
-        current: this.ruleTotal - this.ruleMissing,
-        total: this.ruleTotal
-      })
-        .margin({ top: 16 })
+          // 规则字段本来就是「几分之几」，画成条比写成「规则字段 24/24」快。
+          ProgressBar({
+            label: this.tr('overview.field.ruleFields'),
+            current: this.ruleTotal - this.ruleMissing,
+            total: this.ruleTotal
+          })
+            .margin({ top: 16 })
 
-      Row() {
-        Text(this.tr('overview.field.blockers'))
-          .fontSize(13)
-          .fontColor(AppTheme.TEXT_SECONDARY)
-          .layoutWeight(1)
-        StatusBadge({
-          text: `${this.blockers.length}`,
-          tone: this.blockers.length > 0 ? 'danger' : 'ok'
-        })
+          Row() {
+            Text(this.tr('overview.field.blockers'))
+              .fontSize(13)
+              .fontColor(AppTheme.TEXT_SECONDARY)
+              .layoutWeight(1)
+            StatusBadge({
+              text: `${this.blockers.length}`,
+              tone: this.blockers.length > 0 ? 'danger' : 'ok'
+            })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .margin({ top: 18 })
+        }
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .margin({ top: 18 })
-    }
+    }, (key: string) => key)
   }
 
   /** 工作流段：下一步动作 + 八步进度条。 */
@@ -416,24 +589,58 @@ struct Index {
     }
   }
 
-  build() {
-    if (this.localGateOpen) {
-      // 端侧规则关口整页覆盖：它不依赖后端项目，所以判断放在最外层，
-      // 从启动页和设置页都能打开（少了这一点，没选项目时就走不到端侧关口）。
+  private rootViewKeys(): string[] {
+    return [`${this.authReady}-${this.authenticated}-${this.localGateOpen}-${this.localStatusOpen}-${this.entered}`];
+  }
+
+  @Builder
+  RootContent() {
+    if (!this.authReady) {
+      Column() {
+        Text(this.tr('auth.loading'))
+          .fontSize(14)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(AppTheme.PAGE_BG)
+    } else if (!this.authenticated) {
+      AccountGate({
+        busy: this.authBusy,
+        errorMessage: this.authError,
+        onSubmit: (username: string, password: string, register: boolean) => {
+          this.authenticate(username, password, register);
+        }
+      })
+    } else if (this.localGateOpen) {
       this.LocalGateScreen()
     } else if (this.localStatusOpen) {
-      // 端侧离线状态同理：它的存在意义就是"后端不在时也能看"，更不能依赖后端项目。
       this.LocalStatusScreen()
     } else if (this.entered) {
       this.Workspace()
     } else {
-      // 启动先进项目选择页：项目是侧栏那些模块的上一层容器，先选定再进工作台。
       ProjectGate({
+        accountUsername: this.accountUsername,
+        creditBalance: this.creditBalance,
+        onSignOut: () => {
+          this.signOut();
+        },
         onEnter: (project: ProjectSummary) => {
           this.enterProject(project);
         }
       })
     }
+  }
+
+  build() {
+    Column() {
+      ForEach(this.rootViewKeys(), (key: string) => {
+        this.RootContent()
+      }, (key: string) => key)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   /** 端侧离线状态的整页容器：与规则关口同样的留白与滚动。 */
@@ -496,8 +703,13 @@ struct Index {
       Column() {
         TopBar({
           projectName: this.projectName,
+          blockerCount: this.blockers.length,
           onSwitchProject: () => {
             this.returnToProjects();
+          },
+          onNotificationsClick: () => {
+            this.workflowInitialSection = 'status';
+            this.activeNav = 'workflow';
           },
           onAvatarClick: () => {
             this.menuOpen = !this.menuOpen;
@@ -510,6 +722,7 @@ struct Index {
             activeKey: this.activeNav,
             blockerCount: this.blockers.length,
             onSelect: (key: string) => {
+              this.workflowInitialSection = 'status';
               this.activeNav = key;
             }
           })
@@ -535,7 +748,9 @@ struct Index {
                 .margin({ bottom: 20 })
               }
 
-              this.ActivePage()
+              ForEach(this.activePageKeys(), (key: string) => {
+                this.ActivePage()
+              }, (key: string) => key)
 
               if (this.loading) {
                 Text(this.tr('common.loading'))
@@ -558,7 +773,7 @@ struct Index {
         .sideBarWidth(AppTheme.SIDEBAR_WIDTH)
         .minSideBarWidth(200)
         .maxSideBarWidth(280)
-        .minContentWidth(420)
+        .minContentWidth(this.compactWorkspace ? 260 : 420)
         .showControlButton(true)
         .divider({ strokeWidth: 1, color: AppTheme.BORDER })
       }
@@ -590,6 +805,9 @@ struct Index {
           },
           onSwitchProject: () => {
             this.returnToProjects();
+          },
+          onLogout: () => {
+            this.signOut();
           }
         })
           .margin({ top: AppTheme.TOPBAR_HEIGHT + 8, right: 24 })
@@ -597,5 +815,9 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    .onAreaChange((_oldArea: Area, newArea: Area) => {
+      const compact = Number(newArea.width) < 680;
+      if (this.compactWorkspace !== compact) this.compactWorkspace = compact;
+    })
   }
 }

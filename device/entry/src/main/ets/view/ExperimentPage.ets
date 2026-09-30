@@ -17,7 +17,8 @@ import {
   experimentStatusTone,
   formatDuration,
   formatNumber,
-  formatTimestamp
+  formatTimestamp,
+  workspacePathLabel
 } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadge } from './Widgets';
@@ -29,6 +30,11 @@ import { CardPanel, EmptyHint, PageHeader, RailItemSpec, SectionRail, StatusBadg
  */
 @Component
 export struct ExperimentPage {
+  /** 云账号版只能展示后端已有的实验记录；本地开发路径保留原有提示。 */
+  @Prop cloudAccount: boolean = false;
+  /** 空账本时把用户带到工作流建议，不自动创建草案或启动训练。 */
+  onOpenNextSteps: () => void = () => {
+  };
   /**
    * 当前语言。ArkUI 只重建读到状态变量的节点，所以本组件所有文案都走 this.tr()，
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
@@ -69,6 +75,20 @@ export struct ExperimentPage {
   /** 带占位符取文案。 */
   private trf(key: string, args: string[]): string {
     return tfFor(this.lang, key, args);
+  }
+
+  /** 云端 HAP 的执行边界只在空台账/空队列时提示，避免重复占用已有记录的页面空间。 */
+  @Builder
+  CloudExecutionNote() {
+    if (this.cloudAccount) {
+      Text(this.tr('exp.cloudExecutionUnavailable'))
+        .fontSize(12)
+        .fontColor(AppTheme.WARN_TEXT)
+        .width('100%')
+        .padding(12)
+        .backgroundColor(AppTheme.WARN_SOFT)
+        .borderRadius(AppTheme.RADIUS_SM)
+    }
   }
 
   /** 草案表单的错误提示：过短时按当前语言生成，后端错误原文直接显示。 */
@@ -343,7 +363,7 @@ export struct ExperimentPage {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Text(item.config_path)
+      Text(workspacePathLabel(item.config_path))
         .fontSize(12)
         .fontColor(AppTheme.TEXT_TERTIARY)
         .margin({ top: 8 })
@@ -497,6 +517,7 @@ export struct ExperimentPage {
         }) {
           if (this.jobs.length === 0) {
             EmptyHint({ text: this.tr('exp.jobsEmpty') })
+            this.CloudExecutionNote()
           } else {
             Column() {
               ForEach(this.jobs, (item: TrainingJob) => {
@@ -538,7 +559,20 @@ export struct ExperimentPage {
               .margin({ bottom: 12 })
           }
           if (this.experiments.length === 0) {
-            EmptyHint({ text: this.tr('exp.ledgerEmpty') })
+            Column({ space: 12 }) {
+              EmptyHint({ text: this.tr('exp.ledgerEmpty') })
+              this.CloudExecutionNote()
+              Button(this.tr('exp.viewNextSteps'))
+                .height(38)
+                .fontSize(14)
+                .fontColor(Color.White)
+                .backgroundColor(AppTheme.PRIMARY)
+                .onClick(() => {
+                  this.onOpenNextSteps();
+                })
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
           } else {
             Column() {
               ForEach(this.experiments, (item: ExperimentRecord) => {

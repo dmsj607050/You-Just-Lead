@@ -1,6 +1,6 @@
 import { DataAuditReport, MetricRange, fetchDataAudit } from '../common/BackendClient';
 import AppTheme from '../common/AppTheme';
-import { formatBytes, formatNumber, formatTimestamp } from '../common/Format';
+import { formatBytes, formatNumber, formatTimestamp, workspacePathLabel } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { BarItemSpec, BarList, CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail } from './Widgets';
 
@@ -65,6 +65,9 @@ export struct DataPage {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  /** 空态只引导查看工作流建议，不直接启动审计或训练。 */
+  onOpenNextSteps: () => void = () => {
+  };
   @State loading: boolean = false;
   @State errorText: string = '';
   @State audit: DataAuditReport | null = null;
@@ -96,6 +99,12 @@ export struct DataPage {
     this.errorText = '';
     try {
       const report: DataAuditReport = await fetchDataAudit();
+      if (Object.keys(report).length === 0) {
+        this.audit = null;
+        this.kindRows = [];
+        this.splitRows = [];
+        return;
+      }
       this.audit = report;
       this.kindRows = toRows(report.file_kinds);
       this.splitRows = toRows(report.splits);
@@ -221,22 +230,45 @@ export struct DataPage {
         this.ErrorBanner()
       }
 
-      SectionRail({
-        items: this.railItems(),
-        active: this.section,
-        onSelect: (key: string) => {
-          this.section = key;
-        }
-      })
+      if (this.audit !== null) {
+        SectionRail({
+          items: this.railItems(),
+          active: this.section,
+          onSelect: (key: string) => {
+            this.section = key;
+          }
+        })
+      }
 
-      if (this.section === 'source') {
+      if (this.audit === null) {
+        if (this.errorText.length === 0) {
+          CardPanel({ title: this.tr('data.auditSource') }) {
+            Column({ space: 14 }) {
+              EmptyHint({ text: this.tr('data.noAuditReport') })
+              Text(this.tr('data.cloudAuditUnavailable'))
+                .fontSize(12)
+                .fontColor(AppTheme.TEXT_TERTIARY)
+                .width('100%')
+              Button(this.tr('data.viewNextSteps'))
+                .fontSize(14)
+                .fontColor(Color.White)
+                .backgroundColor(AppTheme.PRIMARY)
+                .onClick(() => {
+                  this.onOpenNextSteps();
+                })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+          }
+        }
+      } else if (this.section === 'source') {
         CardPanel({
           title: this.tr('data.auditSource')
         }) {
           Column() {
             KeyValueRow({
               label: this.tr('data.dataDir'),
-              value: this.audit === null ? '—' : this.audit.data_dir,
+              value: this.audit === null ? '—' : workspacePathLabel(this.audit.data_dir),
               mono: true
             })
             KeyValueRow({

@@ -9,6 +9,7 @@ import IconPaths from './IconPaths';
 /** 侧栏导航项。文案不放在这里，由 `t('nav.' + key)` 取，切换语言时才会跟着变。 */
 export interface NavItem {
   key: string;
+  group: string;
   icon: string;
 }
 
@@ -27,14 +28,14 @@ export interface UpdateSpec {
 
 /** 侧栏主导航。项目本身是上一层容器，由顶栏的项目切换器承担，所以这里第一项是概览。 */
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'overview', icon: IconPaths.GRID },
-  { key: 'workflow', icon: IconPaths.FLOW },
-  { key: 'experiment', icon: IconPaths.FLASK },
-  { key: 'literature', icon: IconPaths.BOOK },
-  { key: 'data', icon: IconPaths.CHART },
-  { key: 'writing', icon: IconPaths.PEN },
-  { key: 'trace', icon: IconPaths.TRACE },
-  { key: 'reproduction', icon: IconPaths.BOX },
-  // 研究循环是这套编排框架的正面：上面八项是"这条链上有什么"，它是"这条链自己在走"。
-  { key: 'loop', icon: IconPaths.LOOP }
+  { key: 'overview', group: 'workspace', icon: IconPaths.GRID },
+  { key: 'workflow', group: 'workspace', icon: IconPaths.FLOW },
+  { key: 'data', group: 'research', icon: IconPaths.CHART },
+  { key: 'experiment', group: 'research', icon: IconPaths.FLASK },
+  { key: 'literature', group: 'research', icon: IconPaths.BOOK },
+  // 研究循环负责让规则、数据、实验和证据持续接起来。
+  { key: 'loop', group: 'research', icon: IconPaths.LOOP },
+  { key: 'writing', group: 'outputs', icon: IconPaths.PEN },
+  { key: 'trace', group: 'outputs', icon: IconPaths.TRACE },
+  { key: 'reproduction', group: 'outputs', icon: IconPaths.BOX }
 ];

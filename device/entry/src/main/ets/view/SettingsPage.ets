@@ -650,6 +650,30 @@ export struct SettingsPage {
     .alignItems(HorizontalAlign.Start)
   }
 
+  /** 云端由平台统一维护 DeepSeek 来源；用户只看服务状态，不接触服务器密钥。 */
+  @Builder
+  ManagedModelSection() {
+    CardPanel({ title: this.tr('settings.managedModel') }) {
+      Column() {
+        KeyValueRow({
+          label: this.tr('settings.currentName'),
+          value: this.tr('settings.deepseekManaged')
+        })
+        KeyValueRow({
+          label: this.tr('settings.currentModel'),
+          value: this.providers === null ? '—' : this.providers.model
+        })
+        Text(this.tr('settings.managedModelHint'))
+          .fontSize(12)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .margin({ top: 10 })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+    }
+  }
+
   @Builder
   GpuRow(item: GpuDevice) {
     Column() {
@@ -702,8 +726,12 @@ export struct SettingsPage {
           Column() {
             KeyValueRow({ label: this.tr('settings.serviceAddress'), value: BASE_URL, mono: true })
             KeyValueRow({
-              label: this.tr('settings.sharedToken'),
-              value: ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured')
+              label: this.health !== null && this.health.mode === 'cloud'
+                ? this.tr('settings.accountAuth')
+                : this.tr('settings.sharedToken'),
+              value: this.health !== null && this.health.mode === 'cloud'
+                ? this.tr('settings.accountAuthActive')
+                : (ACCESS_TOKEN.length > 0 ? this.tr('settings.configured') : this.tr('settings.tokenNotConfigured'))
             })
             KeyValueRow({
               label: this.tr('settings.health'),
@@ -711,16 +739,20 @@ export struct SettingsPage {
             })
             KeyValueRow({
               label: this.tr('settings.workspace'),
-              value: this.health === null ? '—' : this.health.workspace,
+              value: this.health === null ? '—' : (this.health.workspace || '—'),
               mono: true
             })
           }
           .width('100%')
         }
       } else if (this.section === 'model') {
-        ForEach(this.modelKeys(), (key: string) => {
-          this.ModelSection(key)
-        }, (key: string) => key)
+        if (this.providers !== null && this.providers.managed === true) {
+          this.ManagedModelSection()
+        } else {
+          ForEach(this.modelKeys(), (key: string) => {
+            this.ModelSection(key)
+          }, (key: string) => key)
+        }
       } else if (this.section === 'runtime') {
         CardPanel({
           title: this.tr('settings.runtime')

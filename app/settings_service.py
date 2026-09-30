@@ -252,6 +252,19 @@ def _migrate_legacy_deepseek_key() -> bool:
 
 def _ensure_providers() -> tuple[list[dict[str, Any]], str]:
     """读配置；空的话先尝试迁移，再空就返回空表（由界面引导新建）。"""
+    if os.environ.get("YJL_CLOUD_MODE", "").strip() == "1":
+        preset = next(item for item in PROVIDER_PRESETS if item.id == "deepseek")
+        model = os.environ.get("YJL_LLM_MODEL", DEFAULT_DEEPSEEK_MODEL).strip()[:120] or DEFAULT_DEEPSEEK_MODEL
+        return ([
+            {
+                "id": "platform-deepseek",
+                "name": "DeepSeek（平台托管）",
+                "preset": preset.id,
+                "base_url": preset.base_url,
+                "model": model,
+                "models": [model],
+            }
+        ], "platform-deepseek")
     providers = _stored_providers()
     if not providers:
         _migrate_legacy_deepseek_key()
@@ -311,6 +324,7 @@ def providers_status() -> dict[str, Any]:
     current = next((item for item in views if item["id"] == active), None)
     stored_current = next((item for item in providers if item["id"] == active), None)
     return {
+        "managed": False,
         "presets": provider_presets(),
         "providers": views,
         "active": active,

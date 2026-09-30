@@ -1,6 +1,52 @@
 import { http } from '@kit.NetworkKit';
 import { ACCESS_TOKEN, AGENT_TIMEOUT_MS, BASE_URL, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS } from './BackendConfig';
 
+/** 当前登录会话；密码不会保留在客户端。 */
+let SESSION_TOKEN: string = '';
+
+export function setSessionToken(token: string): void {
+  SESSION_TOKEN = token;
+}
+
+export function clearSessionToken(): void {
+  SESSION_TOKEN = '';
+}
+
+export function currentSessionToken(): string {
+  return SESSION_TOKEN;
+}
+
+/** 用户账号与 token 积分余额。 */
+export interface AccountInfo {
+  user_id: string;
+  username: string;
+  balance_tokens: number;
+  credits: number;
+  welcome_credits: number;
+  tokens_per_credit: number;
+  credit_ledger?: CreditLedgerEntry[];
+}
+
+/** 一条追加式积分账本记录。 */
+export interface CreditLedgerEntry {
+  event_type: string;
+  delta_tokens: number;
+  balance_after: number;
+  reference_id: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  created_at: string;
+}
+
+interface AuthResponse {
+  token: string;
+  account: AccountInfo;
+}
+
+interface LogoutResponse {
+  logged_out: boolean;
+}
+
 /** 后端建议的下一步动作。 */
 export interface NextAction {
   priority: string;
@@ -791,6 +837,8 @@ export interface ModelProvider {
 
 /** GET /api/settings/providers：预设 + 已配置的几套 + 哪套在用。 */
 export interface ProviderSettings {
+  /** 云端托管模型模式；此时客户端不能查看或修改服务端密钥。 */
+  managed: boolean;
   presets: ModelProviderPreset[];
   providers: ModelProvider[];
   /** 当前使用的来源 id；一套都没有时是空串。 */
@@ -814,7 +862,8 @@ export interface ProviderTestResult {
 /** GET /health：后端存活信息。 */
 export interface HealthInfo {
   status: string;
-  workspace: string;
+  workspace?: string;
+  mode?: string;
 }
 
 /** Agent 的一次回答，只声明界面会用到的字段。 */
@@ -1043,6 +1092,7 @@ interface ResearchLoopStepRequest {
 interface BackendHeaders {
   'Content-Type': string;
   'X-YJL-Token': string;
+  'Authorization': string;
 }
 
 /** 发送一次请求，并把网络层错误转成可读的提示。 */
@@ -1052,7 +1102,8 @@ async function send(url: string, method: http.RequestMethod, body: string,
   try {
     const headers: BackendHeaders = {
       'Content-Type': 'application/json',
-      'X-YJL-Token': ACCESS_TOKEN
+      'X-YJL-Token': ACCESS_TOKEN,
+      'Authorization': SESSION_TOKEN.length > 0 ? `Bearer ${SESSION_TOKEN}` : ''
     };
     const options: http.HttpRequestOptions = {
       method: method,
@@ -1462,7 +1513,32 @@ export async function testProvider(id: string): Promise<ProviderTestResult> {
 
 /** 读取后端存活信息。 */
 export function fetchHealth(): Promise<HealthInfo> {
-  return requestJson<HealthInfo>('/health', http.RequestMethod.GET);
+  return requestJson<HealthInfo>('/api/health', http.RequestMethod.GET);
+}
+
+/** 登录或注册；令牌只在内存中设置，密码不落盘。 */
+async function authenticateAccount(path: string, username: string, password: string): Promise<AccountInfo> {
+  const result: AuthResponse = await requestJson<AuthResponse>(path, http.RequestMethod.POST,
+    JSON.stringify({ username: username, password: password }));
+  setSessionToken(result.token);
+  return result.account;
+}
+
+export function registerAccount(username: string, password: string): Promise<AccountInfo> {
+  return authenticateAccount('/api/auth/register', username, password);
+}
+
+export function loginAccount(username: string, password: string): Promise<AccountInfo> {
+  return authenticateAccount('/api/auth/login', username, password);
+}
+
+export function fetchAccount(): Promise<AccountInfo> {
+  return requestJson<AccountInfo>('/api/account', http.RequestMethod.GET);
+}
+
+export async function logoutAccount(): Promise<void> {
+  await requestJson<LogoutResponse>('/api/auth/logout', http.RequestMethod.POST, JSON.stringify({}));
+  clearSessionToken();
 }
 
 /**

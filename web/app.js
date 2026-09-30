@@ -253,33 +253,46 @@ const State = {
 };
 
 const NAV_ITEMS = [
-  { key: 'overview', label: '概览', icon: 'grid' },
-  { key: 'workflow', label: '工作流', icon: 'flow' },
-  { key: 'experiment', label: '实验', icon: 'flask' },
-  { key: 'literature', label: '文献', icon: 'book' },
-  { key: 'data', label: '数据', icon: 'chart' },
-  { key: 'writing', label: '写作', icon: 'pen' },
-  { key: 'trace', label: '溯源', icon: 'trace' },
-  { key: 'reproduction', label: '复现', icon: 'box' },
-  // 研究循环是本项目自己的东西，端侧列表里没有，但它才是这条流水线的引擎。
-  { key: 'loop', label: '研究循环', icon: 'loop' },
+  { key: 'overview', group: 'workspace', label: '概览', icon: 'grid' },
+  { key: 'workflow', group: 'workspace', label: '工作流', icon: 'flow' },
+  { key: 'data', group: 'research', label: '数据', icon: 'chart' },
+  { key: 'experiment', group: 'research', label: '实验', icon: 'flask' },
+  { key: 'literature', group: 'research', label: '文献', icon: 'book' },
+  // 研究循环负责让规则、数据、实验和证据持续接起来。
+  { key: 'loop', group: 'research', label: '研究循环', icon: 'loop' },
+  { key: 'writing', group: 'outputs', label: '写作', icon: 'pen' },
+  { key: 'trace', group: 'outputs', label: '溯源', icon: 'trace' },
+  { key: 'reproduction', group: 'outputs', label: '复现', icon: 'box' },
 ];
 
 function sidebarHtml() {
-  const items = NAV_ITEMS.map((item) => {
-    const active = item.key === State.nav ? ' active' : '';
-    return (
-      `<button class="nav-item${active}" data-action="nav" data-key="${item.key}">` +
-      `${UI.icon(item.icon)}<span>${UI.esc(item.label)}</span></button>`
-    );
+  const groups = [
+    { key: 'workspace', label: '工作区' },
+    { key: 'research', label: '研究' },
+    { key: 'outputs', label: '产出' },
+  ];
+  const items = groups.map((group) => {
+    const groupItems = NAV_ITEMS.filter((item) => item.group === group.key);
+    const buttons = groupItems.map((item) => {
+      const active = item.key === State.nav ? ' active' : '';
+      const current = item.key === State.nav ? ' aria-current="page"' : '';
+      return (
+        `<button class="nav-item${active}" data-action="nav" data-key="${item.key}"` +
+        ` aria-label="${UI.esc(item.label)}" title="${UI.esc(item.label)}"${current}>` +
+        `${UI.icon(item.icon)}<span>${UI.esc(item.label)}</span></button>`
+      );
+    }).join('');
+    return `<div class="sidebar-section" role="group" aria-label="${group.label}">` +
+      `<div class="sidebar-section-label" aria-hidden="true">${group.label}</div>${buttons}</div>`;
   }).join('');
   const settingsActive = State.nav === 'settings' ? ' active' : '';
+  const settingsCurrent = State.nav === 'settings' ? ' aria-current="page"' : '';
   return (
     items +
     '<div class="sidebar-divider"></div>' +
-    `<button class="nav-item${settingsActive}" data-action="nav" data-key="settings">` +
-    `${UI.icon('sliders')}<span>设置</span></button>` +
-    '<div class="sidebar-quote">更好的问题<br/>会带来更好的世界</div>'
+    `<button class="nav-item${settingsActive}" data-action="nav" data-key="settings"` +
+    ` aria-label="设置" title="设置"${settingsCurrent}>` +
+    `${UI.icon('sliders')}<span>设置</span></button>`
   );
 }
 
@@ -460,6 +473,14 @@ document.addEventListener('click', async (event) => {
     load('workflow');
     return;
   }
+  if (action === 'workflow-actions') {
+    State.nav = 'workflow';
+    State.sections.workflow = 'actions';
+    if (window.location.hash !== '#workflow') window.location.hash = 'workflow';
+    render();
+    load('workflow');
+    return;
+  }
   if (action === 'section') {
     State.sections[State.nav] = key;
     render();
@@ -546,7 +567,7 @@ async function boot() {
   State.nav = navFromHash();
   document.body.innerHTML = `<div class="app">${TOPBAR}<div class="body">
     <div class="sidebar" id="sidebar"></div>
-    <div class="content" id="content"></div>
+    <div class="content"><div class="content-inner" id="content"></div></div>
   </div></div>`;
   let savedTheme = 'system';
   try {

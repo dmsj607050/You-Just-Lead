@@ -1,6 +1,6 @@
 import { fetchPaper, PaperClaim, PaperPackage } from '../common/BackendClient';
 import AppTheme from '../common/AppTheme';
-import { formatTimestamp } from '../common/Format';
+import { formatTimestamp, workspacePathLabel } from '../common/Format';
 import { tFor, tfFor } from '../common/I18n';
 import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRail } from './Widgets';
 
@@ -11,6 +11,9 @@ import { CardPanel, EmptyHint, KeyValueRow, PageHeader, RailItemSpec, SectionRai
  */
 @Component
 export struct WritingPage {
+  /** 空论文包时进入工作流建议；该入口不触发论文生成。 */
+  onOpenNextSteps: () => void = () => {
+  };
   /**
    * 当前语言。ArkUI 只重建读到状态变量的节点，所以本组件所有文案都走 this.tr()，
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
@@ -138,7 +141,7 @@ export struct WritingPage {
             .fontSize(13)
             .fontColor(AppTheme.TEXT_PRIMARY)
             .width('100%')
-          Text(`${claim.experiment_id} · ${claim.result_path}`)
+          Text(`${claim.experiment_id} · ${workspacePathLabel(claim.result_path, this.pkg === null ? null : this.pkg.package_dir)}`)
             .fontSize(12)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .margin({ top: 6 })
@@ -271,27 +274,43 @@ export struct WritingPage {
           title: this.tr('writing.paperPackage')
         }) {
           if (this.pkg === null || !this.pkg.available) {
-            EmptyHint({ text: this.tr('writing.noPackage') })
+            Column({ space: 12 }) {
+              EmptyHint({ text: this.tr('writing.noPackage') })
+              Button(this.tr('writing.viewNextSteps'))
+                .height(38)
+                .fontSize(14)
+                .fontColor(Color.White)
+                .backgroundColor(AppTheme.PRIMARY)
+                .onClick(() => {
+                  this.onOpenNextSteps();
+                })
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
           } else {
             Column() {
               KeyValueRow({
                 label: this.tr('writing.generatedAt'),
                 value: formatTimestamp(this.pkg.generated_at)
               })
-              KeyValueRow({ label: this.tr('writing.packageDir'), value: this.pkg.package_dir, mono: true })
+              KeyValueRow({
+                label: this.tr('writing.packageDir'),
+                value: workspacePathLabel(this.pkg.package_dir),
+                mono: true
+              })
               KeyValueRow({
                 label: this.tr('writing.texFile'),
-                value: this.pkg.tex_path === null ? '—' : this.pkg.tex_path,
+                value: workspacePathLabel(this.pkg.tex_path, this.pkg.package_dir),
                 mono: true
               })
               KeyValueRow({
                 label: this.tr('writing.bibFile'),
-                value: this.pkg.bib_path === null ? '—' : this.pkg.bib_path,
+                value: workspacePathLabel(this.pkg.bib_path, this.pkg.package_dir),
                 mono: true
               })
               KeyValueRow({
                 label: this.tr('writing.evidenceFile'),
-                value: this.pkg.evidence_path === null ? '—' : this.pkg.evidence_path,
+                value: workspacePathLabel(this.pkg.evidence_path, this.pkg.package_dir),
                 mono: true
               })
             }

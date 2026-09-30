@@ -22,6 +22,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from app.account_service import UsageMeter
 from app.agent_tools import agent_tools_schema, execute_tool
 from app.settings_service import SettingsError, resolve_credentials
 
@@ -37,6 +38,7 @@ AGENT_REQUEST_TIMEOUT = 180
 # 那是链路抖动、不是请求有问题，退避重试一次就能过去。但**状态码类错误不重试** ——
 # 那说明请求本身或额度/权限有问题，重试只是把同一个错误再犯一遍。
 REQUEST_ATTEMPTS = 3
+METERED_MAX_COMPLETION_TOKENS = 2_048
 AGENT_SYSTEM_PROMPT = (
     "你是竞赛模型训练 Agent。你可以调用工具读取当前比赛工作区的真实状态（实验记录、工作流阶段、规则就绪度、"
     "数据审计、下一步建议、最佳实验等），也可以创建实验草稿。"
@@ -52,50 +54,116 @@ class LLMError(RuntimeError):
 
 
 def _request(
-    payload: dict[str, Any], *, timeout: int = CHAT_REQUEST_TIMEOUT, provider_id: str | None = None
+    payload: dict[str, Any],
+    *,
+    timeout: int = CHAT_REQUEST_TIMEOUT,
+    provider_id: str | None = None,
+    usage_meter: UsageMeter | None = None,
 ) -> dict[str, Any]:
     api_key, base_url, _ = resolve_credentials(provider_id)
     if not api_key:
         raise LLMError("当前模型来源还没有密钥。请在「设置 → 模型」里填，或设置 YJL_LLM_API_KEY 环境变量。")
+    request_payload = dict(payload)
+    reservation_id: str | None = None
+    if usage_meter is not None:
+        requested_limit = request_payload.get("max_tokens")
+        try:
+            completion_limit = int(requested_limit) if requested_limit is not None else METERED_MAX_COMPLETION_TOKENS
+        except (TypeError, ValueError):
+            completion_limit = METERED_MAX_COMPLETION_TOKENS
+        completion_limit = max(1, min(completion_limit, METERED_MAX_COMPLETION_TOKENS))
+        request_payload["max_tokens"] = completion_limit
+    request_data = json.dumps(request_payload, ensure_ascii=False).encode("utf-8")
+    if usage_meter is not None:
+        # UTF-8 字节数是输入 token 数的保守上界；连同输出上限先原子预留，防止并发透支。
+        remaining_after_prompt = usage_meter.available_tokens - len(request_data)
+        if remaining_after_prompt > 0 and remaining_after_prompt < completion_limit:
+            completion_limit = remaining_after_prompt
+            request_payload["max_tokens"] = completion_limit
+            request_data = json.dumps(request_payload, ensure_ascii=False).encode("utf-8")
+        if remaining_after_prompt <= 0:
+            # 让账本以同一条原子检查路径返回 402，而不发出模型请求。
+            usage_meter.reserve(usage_meter.available_tokens + 1)
+        reservation_id = usage_meter.reserve(len(request_data) + completion_limit)
     request = Request(
         f"{base_url}/chat/completions",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        data=request_data,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
     last_error: Exception | None = None
-    for attempt in range(REQUEST_ATTEMPTS):
-        try:
-            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed official API origin
-                parsed = json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            # 状态码类错误不重试：那是请求本身或额度/权限的问题，重试只是再犯一遍。
-            body = exc.read()
-            detail = (
-                body.decode("utf-8", errors="replace")
-                if isinstance(body, bytes)
-                else str(body or "")
-            )[:600]
-            raise LLMError(f"模型服务返回 HTTP {exc.code}：{detail}") from exc
-        except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            last_error = exc
-            if attempt + 1 < REQUEST_ATTEMPTS:
-                time.sleep(1.5 * (attempt + 1))
-                continue
-        else:
-            if not isinstance(parsed, dict):
-                raise LLMError("模型服务返回格式无效。")
-            return parsed
+    try:
+        attempt_budget = 1 if usage_meter is not None else REQUEST_ATTEMPTS
+        for attempt in range(attempt_budget):
+            try:
+                with urlopen(request, timeout=timeout) as response:  # noqa: S310 - configured provider URL
+                    parsed = json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                # 状态码类错误不重试：那是请求本身或额度/权限的问题，重试只是再犯一遍。
+                body = exc.read()
+                detail = (
+                    body.decode("utf-8", errors="replace")
+                    if isinstance(body, bytes)
+                    else str(body or "")
+                )[:600]
+                if api_key:
+                    detail = detail.replace(api_key, "[已隐藏]")
+                raise LLMError(f"模型服务返回 HTTP {exc.code}：{detail}") from exc
+            except (IncompleteRead, URLError, TimeoutError, json.JSONDecodeError) as exc:
+                last_error = exc
+                uncertain_provider_completion = isinstance(exc, (IncompleteRead, TimeoutError, json.JSONDecodeError))
+                if isinstance(exc, URLError) and isinstance(exc.reason, TimeoutError):
+                    uncertain_provider_completion = True
+                if usage_meter is not None and reservation_id is not None and uncertain_provider_completion:
+                    usage_meter.settle(reservation_id, None, None)
+                    reservation_id = None
+                    raise LLMError("模型响应未能完整返回，已按预留额度保守记账；为避免重复扣费，本次未自动重试。") from exc
+                if attempt + 1 < attempt_budget:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+            else:
+                if not isinstance(parsed, dict):
+                    raise LLMError("模型服务返回格式无效。")
+                if usage_meter is not None and reservation_id is not None:
+                    usage = parsed.get("usage")
+                    prompt_tokens = usage.get("prompt_tokens") if isinstance(usage, dict) else None
+                    completion_tokens = usage.get("completion_tokens") if isinstance(usage, dict) else None
+                    if (
+                        isinstance(prompt_tokens, int)
+                        and not isinstance(prompt_tokens, bool)
+                        and prompt_tokens >= 0
+                        and isinstance(completion_tokens, int)
+                        and not isinstance(completion_tokens, bool)
+                        and completion_tokens >= 0
+                    ):
+                        usage_meter.settle(reservation_id, prompt_tokens, completion_tokens)
+                    else:
+                        # 缺少 usage 时不能静默免费；按预留上限保守记账，并拒绝展示未核实答案。
+                        usage_meter.settle(reservation_id, None, None)
+                        raise LLMError("模型服务没有返回可核对的 token 用量，已按预留额度记账，本次答案未采用。")
+                    reservation_id = None
+                return parsed
 
-    if isinstance(last_error, TimeoutError):
-        # "这一轮慢"和"连不上"要分开说 —— 处置方式不一样。
-        raise LLMError(
-            f"模型服务在 {timeout} 秒内没有返回，重试 {REQUEST_ATTEMPTS} 次仍未成功，可稍后重试。"
-        ) from last_error
-    raise LLMError(f"与模型服务的连接不稳定（重试 {REQUEST_ATTEMPTS} 次仍失败）：{last_error}") from last_error
+        if isinstance(last_error, TimeoutError):
+            # "这一轮慢"和"连不上"要分开说 —— 处置方式不一样。
+            raise LLMError(
+                f"模型服务在 {timeout} 秒内没有返回，尝试 {attempt_budget} 次仍未成功，可稍后重试。"
+            ) from last_error
+        raise LLMError(f"与模型服务的连接不稳定（尝试 {attempt_budget} 次仍失败）：{last_error}") from last_error
+    except Exception:
+        if usage_meter is not None and reservation_id is not None:
+            usage_meter.release(reservation_id)
+        raise
 
 
-def chat_completion(system_prompt: str, user_prompt: str, *, model: str | None = None, thinking: bool = True) -> dict[str, Any]:
+def chat_completion(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    model: str | None = None,
+    thinking: bool = True,
+    usage_meter: UsageMeter | None = None,
+) -> dict[str, Any]:
     _, _, configured_model = resolve_credentials()
     selected_model = model or configured_model
     payload: dict[str, Any] = {
@@ -109,7 +177,7 @@ def chat_completion(system_prompt: str, user_prompt: str, *, model: str | None =
     if thinking:
         payload["thinking"] = {"type": "enabled"}
         payload["reasoning_effort"] = "high"
-    result = _request(payload)
+    result = _request(payload, usage_meter=usage_meter)
     try:
         message = result["choices"][0]["message"]
         content = str(message.get("content") or "").strip()
@@ -198,6 +266,7 @@ def run_agent(
     thinking: bool = True,
     system_prompt: str | None = None,
     tools: tuple[str, ...] | None = None,
+    usage_meter: UsageMeter | None = None,
 ) -> dict[str, Any]:
     """Run a multi-turn tool-calling Agent loop grounded in the local workspace.
 
@@ -234,7 +303,7 @@ def run_agent(
             payload["thinking"] = {"type": "enabled"}
             payload["reasoning_effort"] = "high"
 
-        response = _request(payload, timeout=AGENT_REQUEST_TIMEOUT)
+        response = _request(payload, timeout=AGENT_REQUEST_TIMEOUT, usage_meter=usage_meter)
         message = _extract_message(response)
         tool_calls = _parse_tool_calls(message)
         reasoning = str(message.get("reasoning_content") or "").strip()
@@ -301,7 +370,7 @@ def run_agent(
         "model": selected_model,
         "messages": messages + [{"role": "user", "content": "已达到工具调用轮数上限。请基于已收集的信息直接给出最终回答，不要再调用工具。"}],
         "stream": False,
-    }, timeout=AGENT_REQUEST_TIMEOUT)
+    }, timeout=AGENT_REQUEST_TIMEOUT, usage_meter=usage_meter)
     final_message = _extract_message(final_attempt)
     final_content = str(final_message.get("content") or "").strip()
     final_reasoning = str(final_message.get("reasoning_content") or "").strip()

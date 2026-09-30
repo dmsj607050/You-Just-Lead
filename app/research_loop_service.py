@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from app.account_service import UsageMeter
 from app.orchestrator.backfill import backfill_state
 from app.orchestrator.executor import ResearchExecutor
 from app.orchestrator.loop import run as run_loop
@@ -99,6 +100,7 @@ class ResearchLoopService:
         workspace: Path,
         *,
         executor_factory: Callable[[], Any] | None = None,
+        usage_meter: UsageMeter | None = None,
     ):
         """`executor_factory` 只给测试用：默认的执行器会真调模型。
 
@@ -112,7 +114,15 @@ class ResearchLoopService:
         self._running_job: str | None = None
         self._lock = threading.Lock()
         self._job_counter = 0
-        self._executor_factory = executor_factory or (lambda: ResearchExecutor(project_root=self.project_root))
+        self._usage_meter = usage_meter
+        self._executor_factory = executor_factory or (
+            lambda: ResearchExecutor(project_root=self.project_root, usage_meter=self._usage_meter)
+        )
+
+    def bind_usage_meter(self, usage_meter: UsageMeter) -> None:
+        """把按用户计量绑定到已缓存的工作区服务（通常它先被只读快照创建）。"""
+        with self._lock:
+            self._usage_meter = usage_meter
 
     def _next_job_id(self) -> str:
         """作业号。

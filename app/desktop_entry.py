@@ -172,6 +172,11 @@ def open_window(target: str, profile: Path) -> None:
             f"--user-data-dir={profile}",
             "--no-first-run",
             "--no-default-browser-check",
+            # Edge 会经兼容层重启到另一个进程；不跳过时当前进程会提前返回，
+            # 随之结束守护线程里的 API。保持应用进程与窗口同寿命。
+            "--edge-skip-compat-layer-relaunch",
+            # 独立 profile 关闭窗口后也退出后台应用，避免 API 留在后台空转。
+            "--disable-background-mode",
             "--window-size=1440,960",
         ],
         check=False,

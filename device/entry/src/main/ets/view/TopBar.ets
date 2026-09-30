@@ -11,6 +11,8 @@ export struct TopBar {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  @State compactHeader: boolean = false;
+  @State tightHeader: boolean = false;
 
   /** 取文案：读一次 lang，让调用它的节点订阅语言变化。 */
   private tr(key: string): string {
@@ -19,8 +21,12 @@ export struct TopBar {
 
   /** 当前项目名，显示在右上角；点它回到项目选择页。 */
   @Prop projectName: string = '';
+  @Prop blockerCount: number = 0;
   /** 点击顶栏头像，由页面负责弹出账户菜单。 */
   onAvatarClick: () => void = () => {
+  };
+  /** 通知入口跳到工作流的状态与阻塞项。 */
+  onNotificationsClick: () => void = () => {
   };
   /** 点击项目名，回到项目选择页。 */
   onSwitchProject: () => void = () => {
@@ -31,22 +37,24 @@ export struct TopBar {
       Row() {
         // 品牌标记（无文字版 logo）；旁边的文字走 i18n，所以这里不放带中文标语的那张。
         Image($r('app.media.logo_mark'))
-          .width(30)
-          .height(30)
+          .width(this.tightHeader ? 22 : (this.compactHeader ? 24 : 30))
+          .height(this.tightHeader ? 22 : (this.compactHeader ? 24 : 30))
           .objectFit(ImageFit.Contain)
         Text('You Just Lead')
-          .fontSize(19)
+          .fontSize(this.tightHeader ? 14 : (this.compactHeader ? 16 : 19))
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ left: 12 })
-        Divider()
-          .vertical(true)
-          .height(20)
-          .color(AppTheme.BORDER)
-          .margin({ left: 16, right: 16 })
-        Text(this.tr('topbar.tagline'))
-          .fontSize(14)
-          .fontColor(AppTheme.TEXT_SECONDARY)
+          .margin({ left: this.tightHeader ? 6 : (this.compactHeader ? 8 : 12) })
+        if (!this.compactHeader) {
+          Divider()
+            .vertical(true)
+            .height(20)
+            .color(AppTheme.BORDER)
+            .margin({ left: 16, right: 16 })
+          Text(this.tr('topbar.tagline'))
+            .fontSize(14)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+        }
       }
       .alignItems(VerticalAlign.Center)
 
@@ -66,9 +74,9 @@ export struct TopBar {
           AppIcon({ commands: IconPaths.CHEVRON_SMALL, color: AppTheme.TEXT_TERTIARY, filled: false, iconSize: 14 })
             .margin({ left: 6 })
         }
-        .constraintSize({ maxWidth: 280 })
+        .constraintSize({ maxWidth: this.tightHeader ? 108 : (this.compactHeader ? 148 : 280) })
         .height(38)
-        .padding({ left: 14, right: 14 })
+        .padding({ left: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14), right: this.tightHeader ? 7 : (this.compactHeader ? 10 : 14) })
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(AppTheme.RADIUS_SM)
         .alignItems(VerticalAlign.Center)
@@ -76,20 +84,30 @@ export struct TopBar {
           this.onSwitchProject();
         })
 
-        Stack({ alignContent: Alignment.TopEnd }) {
-          AppIcon({
-            commands: IconPaths.BELL,
-            color: AppTheme.TEXT_SECONDARY,
-            filled: false,
-            iconSize: 24
+        if (!this.tightHeader) {
+          Stack({ alignContent: Alignment.TopEnd }) {
+            AppIcon({
+              commands: IconPaths.BELL,
+              color: AppTheme.TEXT_SECONDARY,
+              filled: false,
+              iconSize: this.compactHeader ? 20 : 24
+            })
+            if (this.blockerCount > 0) {
+              Text(this.blockerCount > 9 ? '9+' : `${this.blockerCount}`)
+                .fontSize(8)
+                .fontColor(Color.White)
+                .backgroundColor(AppTheme.DANGER)
+                .borderRadius(7)
+                .padding({ left: 3, right: 3, top: 1, bottom: 1 })
+            }
+          }
+          .width(30)
+          .height(30)
+          .margin({ left: this.compactHeader ? 6 : 16 })
+          .onClick(() => {
+            this.onNotificationsClick();
           })
-          Row()
-            .width(7)
-            .height(7)
-            .borderRadius(4)
-            .backgroundColor(AppTheme.DANGER)
         }
-        .margin({ left: 16 })
 
         // 账户入口：软绿圆底上放品牌标记，和左边整块品牌区区分开。
         Stack({ alignContent: Alignment.Center }) {
@@ -102,7 +120,7 @@ export struct TopBar {
         .height(34)
         .backgroundColor(AppTheme.PRIMARY_SOFT)
         .borderRadius(17)
-        .margin({ left: 12 })
+        .margin({ left: this.tightHeader ? 6 : (this.compactHeader ? 8 : 12) })
         .onClick(() => {
           this.onAvatarClick();
         })
@@ -111,8 +129,19 @@ export struct TopBar {
     }
     .width('100%')
     .height(AppTheme.TOPBAR_HEIGHT)
-    .padding({ left: 24, right: 24 })
+    .padding({ left: this.tightHeader ? 10 : (this.compactHeader ? 12 : 24), right: this.tightHeader ? 10 : (this.compactHeader ? 12 : 24) })
     .backgroundColor(AppTheme.SURFACE)
     .alignItems(VerticalAlign.Center)
+    .onAreaChange((_oldArea: Area, newArea: Area) => {
+      const width = Number(newArea.width);
+      const compact = width < 680;
+      const tight = width < 440;
+      if (this.compactHeader !== compact) {
+        this.compactHeader = compact;
+      }
+      if (this.tightHeader !== tight) {
+        this.tightHeader = tight;
+      }
+    })
   }
 }

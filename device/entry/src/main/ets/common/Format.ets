@@ -258,6 +258,33 @@ export function formatBytes(bytes: number): string {
   return `${(mb / 1024).toFixed(2)} GB`;
 }
 
+/** 云端客户端只显示项目内相对路径；项目外绝对路径只露出末级名称。 */
+export function workspacePathLabel(value: string | null, workspace: string | null = null): string {
+  if (value === null || value.length === 0) {
+    return '';
+  }
+  const normalizedValue: string = value.split('\\').join('/');
+  let normalizedWorkspace: string = workspace === null ? '' : workspace.split('\\').join('/');
+  while (normalizedWorkspace.length > 1 && normalizedWorkspace.endsWith('/')) {
+    normalizedWorkspace = normalizedWorkspace.substring(0, normalizedWorkspace.length - 1);
+  }
+  if (normalizedWorkspace.length > 0) {
+    if (normalizedValue === normalizedWorkspace) {
+      return normalizedWorkspace.substring(normalizedWorkspace.lastIndexOf('/') + 1);
+    }
+    const prefix: string = `${normalizedWorkspace}/`;
+    if (normalizedValue.startsWith(prefix)) {
+      return normalizedValue.substring(prefix.length);
+    }
+  }
+  const hasDrivePrefix: boolean = normalizedValue.length > 2 && normalizedValue.substring(1, 2) === ':' &&
+    normalizedValue.substring(2, 3) === '/';
+  if (normalizedValue.startsWith('/') || hasDrivePrefix) {
+    return normalizedValue.substring(normalizedValue.lastIndexOf('/') + 1);
+  }
+  return normalizedValue.startsWith('./') ? normalizedValue.substring(2) : normalizedValue;
+}
+
 /** 秒数转成「1 分 20 秒」这类描述。 */
 export function formatDuration(lang: string, seconds: number): string {
   if (seconds <= 0) {

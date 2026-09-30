@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+from app.account_service import UsageMeter
 from agents.research_agent import build_research_query, search_research
 from app.orchestrator.prompts import (
     SYSTEM,
@@ -212,12 +213,14 @@ class ResearchExecutor:
         project_root: Path | None = None,
         chat: Callable[[str, str], dict[str, Any]] | None = None,
         agent: Callable[..., dict[str, Any]] | None = None,
+        usage_meter: UsageMeter | None = None,
     ):
         """给了 `project_root` 就走带工具的行动循环；只给 `chat` 时是单轮问答。
 
         `agent` 可显式注入，测试用它替换掉真实的多轮循环。
         """
         self._project_root = Path(project_root) if project_root is not None else None
+        self._usage_meter = usage_meter
         if agent is not None:
             self._agent = agent
         elif self._project_root is not None:
@@ -255,16 +258,16 @@ class ResearchExecutor:
         """
         framed = f"{_workspace_hint(workspace)}\n\n{user_prompt}"
         if self._agent is not None and self._project_root is not None:
-            response = self._agent(
-                framed,
-                "research_loop",
-                self._project_root,
-                Path(workspace),
-                system_prompt=SYSTEM,
-                tools=tools,
-            )
+            options: dict[str, Any] = {"system_prompt": SYSTEM, "tools": tools}
+            if self._usage_meter is not None:
+                options["usage_meter"] = self._usage_meter
+            response = self._agent(framed, "research_loop", self._project_root, Path(workspace), **options)
         else:
-            response = self._chat(SYSTEM, framed)
+            response = (
+                self._chat(SYSTEM, framed, usage_meter=self._usage_meter)
+                if self._usage_meter is not None
+                else self._chat(SYSTEM, framed)
+            )
 
         payload = extract_json(str((response or {}).get("content") or ""))
         if not isinstance(payload, dict):

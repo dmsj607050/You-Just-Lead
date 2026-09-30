@@ -26,7 +26,7 @@ const ICONS = {
 function icon(name, size = 18) {
   const path = ICONS[name] || ICONS.grid;
   return (
-    `<svg class="nav-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
+    `<svg class="nav-icon" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
     `stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">` +
     `<path d="${path}"/></svg>`
   );

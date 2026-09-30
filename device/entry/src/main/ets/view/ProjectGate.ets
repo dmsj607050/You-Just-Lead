@@ -20,6 +20,11 @@ export struct ProjectGate {
    * 由它读一次 this.lang，等于把用到的节点登记到语言变化上。
    */
   @StorageLink('lang') lang: string = 'zh';
+  /** 当前云账号与余额；项目选择页也必须提供退出入口。 */
+  @Prop accountUsername: string = '';
+  @Prop creditBalance: number = 0;
+  onSignOut: () => void = () => {
+  };
   /** 选中某个项目后进入工作台。 */
   onEnter: (project: ProjectSummary) => void = () => {
   };
@@ -32,6 +37,11 @@ export struct ProjectGate {
   @State creating: boolean = false;
   /** 正在行内二次确认删除的项目 id；空串表示没有。 */
   @State pendingDeleteId: string = '';
+  /** 云端项目是主路径；本地/离线工作区默认收起，但仍可从此处或设置进入。 */
+  @State localToolsExpanded: boolean = false;
+  /** 窄窗口隐藏较长标语，给语言切换和品牌名留出空间。 */
+  @State compactHeader: boolean = false;
+  @State tightHeader: boolean = false;
 
   aboutToAppear(): void {
     this.load();
@@ -45,6 +55,11 @@ export struct ProjectGate {
   /** 带占位符取文案。 */
   private trf(key: string, args: string[]): string {
     return tfFor(this.lang, key, args);
+  }
+
+  /** 用 key 重建折叠区，避免 ArkUI Builder 保留旧子树。 */
+  private localToolsKeys(): string[] {
+    return [this.localToolsExpanded ? 'expanded' : 'collapsed'];
   }
 
   /** 列出后端已有的项目。 */
@@ -209,35 +224,37 @@ export struct ProjectGate {
       Row() {
         // 品牌标记（无文字版 logo）；标语走 i18n，切换语言时才不会留着中文。
         Image($r('app.media.logo_mark'))
-          .width(30)
-          .height(30)
+          .width(this.tightHeader ? 24 : 30)
+          .height(this.tightHeader ? 24 : 30)
           .objectFit(ImageFit.Contain)
         Text('You Just Lead')
-          .fontSize(19)
+          .fontSize(this.tightHeader ? 16 : (this.compactHeader ? 17 : 19))
           .fontWeight(FontWeight.Bold)
           .fontColor(AppTheme.TEXT_PRIMARY)
-          .margin({ left: 12 })
-        Divider()
-          .vertical(true)
-          .height(20)
-          .color(AppTheme.BORDER)
-          .margin({ left: 16, right: 16 })
-        Text(this.tr('topbar.tagline'))
-          .fontSize(14)
-          .fontColor(AppTheme.TEXT_SECONDARY)
+          .margin({ left: this.tightHeader ? 8 : 12 })
+        if (!this.compactHeader) {
+          Divider()
+            .vertical(true)
+            .height(20)
+            .color(AppTheme.BORDER)
+            .margin({ left: 16, right: 16 })
+          Text(this.tr('topbar.tagline'))
+            .fontSize(14)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+        }
 
         Blank()
 
         // 还没进工作台就没有账户菜单，语言切换留在这里，免得选项目时被语言卡住。
         Row() {
-          AppIcon({ commands: IconPaths.GLOBE, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: 18 })
+          AppIcon({ commands: IconPaths.GLOBE, color: AppTheme.TEXT_SECONDARY, filled: false, iconSize: this.tightHeader ? 16 : 18 })
           Text(langName(this.lang))
             .fontSize(13)
             .fontColor(AppTheme.TEXT_SECONDARY)
-            .margin({ left: 8 })
+            .margin({ left: this.tightHeader ? 6 : 8 })
         }
         .height(34)
-        .padding({ left: 12, right: 12 })
+        .padding({ left: this.tightHeader ? 8 : 12, right: this.tightHeader ? 8 : 12 })
         .borderRadius(AppTheme.RADIUS_SM)
         .alignItems(VerticalAlign.Center)
         .onClick(() => {
@@ -246,9 +263,20 @@ export struct ProjectGate {
       }
       .width('100%')
       .height(AppTheme.TOPBAR_HEIGHT)
-      .padding({ left: 24, right: 24 })
+      .padding({ left: this.tightHeader ? 12 : (this.compactHeader ? 16 : 24), right: this.tightHeader ? 12 : (this.compactHeader ? 16 : 24) })
       .backgroundColor(AppTheme.SURFACE)
       .alignItems(VerticalAlign.Center)
+      .onAreaChange((_oldArea: Area, newArea: Area) => {
+        const width = Number(newArea.width);
+        const compact = width < 640;
+        const tight = width < 400;
+        if (this.compactHeader !== compact) {
+          this.compactHeader = compact;
+        }
+        if (this.tightHeader !== tight) {
+          this.tightHeader = tight;
+        }
+      })
 
       Divider().color(AppTheme.BORDER)
 
@@ -259,6 +287,36 @@ export struct ProjectGate {
               .fontSize(26)
               .fontWeight(FontWeight.Bold)
               .fontColor(AppTheme.TEXT_PRIMARY)
+
+            Row() {
+              Column() {
+                Text(this.accountUsername)
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(AppTheme.TEXT_PRIMARY)
+                Text(`${this.tr('auth.balance')}：${this.creditBalance.toFixed(2)}`)
+                  .fontSize(12)
+                  .fontColor(AppTheme.TEXT_TERTIARY)
+                  .margin({ top: 4 })
+              }
+              .alignItems(HorizontalAlign.Start)
+
+              Blank()
+
+              Text(this.tr('auth.signOut'))
+                .fontSize(13)
+                .fontColor(AppTheme.PRIMARY_DARK)
+                .onClick(() => {
+                  this.onSignOut();
+                })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            .padding(16)
+            .margin({ top: 16 })
+            .backgroundColor(AppTheme.SURFACE)
+            .borderRadius(AppTheme.RADIUS)
+            .border({ width: 1, color: AppTheme.BORDER })
 
             if (this.errorText.length > 0) {
               Column() {
@@ -357,9 +415,46 @@ export struct ProjectGate {
             .borderRadius(AppTheme.RADIUS_LG)
             .border({ width: 1, color: AppTheme.BORDER })
 
-            // 本地工作区放在启动页：它是端侧自足的入口，后端没起来时也必须走得到。
-            LocalWorkspaceCard()
-              .margin({ top: 20 })
+            // 云端新用户先看到项目主路径；本地/离线工具保留在折叠区，完整能力也在设置页可用。
+            Column() {
+              Row() {
+                Column() {
+                  Text(this.tr('gate.localToolsTitle'))
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(AppTheme.TEXT_SECONDARY)
+                  Text(this.tr('gate.localToolsHint'))
+                    .fontSize(12)
+                    .fontColor(AppTheme.TEXT_TERTIARY)
+                    .margin({ top: 4 })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+
+                Text(this.localToolsExpanded ? this.tr('gate.localToolsCollapse') : this.tr('gate.localToolsExpand'))
+                  .fontSize(13)
+                  .fontColor(AppTheme.PRIMARY)
+                  .margin({ left: 12 })
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+              .padding(16)
+              .onClick(() => {
+                this.localToolsExpanded = !this.localToolsExpanded;
+              })
+
+              ForEach(this.localToolsKeys(), (key: string) => {
+                if (key === 'expanded') {
+                  LocalWorkspaceCard()
+                    .margin({ top: 12 })
+                }
+              }, (key: string) => key)
+            }
+            .width('100%')
+            .margin({ top: 20 })
+            .backgroundColor(AppTheme.SURFACE)
+            .borderRadius(AppTheme.RADIUS_LG)
+            .border({ width: 1, color: AppTheme.BORDER })
 
             if (this.loading) {
               Text(this.tr('common.loading'))
